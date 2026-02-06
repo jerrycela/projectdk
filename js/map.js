@@ -182,56 +182,77 @@ DK.Map = {
     const C = DK.COLORS;
     const rng = PA.seededRandom(variant * 137 + 42);
 
-    // Base fill - dark stone
-    PA.rect(ctx, x, y, 16, 16, C.WALL_MID);
+    // === DARK STONE BRICK WALL ===
+    // Very distinct from floor: deep purple-grey stone bricks with clear mortar
+    PA.rect(ctx, x, y, 16, 16, C.WALL_DARK);
 
-    // Stone brick pattern - 2 rows of bricks
-    // Top row: 2 bricks
-    const offset = variant % 2 === 0 ? 0 : 4;
+    // Brick layout: 3 rows of staggered bricks
+    const brickRows = [
+      { y: 0, h: 5, offsets: variant % 2 === 0 ? [0, 6, 12] : [0, 8] },
+      { y: 6, h: 4, offsets: variant % 2 === 0 ? [0, 8] : [0, 5, 11] },
+      { y: 11, h: 5, offsets: variant % 2 === 0 ? [0, 6, 12] : [0, 8] },
+    ];
 
-    // Mortar lines (horizontal)
-    PA.rect(ctx, x, y + 7, 16, 1, C.WALL_MORTAR);
-    PA.rect(ctx, x, y + 15, 16, 1, C.WALL_MORTAR);
+    // Draw mortar grid first (dark lines between bricks)
+    PA.rect(ctx, x, y + 5, 16, 1, C.WALL_MORTAR);
+    PA.rect(ctx, x, y + 10, 16, 1, C.WALL_MORTAR);
 
-    // Mortar lines (vertical) - staggered
-    PA.rect(ctx, x + 7 + offset, y, 1, 8, C.WALL_MORTAR);
-    PA.rect(ctx, x + 7 - offset + 8, y + 8, 1, 7, C.WALL_MORTAR);
+    // Draw each brick row
+    for (const row of brickRows) {
+      for (let i = 0; i < row.offsets.length; i++) {
+        const bx = x + row.offsets[i];
+        const bw = (i < row.offsets.length - 1)
+          ? row.offsets[i + 1] - row.offsets[i] - 1
+          : 16 - row.offsets[i];
+        const by = y + row.y;
 
-    // Brick shading - top-left highlight, bottom-right shadow
-    // Top row bricks
-    for (let bx = 0; bx < 2; bx++) {
-      const brickX = x + bx * 8 + (bx === 0 ? 0 : offset);
-      const brickW = bx === 0 ? 7 + offset : 16 - 7 - offset;
+        // Brick body - vary color per brick
+        const brickShade = rng() > 0.5 ? C.WALL_MID : C.WALL_LIGHT;
+        PA.rect(ctx, bx, by, bw, row.h, brickShade);
 
-      // Highlight on top edge
-      PA.rect(ctx, brickX, y, Math.min(brickW, 16 - brickX + x), 1, C.WALL_LIGHT);
-      // Shadow on bottom edge
-      PA.rect(ctx, brickX, y + 6, Math.min(brickW, 16 - brickX + x), 1, C.WALL_DARK);
+        // Top-left highlight (light catches top edge)
+        PA.rect(ctx, bx, by, bw, 1, C.WALL_HIGHLIGHT);
+        PA.rect(ctx, bx, by, 1, row.h, PA.lighten(brickShade, 12));
+
+        // Bottom-right shadow
+        PA.rect(ctx, bx, by + row.h - 1, bw, 1, C.WALL_DARK);
+        PA.rect(ctx, bx + bw - 1, by, 1, row.h, C.WALL_DARK);
+
+        // Vertical mortar between bricks
+        if (i < row.offsets.length - 1) {
+          PA.rect(ctx, bx + bw, by, 1, row.h, C.WALL_MORTAR);
+        }
+
+        // Texture noise on brick face
+        for (let t = 0; t < 3; t++) {
+          const tx = bx + 1 + Math.floor(rng() * Math.max(1, bw - 2));
+          const ty = by + 1 + Math.floor(rng() * Math.max(1, row.h - 2));
+          PA.pixel(ctx, tx, ty, rng() > 0.5 ? C.WALL_DARK : C.WALL_HIGHLIGHT);
+        }
+      }
     }
 
-    // Bottom row bricks
-    for (let bx = 0; bx < 2; bx++) {
-      const brickX = x + bx * 8 + (bx === 0 ? 0 : 8 - offset);
-      // Highlight
-      PA.rect(ctx, brickX, y + 8, 7, 1, C.WALL_LIGHT);
-      // Shadow
-      PA.rect(ctx, brickX, y + 14, 7, 1, C.WALL_DARK);
-    }
-
-    // Random texture details
-    for (let i = 0; i < 6; i++) {
-      const px = x + Math.floor(rng() * 14) + 1;
-      const py = y + Math.floor(rng() * 14) + 1;
-      const shade = rng() > 0.5 ? C.WALL_DARK : C.WALL_HIGHLIGHT;
-      PA.pixel(ctx, px, py, shade);
-    }
-
-    // Occasional moss
+    // Moss / cracks (variant-dependent character)
     if (variant === 2) {
+      // Moss growing in mortar
+      PA.pixel(ctx, x + 2, y + 5, C.WALL_MOSS);
       PA.pixel(ctx, x + 3, y + 5, C.WALL_MOSS);
-      PA.pixel(ctx, x + 4, y + 5, C.WALL_MOSS);
-      PA.pixel(ctx, x + 3, y + 6, '#1e3a1e');
+      PA.pixel(ctx, x + 3, y + 4, '#2a5a2a');
+      PA.pixel(ctx, x + 11, y + 10, C.WALL_MOSS);
+      PA.pixel(ctx, x + 12, y + 10, '#1e3a1e');
     }
+    if (variant === 3) {
+      // Crack in brick
+      PA.pixel(ctx, x + 9, y + 2, C.WALL_MORTAR);
+      PA.pixel(ctx, x + 10, y + 3, C.WALL_MORTAR);
+      PA.pixel(ctx, x + 10, y + 4, C.WALL_MORTAR);
+    }
+
+    // Subtle dark vignette at edges (depth cue)
+    PA.pixel(ctx, x, y, C.WALL_MORTAR);
+    PA.pixel(ctx, x + 15, y, C.WALL_MORTAR);
+    PA.pixel(ctx, x, y + 15, C.WALL_MORTAR);
+    PA.pixel(ctx, x + 15, y + 15, C.WALL_MORTAR);
   },
 
   drawFloorTile(ctx, x, y, variant) {
@@ -239,77 +260,140 @@ DK.Map = {
     const C = DK.COLORS;
     const rng = PA.seededRandom(variant * 251 + 73);
 
-    // Base fill - sandy/stone floor
+    // === WARM SANDSTONE FLOOR ===
+    // Very distinct from walls: warm brown/tan with clear flagstone pattern
     PA.rect(ctx, x, y, 16, 16, C.FLOOR_MID);
 
-    // Flagstone pattern - larger irregular stones
-    // Grid lines for flagstones
-    const gx = variant % 2 === 0 ? 5 : 7;
-    const gy = variant < 2 ? 5 : 8;
+    // Large flagstone pattern (2x2 grid of stones with gaps)
+    const stones = [
+      { sx: 0, sy: 0, sw: 7, sh: 7 },
+      { sx: 8, sy: 0, sw: 8, sh: 7 },
+      { sx: 0, sy: 8, sw: 8, sh: 8 },
+      { sx: 9, sy: 8, sw: 7, sh: 8 },
+    ];
 
-    // Subtle grid lines
+    if (variant === 1) {
+      // Alternate pattern
+      stones[0] = { sx: 0, sy: 0, sw: 9, sh: 8 };
+      stones[1] = { sx: 10, sy: 0, sw: 6, sh: 6 };
+      stones[2] = { sx: 0, sy: 9, sw: 6, sh: 7 };
+      stones[3] = { sx: 7, sy: 7, sw: 9, sh: 9 };
+    } else if (variant === 2) {
+      stones[0] = { sx: 0, sy: 0, sw: 10, sh: 6 };
+      stones[1] = { sx: 11, sy: 0, sw: 5, sh: 8 };
+      stones[2] = { sx: 0, sy: 7, sw: 7, sh: 9 };
+      stones[3] = { sx: 8, sy: 9, sw: 8, sh: 7 };
+    }
+
+    // Draw each flagstone
+    for (const stone of stones) {
+      const sx = x + stone.sx;
+      const sy = y + stone.sy;
+      const shade = rng() > 0.5 ? C.FLOOR_MID : C.FLOOR_LIGHT;
+
+      // Stone body
+      PA.rect(ctx, sx, sy, stone.sw, stone.sh, shade);
+
+      // Top-left highlight (warm light from above)
+      PA.rect(ctx, sx, sy, stone.sw, 1, C.FLOOR_HIGHLIGHT);
+      PA.rect(ctx, sx, sy, 1, stone.sh, C.FLOOR_HIGHLIGHT);
+
+      // Bottom-right shadow
+      PA.rect(ctx, sx, sy + stone.sh - 1, stone.sw, 1, C.FLOOR_DARK);
+      PA.rect(ctx, sx + stone.sw - 1, sy, 1, stone.sh, C.FLOOR_DARK);
+
+      // Interior texture (tiny pebbles and grain)
+      for (let t = 0; t < 4; t++) {
+        const tx = sx + 1 + Math.floor(rng() * Math.max(1, stone.sw - 3));
+        const ty = sy + 1 + Math.floor(rng() * Math.max(1, stone.sh - 3));
+        PA.pixel(ctx, tx, ty, rng() > 0.6 ? C.FLOOR_LIGHT : C.FLOOR_DARK);
+      }
+
+      // Warm highlight spot (light reflection)
+      const hx = sx + 1 + Math.floor(rng() * Math.max(1, stone.sw - 3));
+      const hy = sy + 1 + Math.floor(rng() * Math.max(1, stone.sh - 3));
+      PA.pixel(ctx, hx, hy, '#9a9080');
+    }
+
+    // Mortar/gap between stones (dark cracks)
+    // Horizontal gap
+    const gy = variant < 2 ? 7 : 8;
     for (let i = 0; i < 16; i++) {
-      if (i === gx || i === gx + 6) {
-        for (let j = 0; j < 16; j++) {
-          if (rng() > 0.3) PA.pixel(ctx, x + i, y + j, C.FLOOR_CRACK);
-        }
-      }
-      if (i === gy || i === gy + 6) {
-        for (let j = 0; j < 16; j++) {
-          if (rng() > 0.3) PA.pixel(ctx, x + j, y + i, C.FLOOR_CRACK);
-        }
-      }
+      PA.pixel(ctx, x + i, y + gy, C.FLOOR_CRACK);
+    }
+    // Vertical gap
+    const gx = variant % 2 === 0 ? 7 : 9;
+    for (let i = 0; i < gy; i++) {
+      PA.pixel(ctx, x + gx, y + i, C.FLOOR_CRACK);
+    }
+    const gx2 = variant % 2 === 0 ? 8 : 7;
+    for (let i = gy + 1; i < 16; i++) {
+      PA.pixel(ctx, x + gx2, y + i, C.FLOOR_CRACK);
     }
 
-    // Stone highlights
-    PA.pixel(ctx, x + 2, y + 2, C.FLOOR_HIGHLIGHT);
-    PA.pixel(ctx, x + 10, y + 3, C.FLOOR_HIGHLIGHT);
-    PA.pixel(ctx, x + 4, y + 10, C.FLOOR_HIGHLIGHT);
-    PA.pixel(ctx, x + 12, y + 11, C.FLOOR_HIGHLIGHT);
-
-    // Random texture
-    for (let i = 0; i < 8; i++) {
-      const px = x + Math.floor(rng() * 14) + 1;
-      const py = y + Math.floor(rng() * 14) + 1;
-      PA.pixel(ctx, px, py, rng() > 0.5 ? C.FLOOR_DARK : C.FLOOR_LIGHT);
-    }
-
-    // Subtle directional pattern (tiny pebbles)
+    // Scattered dust / sand particles
     if (variant === 1 || variant === 3) {
-      PA.pixel(ctx, x + 7, y + 7, C.FLOOR_DARK);
-      PA.pixel(ctx, x + 8, y + 8, C.FLOOR_DARK);
+      PA.pixel(ctx, x + 3, y + 12, '#8a8070');
+      PA.pixel(ctx, x + 12, y + 4, '#7a7060');
     }
   },
 
   drawEntranceTile(ctx, x, y) {
     const PA = DK.PixelArt;
     this.drawFloorTile(ctx, x, y, 0);
-    // Green entrance marker
-    PA.rect(ctx, x + 2, y + 6, 2, 4, '#44aa44');
-    PA.rect(ctx, x + 1, y + 7, 1, 2, '#44aa44');
-    // Arrow pointing right
-    PA.pixel(ctx, x + 4, y + 7, '#66cc66');
-    PA.pixel(ctx, x + 4, y + 8, '#66cc66');
-    PA.pixel(ctx, x + 5, y + 7, '#66cc66');
+
+    // Green glowing entrance portal
+    PA.rect(ctx, x + 1, y + 4, 4, 8, '#22662a');
+    PA.rect(ctx, x + 2, y + 5, 2, 6, '#44aa44');
+    // Glow effect
+    PA.pixel(ctx, x + 2, y + 4, '#66cc66');
+    PA.pixel(ctx, x + 3, y + 4, '#66cc66');
+    PA.pixel(ctx, x + 2, y + 11, '#66cc66');
+    PA.pixel(ctx, x + 3, y + 11, '#66cc66');
+    // Arrow indicator pointing right
+    PA.pixel(ctx, x + 5, y + 7, '#88ee88');
+    PA.pixel(ctx, x + 5, y + 8, '#88ee88');
+    PA.pixel(ctx, x + 6, y + 8, '#66cc66');
+    // Bright center
+    PA.pixel(ctx, x + 2, y + 7, '#aaffaa');
+    PA.pixel(ctx, x + 3, y + 8, '#aaffaa');
   },
 
   drawExitTile(ctx, x, y) {
     const PA = DK.PixelArt;
     this.drawFloorTile(ctx, x, y, 0);
-    // Red exit marker
-    PA.rect(ctx, x + 12, y + 6, 2, 4, '#cc4444');
-    PA.rect(ctx, x + 14, y + 7, 1, 2, '#cc4444');
-    // Arrow pointing right
-    PA.pixel(ctx, x + 11, y + 7, '#ff6666');
-    PA.pixel(ctx, x + 11, y + 8, '#ff6666');
+
+    // Red glowing exit portal
+    PA.rect(ctx, x + 11, y + 4, 4, 8, '#662222');
+    PA.rect(ctx, x + 12, y + 5, 2, 6, '#cc4444');
+    // Glow effect
+    PA.pixel(ctx, x + 12, y + 4, '#ff6666');
+    PA.pixel(ctx, x + 13, y + 4, '#ff6666');
+    PA.pixel(ctx, x + 12, y + 11, '#ff6666');
+    PA.pixel(ctx, x + 13, y + 11, '#ff6666');
+    // Arrow indicator
+    PA.pixel(ctx, x + 10, y + 7, '#ff8888');
+    PA.pixel(ctx, x + 10, y + 8, '#ff8888');
+    // Bright center
+    PA.pixel(ctx, x + 12, y + 7, '#ffaaaa');
+    PA.pixel(ctx, x + 13, y + 8, '#ffaaaa');
+    // Warning symbol
+    PA.pixel(ctx, x + 7, y + 7, '#ff4444');
+    PA.pixel(ctx, x + 8, y + 7, '#ff4444');
+    PA.pixel(ctx, x + 7, y + 8, '#ff4444');
+    PA.pixel(ctx, x + 8, y + 8, '#ff4444');
   },
 
   render(ctx) {
+    const PA = DK.PixelArt;
+    const T = DK.CONFIG.TILE_SIZE;
+
+    // First pass: draw all tiles
     for (let r = 0; r < this.layout.length; r++) {
       for (let c = 0; c < this.layout[r].length; c++) {
         const tile = this.layout[r][c];
-        const x = c * DK.CONFIG.TILE_SIZE;
-        const y = r * DK.CONFIG.TILE_SIZE;
+        const x = c * T;
+        const y = r * T;
 
         if (tile === 'W') {
           const variant = (c * 7 + r * 13) % 4;
@@ -321,6 +405,34 @@ DK.Map = {
         } else {
           const variant = (c * 11 + r * 17) % 4;
           ctx.drawImage(this.tileCache[`floor_${variant}`], x, y);
+        }
+      }
+    }
+
+    // Second pass: draw wall shadows on adjacent floor tiles (depth effect)
+    for (let r = 0; r < this.layout.length; r++) {
+      for (let c = 0; c < this.layout[r].length; c++) {
+        if (!this.isPath(c, r)) continue;
+        const x = c * T;
+        const y = r * T;
+
+        // Shadow from wall above
+        if (this.isWall(c, r - 1)) {
+          PA.rect(ctx, x, y, T, 2, 'rgba(10,8,20,0.4)');
+          PA.rect(ctx, x, y, T, 1, 'rgba(10,8,20,0.3)');
+        }
+        // Shadow from wall to the left
+        if (this.isWall(c - 1, r)) {
+          PA.rect(ctx, x, y, 2, T, 'rgba(10,8,20,0.3)');
+          PA.rect(ctx, x, y, 1, T, 'rgba(10,8,20,0.2)');
+        }
+        // Light edge from wall below (slight highlight)
+        if (this.isWall(c, r + 1)) {
+          PA.rect(ctx, x, y + T - 1, T, 1, 'rgba(100,90,70,0.15)');
+        }
+        // Light edge from wall to the right
+        if (this.isWall(c + 1, r)) {
+          PA.rect(ctx, x + T - 1, y, 1, T, 'rgba(100,90,70,0.1)');
         }
       }
     }
