@@ -213,21 +213,121 @@ DK.UI = {
 
   drawPixelBorder(ctx, x, y, w, h) {
     const C = DK.COLORS;
-    const s = 3; // pixel size for border
+    const s = 3; // pixel size for border segments
 
+    // Outer border
     ctx.fillStyle = C.UI_BORDER;
-    // Top border
-    for (let i = 0; i < w; i += s) {
-      ctx.fillRect(x + i, y, s, s);
-    }
-    // Bottom border
-    for (let i = 0; i < w; i += s) {
-      ctx.fillRect(x + i, y + h - s, s, s);
-    }
-    // Inner highlight
+    ctx.fillRect(x, y, w, s);
+    ctx.fillRect(x, y + h - s, w, s);
+    ctx.fillRect(x, y, s, h);
+    ctx.fillRect(x + w - s, y, s, h);
+
+    // Inner highlight (top and left)
     ctx.fillStyle = C.UI_BORDER_LIGHT;
-    for (let i = 0; i < w; i += s * 2) {
-      ctx.fillRect(x + i, y + s, s, s);
+    ctx.fillRect(x + s, y + s, w - s * 2, 1);
+    ctx.fillRect(x + s, y + s, 1, h - s * 2);
+
+    // Inner shadow (bottom and right)
+    ctx.fillStyle = '#1a1630';
+    ctx.fillRect(x + s, y + h - s - 1, w - s * 2, 1);
+    ctx.fillRect(x + w - s - 1, y + s, 1, h - s * 2);
+
+    // Corner decorations (pixel art diamonds)
+    ctx.fillStyle = C.UI_BORDER_LIGHT;
+    // Top-left corner
+    ctx.fillRect(x + s, y + s, 2, 2);
+    // Top-right corner
+    ctx.fillRect(x + w - s - 2, y + s, 2, 2);
+    // Bottom-left corner
+    ctx.fillRect(x + s, y + h - s - 2, 2, 2);
+    // Bottom-right corner
+    ctx.fillRect(x + w - s - 2, y + h - s - 2, 2, 2);
+  },
+
+  /**
+   * Draw a small pixel art icon representing a trap type
+   */
+  drawTrapIcon(ctx, x, y, trapId, size) {
+    const s = size || 24;
+    const hs = s / 2;
+
+    switch (trapId) {
+      case 'arrow_tower':
+        // Crossbow icon
+        ctx.fillStyle = '#8b6914';
+        ctx.fillRect(x + hs - 1, y + 4, 2, s - 8);
+        ctx.fillStyle = '#6b5010';
+        ctx.fillRect(x + 2, y + 6, s - 4, 2);
+        ctx.fillStyle = '#aaa888';
+        ctx.fillRect(x + 2, y + 9, 1, 1);
+        ctx.fillRect(x + s - 3, y + 9, 1, 1);
+        ctx.fillStyle = '#c0c8d0';
+        ctx.fillRect(x + hs - 1, y + s - 6, 2, 3);
+        break;
+
+      case 'flame_jet':
+        // Fire icon
+        ctx.fillStyle = '#aa6830';
+        ctx.fillRect(x + hs - 3, y + 2, 6, 6);
+        ctx.fillStyle = '#ff6622';
+        ctx.fillRect(x + hs - 2, y + 10, 4, 4);
+        ctx.fillStyle = '#ffaa44';
+        ctx.fillRect(x + hs - 1, y + 12, 2, 4);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + hs - 1, y + 14, 2, 2);
+        break;
+
+      case 'ice_trap':
+        // Crystal icon
+        ctx.fillStyle = '#44aaff';
+        ctx.fillRect(x + hs - 1, y + 2, 2, s - 4);
+        ctx.fillRect(x + 4, y + hs - 1, s - 8, 2);
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(x + hs - 1, y + hs - 1, 2, 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + hs, y + hs, 1, 1);
+        break;
+
+      case 'floor_spikes':
+        // Spike icon
+        ctx.fillStyle = '#3a3428';
+        ctx.fillRect(x + 2, y + s - 6, s - 4, 4);
+        ctx.fillStyle = '#a0a8b8';
+        for (let i = 0; i < 3; i++) {
+          const sx = x + 5 + i * 5;
+          ctx.fillRect(sx, y + 6, 2, s - 12);
+          ctx.fillStyle = '#d0d8e0';
+          ctx.fillRect(sx, y + 4, 2, 2);
+          ctx.fillStyle = '#a0a8b8';
+        }
+        break;
+
+      case 'tar_trap':
+        // Tar pool icon
+        ctx.fillStyle = '#1a1a2a';
+        ctx.beginPath();
+        ctx.ellipse(x + hs, y + hs + 2, hs - 4, hs - 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2a2a3a';
+        ctx.fillRect(x + hs - 2, y + hs - 1, 4, 2);
+        break;
+
+      case 'bomb_trap':
+        // Bomb icon
+        ctx.fillStyle = '#4a4a4a';
+        ctx.beginPath();
+        ctx.arc(x + hs, y + hs + 2, hs - 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5a5a5a';
+        ctx.beginPath();
+        ctx.arc(x + hs, y + hs + 2, hs - 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#c8a050';
+        ctx.fillRect(x + hs, y + 3, 1, 4);
+        ctx.fillRect(x + hs + 1, y + 2, 2, 1);
+        ctx.fillStyle = '#ffdd66';
+        ctx.fillRect(x + hs + 3, y + 1, 2, 2);
+        break;
     }
   },
 
@@ -237,36 +337,59 @@ DK.UI = {
     const game = DK.Game;
     const canAfford = btn.trap ? (game && game.gold >= btn.trap.cost) : true;
 
-    // Button background
-    ctx.fillStyle = isSelected ? '#2a2440' : C.UI_PANEL;
+    // Button background with gradient
+    const grad = ctx.createLinearGradient(btn.x, btn.y, btn.x, btn.y + btn.height);
+    if (isSelected) {
+      grad.addColorStop(0, '#302850');
+      grad.addColorStop(1, '#1e1838');
+    } else {
+      grad.addColorStop(0, '#241e36');
+      grad.addColorStop(1, '#181430');
+    }
+    ctx.fillStyle = grad;
     ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
 
-    // Button border
+    // Pixel art border
     ctx.strokeStyle = isSelected ? C.UI_SELECTED : C.UI_BORDER;
     ctx.lineWidth = isSelected ? 2 : 1;
     ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
 
+    // Inner highlight (top edge)
+    ctx.fillStyle = isSelected ? 'rgba(255,170,68,0.2)' : 'rgba(106,94,142,0.3)';
+    ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, 1);
+
     if (btn.action === 'start_wave') {
-      // Wave button
+      // Wave start button
       const isActive = game && game.waveActive;
-      ctx.fillStyle = isActive ? C.UI_TEXT_DIM : C.UI_WAVE;
-      ctx.font = DK.FONTS.bold(16);
+
+      // Pulsing border when available
+      if (!isActive && game && !game.gameOver) {
+        const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7;
+        ctx.strokeStyle = `rgba(68,170,255,${pulse})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
+      }
+
+      // Icon (sword or hourglass)
+      ctx.fillStyle = isActive ? C.UI_TEXT_DIM : '#66bbff';
+      ctx.font = DK.FONTS.bold(18);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(
+      this.drawTextWithOutline(ctx,
         isActive ? '進行中...' : btn.label,
         btn.x + btn.width / 2,
-        btn.y + btn.height / 2 - 8
+        btn.y + btn.height / 2 - 10,
+        isActive ? C.UI_TEXT_DIM : '#88ddff'
       );
 
-      // Wave number
+      // Wave counter
       if (game) {
-        ctx.fillStyle = C.UI_TEXT_DIM;
         ctx.font = DK.FONTS.body(12);
+        ctx.fillStyle = C.UI_TEXT_DIM;
         ctx.fillText(
           `第 ${game.currentWave + 1} / ${DK.WAVES.length} 波`,
           btn.x + btn.width / 2,
-          btn.y + btn.height / 2 + 12
+          btn.y + btn.height / 2 + 10
         );
       }
       return;
@@ -274,37 +397,53 @@ DK.UI = {
 
     if (!btn.trap) return;
 
-    // Trap type indicator (wall vs floor)
-    const typeColor = btn.trap.type === 'wall' ? '#6a5e8e' : '#5e6a4e';
-    const typeLabel = btn.trap.type === 'wall' ? '牆壁' : '地板';
-    ctx.fillStyle = typeColor;
-    ctx.fillRect(btn.x + 2, btn.y + 2, 30, 14);
+    // === Trap type badge (wall vs floor) ===
+    const isWall = btn.trap.type === 'wall';
+    const badgeColor = isWall ? '#4a3e6e' : '#3e5a3e';
+    const badgeBorder = isWall ? '#6a5e8e' : '#5e7a5e';
+    const badgeText = isWall ? '牆' : '地';
+
+    // Badge background
+    ctx.fillStyle = badgeColor;
+    ctx.fillRect(btn.x + 3, btn.y + 3, 20, 16);
+    ctx.strokeStyle = badgeBorder;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(btn.x + 3.5, btn.y + 3.5, 19, 15);
+
+    // Badge text
     ctx.fillStyle = '#e8e0d0';
-    ctx.font = DK.FONTS.bold(11);
+    ctx.font = DK.FONTS.bold(12);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(typeLabel, btn.x + 17, btn.y + 9);
+    ctx.fillText(badgeText, btn.x + 13, btn.y + 11);
 
-    // Trap name
+    // Mini trap icon (right side of badge area)
+    this.drawTrapIcon(ctx, btn.x + btn.width - 28, btn.y + 2, btn.trap.id, 22);
+
+    // Trap name (large, centered)
     ctx.fillStyle = canAfford ? C.UI_TEXT : '#664444';
     ctx.font = DK.FONTS.bold(15);
     ctx.textAlign = 'center';
-    ctx.fillText(btn.trap.name, btn.x + btn.width / 2, btn.y + 30);
+    ctx.fillText(btn.trap.name, btn.x + btn.width / 2, btn.y + 32);
 
-    // Cost
+    // Cost with gold icon
+    ctx.font = DK.FONTS.bold(13);
     ctx.fillStyle = canAfford ? C.UI_GOLD : '#664400';
-    ctx.font = DK.FONTS.body(12);
-    ctx.fillText(`${btn.trap.cost} 金`, btn.x + btn.width / 2, btn.y + 48);
+    ctx.fillText(`⚙ ${btn.trap.cost} 金`, btn.x + btn.width / 2, btn.y + 48);
 
-    // Damage info
-    if (btn.trap.damage > 0) {
-      ctx.fillStyle = C.UI_TEXT_DIM;
-      ctx.font = DK.FONTS.body(11);
+    // Stats row
+    ctx.font = DK.FONTS.body(11);
+    if (btn.trap.damage > 0 && btn.trap.slowAmount) {
+      ctx.fillStyle = '#cc8888';
+      ctx.fillText(`傷害:${btn.trap.damage}`, btn.x + btn.width / 2 - 20, btn.y + 62);
+      ctx.fillStyle = C.TRAP_ICE;
+      ctx.fillText('減速', btn.x + btn.width / 2 + 25, btn.y + 62);
+    } else if (btn.trap.damage > 0) {
+      ctx.fillStyle = '#cc8888';
       ctx.fillText(`傷害: ${btn.trap.damage}`, btn.x + btn.width / 2, btn.y + 62);
     } else if (btn.trap.slowAmount) {
       ctx.fillStyle = C.TRAP_ICE;
-      ctx.font = DK.FONTS.body(11);
-      ctx.fillText('減速效果', btn.x + btn.width / 2, btn.y + 62);
+      ctx.fillText(`減速: ${Math.round(btn.trap.slowAmount * 100)}%`, btn.x + btn.width / 2, btn.y + 62);
     }
   },
 
