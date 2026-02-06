@@ -180,64 +180,178 @@ DK.Traps = {
     const PA = DK.PixelArt;
     const C = DK.COLORS;
     const f = trap.facing || { dc: 0, dr: 1 };
+    const firing = trap.active || trap.cooldownTimer > trap.type.cooldown * 0.6;
 
     if (trap.type.id === 'arrow_tower') {
-      // Arrow tower: crossbow mechanism on wall
-      // Metal bracket
-      PA.rect(ctx, x + 5, y + 3, 6, 10, C.TRAP_METAL_DARK);
-      PA.rect(ctx, x + 6, y + 4, 4, 8, C.TRAP_METAL);
-      // Crossbow arms
-      PA.rect(ctx, x + 3, y + 5, 3, 2, C.TRAP_ARROW_WOOD);
-      PA.rect(ctx, x + 10, y + 5, 3, 2, C.TRAP_ARROW_WOOD);
-      // Arrow slot
-      PA.rect(ctx, x + 7, y + 7, 2, 4, C.WALL_MORTAR);
-      // Arrow tip
-      if (trap.active || trap.cooldownTimer > trap.type.cooldown * 0.7) {
-        PA.pixel(ctx, x + 7, y + 11, C.TRAP_ARROW_TIP);
-        PA.pixel(ctx, x + 8, y + 11, C.TRAP_ARROW_TIP);
+      // === ARROW TOWER: Medieval crossbow mechanism mounted on stone ===
+
+      // Wall mounting bracket (iron plate bolted to wall)
+      PA.rect(ctx, x + 3, y + 2, 10, 12, C.TRAP_METAL_DARK);
+      PA.rect(ctx, x + 4, y + 3, 8, 10, C.TRAP_METAL);
+
+      // Bracket corner rivets
+      PA.pixel(ctx, x + 3, y + 2, C.TRAP_METAL_LIGHT);
+      PA.pixel(ctx, x + 12, y + 2, C.TRAP_METAL_LIGHT);
+      PA.pixel(ctx, x + 3, y + 13, C.TRAP_METAL_LIGHT);
+      PA.pixel(ctx, x + 12, y + 13, C.TRAP_METAL_LIGHT);
+
+      // Crossbow body (wooden stock)
+      PA.rect(ctx, x + 5, y + 5, 6, 6, '#6b5010');
+      PA.rect(ctx, x + 6, y + 6, 4, 4, C.TRAP_ARROW_WOOD);
+
+      // Crossbow arms (curved bow limbs)
+      PA.rect(ctx, x + 2, y + 4, 3, 1, '#6b5010');
+      PA.pixel(ctx, x + 1, y + 5, '#6b5010');
+      PA.pixel(ctx, x + 1, y + 6, '#5a4010');
+      PA.rect(ctx, x + 11, y + 4, 3, 1, '#6b5010');
+      PA.pixel(ctx, x + 14, y + 5, '#6b5010');
+      PA.pixel(ctx, x + 14, y + 6, '#5a4010');
+
+      // Bowstring
+      PA.pixel(ctx, x + 1, y + 7, '#aaa888');
+      PA.pixel(ctx, x + 3, y + 7, '#aaa888');
+      PA.pixel(ctx, x + 5, y + 7, '#aaa888');
+      PA.pixel(ctx, x + 10, y + 7, '#aaa888');
+      PA.pixel(ctx, x + 12, y + 7, '#aaa888');
+      PA.pixel(ctx, x + 14, y + 7, '#aaa888');
+
+      // Arrow slot / guide rail
+      PA.rect(ctx, x + 7, y + 8, 2, 5, '#2a2020');
+
+      // Arrow (if loaded)
+      if (!firing) {
+        PA.rect(ctx, x + 7, y + 8, 2, 4, '#5a4010');
+        PA.pixel(ctx, x + 7, y + 12, C.TRAP_ARROW_TIP);
+        PA.pixel(ctx, x + 8, y + 12, C.TRAP_ARROW_TIP);
+        PA.pixel(ctx, x + 7, y + 13, '#d0d8e0');
       }
-      // Highlight
-      PA.pixel(ctx, x + 6, y + 4, C.TRAP_METAL_LIGHT);
+
+      // Metal highlight strip
+      PA.rect(ctx, x + 4, y + 3, 8, 1, C.TRAP_METAL_LIGHT);
+
+      // "WALL" indicator: mounting chains
+      PA.pixel(ctx, x + 5, y + 2, '#555555');
+      PA.pixel(ctx, x + 10, y + 2, '#555555');
+
     } else if (trap.type.id === 'flame_jet') {
-      // Flame jet: nozzle with fire
-      // Metal pipe
-      PA.rect(ctx, x + 5, y + 4, 6, 8, C.TRAP_METAL_DARK);
-      PA.rect(ctx, x + 6, y + 5, 4, 6, C.TRAP_METAL);
-      // Nozzle opening
-      PA.rect(ctx, x + 6, y + 10, 4, 2, C.WALL_MORTAR);
+      // === FLAME JET: Pressurized fire nozzle with fuel tank ===
+
+      // Wall mounting plate
+      PA.rect(ctx, x + 3, y + 1, 10, 14, C.TRAP_METAL_DARK);
+      PA.rect(ctx, x + 4, y + 2, 8, 12, '#4a4040');
+
+      // Fuel tank (copper colored)
+      PA.rect(ctx, x + 5, y + 2, 6, 5, '#8a5020');
+      PA.rect(ctx, x + 6, y + 3, 4, 3, '#aa6830');
+      // Tank highlight
+      PA.pixel(ctx, x + 6, y + 2, '#bb7840');
+      PA.pixel(ctx, x + 7, y + 2, '#bb7840');
+
+      // Pressure gauge
+      PA.pixel(ctx, x + 10, y + 3, '#cc4444');
+      PA.pixel(ctx, x + 10, y + 4, '#aa3333');
+
+      // Pipe from tank to nozzle
+      PA.rect(ctx, x + 7, y + 7, 2, 3, C.TRAP_METAL);
+
+      // Nozzle (wide flared opening)
+      PA.rect(ctx, x + 5, y + 10, 6, 2, C.TRAP_METAL);
+      PA.rect(ctx, x + 6, y + 11, 4, 2, C.TRAP_METAL_DARK);
+      PA.pixel(ctx, x + 7, y + 12, '#1a1010');
+      PA.pixel(ctx, x + 8, y + 12, '#1a1010');
+
       // Fire animation
-      if (trap.active || trap.cooldownTimer > trap.type.cooldown * 0.5) {
+      if (firing) {
         const frame = trap.animFrame;
-        PA.pixel(ctx, x + 7, y + 12, C.TRAP_FIRE);
-        PA.pixel(ctx, x + 8, y + 12, C.TRAP_FIRE);
-        PA.pixel(ctx, x + 7 + (frame % 2), y + 13, C.TRAP_FIRE_GLOW);
+        // Core flame
+        PA.pixel(ctx, x + 7, y + 13, '#ffffff');
+        PA.pixel(ctx, x + 8, y + 13, '#ffffff');
+        PA.pixel(ctx, x + 7, y + 14, C.TRAP_FIRE_GLOW);
+        PA.pixel(ctx, x + 8, y + 14, C.TRAP_FIRE_GLOW);
+        // Outer flame (animated)
+        PA.pixel(ctx, x + 6 + (frame % 2), y + 14, C.TRAP_FIRE);
+        PA.pixel(ctx, x + 9 - (frame % 2), y + 14, C.TRAP_FIRE);
+        PA.pixel(ctx, x + 7, y + 15, C.TRAP_FIRE);
+        PA.pixel(ctx, x + 8, y + 15, C.TRAP_FIRE);
         if (frame > 1) {
-          PA.pixel(ctx, x + 6, y + 13, C.TRAP_FIRE);
-          PA.pixel(ctx, x + 9, y + 13, C.TRAP_FIRE);
+          PA.pixel(ctx, x + 5, y + 14, '#ff4400');
+          PA.pixel(ctx, x + 10, y + 14, '#ff4400');
+          PA.pixel(ctx, x + 6, y + 15, C.TRAP_FIRE_GLOW);
+          PA.pixel(ctx, x + 9, y + 15, C.TRAP_FIRE_GLOW);
         }
       }
-      // Rivets
-      PA.pixel(ctx, x + 5, y + 5, C.TRAP_METAL_LIGHT);
-      PA.pixel(ctx, x + 10, y + 5, C.TRAP_METAL_LIGHT);
+
+      // Mounting bolts
+      PA.pixel(ctx, x + 3, y + 1, C.TRAP_METAL_LIGHT);
+      PA.pixel(ctx, x + 12, y + 1, C.TRAP_METAL_LIGHT);
+      PA.pixel(ctx, x + 3, y + 14, C.TRAP_METAL_LIGHT);
+      PA.pixel(ctx, x + 12, y + 14, C.TRAP_METAL_LIGHT);
+
     } else if (trap.type.id === 'ice_trap') {
-      // Ice trap: crystal emitter
-      // Crystal housing
-      PA.rect(ctx, x + 5, y + 3, 6, 10, C.TRAP_METAL_DARK);
-      PA.rect(ctx, x + 6, y + 4, 4, 8, '#334466');
-      // Ice crystal
-      PA.pixel(ctx, x + 7, y + 5, C.TRAP_ICE);
-      PA.pixel(ctx, x + 8, y + 5, C.TRAP_ICE);
+      // === ICE TRAP: Arcane crystal emitter with runic housing ===
+
+      // Ornate housing (blued steel)
+      PA.rect(ctx, x + 3, y + 2, 10, 12, '#2a3448');
+      PA.rect(ctx, x + 4, y + 3, 8, 10, '#334466');
+
+      // Decorative frame corners
+      PA.pixel(ctx, x + 3, y + 2, '#5566aa');
+      PA.pixel(ctx, x + 12, y + 2, '#5566aa');
+      PA.pixel(ctx, x + 3, y + 13, '#5566aa');
+      PA.pixel(ctx, x + 12, y + 13, '#5566aa');
+
+      // Rune marks on housing
+      PA.pixel(ctx, x + 4, y + 5, '#5588cc');
+      PA.pixel(ctx, x + 4, y + 7, '#5588cc');
+      PA.pixel(ctx, x + 4, y + 9, '#5588cc');
+      PA.pixel(ctx, x + 11, y + 5, '#5588cc');
+      PA.pixel(ctx, x + 11, y + 7, '#5588cc');
+      PA.pixel(ctx, x + 11, y + 9, '#5588cc');
+
+      // Central crystal (diamond shape)
+      PA.pixel(ctx, x + 7, y + 3, C.TRAP_ICE);
+      PA.pixel(ctx, x + 8, y + 3, C.TRAP_ICE);
+      PA.pixel(ctx, x + 6, y + 4, C.TRAP_ICE);
+      PA.pixel(ctx, x + 7, y + 4, C.TRAP_ICE_GLOW);
+      PA.pixel(ctx, x + 8, y + 4, C.TRAP_ICE_GLOW);
+      PA.pixel(ctx, x + 9, y + 4, C.TRAP_ICE);
+      PA.pixel(ctx, x + 6, y + 5, C.TRAP_ICE);
+      PA.pixel(ctx, x + 7, y + 5, '#ffffff');
+      PA.pixel(ctx, x + 8, y + 5, '#eeeeff');
+      PA.pixel(ctx, x + 9, y + 5, C.TRAP_ICE);
+      PA.pixel(ctx, x + 6, y + 6, C.TRAP_ICE);
       PA.pixel(ctx, x + 7, y + 6, C.TRAP_ICE_GLOW);
       PA.pixel(ctx, x + 8, y + 6, C.TRAP_ICE_GLOW);
+      PA.pixel(ctx, x + 9, y + 6, C.TRAP_ICE);
       PA.pixel(ctx, x + 7, y + 7, C.TRAP_ICE);
       PA.pixel(ctx, x + 8, y + 7, C.TRAP_ICE);
-      // Glow effect
-      if (trap.active) {
-        PA.pixel(ctx, x + 6, y + 6, C.TRAP_ICE_GLOW);
-        PA.pixel(ctx, x + 9, y + 6, C.TRAP_ICE_GLOW);
+
+      // Emitter channel
+      PA.rect(ctx, x + 7, y + 8, 2, 3, '#2a3448');
+      PA.pixel(ctx, x + 7, y + 8, C.TRAP_ICE);
+      PA.pixel(ctx, x + 8, y + 8, C.TRAP_ICE);
+
+      // Emission nozzle
+      PA.rect(ctx, x + 6, y + 11, 4, 2, '#334466');
+      PA.pixel(ctx, x + 7, y + 12, C.TRAP_ICE);
+      PA.pixel(ctx, x + 8, y + 12, C.TRAP_ICE);
+
+      // Active glow effect
+      if (firing || trap.active) {
+        PA.pixel(ctx, x + 5, y + 5, C.TRAP_ICE_GLOW);
+        PA.pixel(ctx, x + 10, y + 5, C.TRAP_ICE_GLOW);
+        PA.pixel(ctx, x + 7, y + 13, C.TRAP_ICE_GLOW);
+        PA.pixel(ctx, x + 8, y + 13, C.TRAP_ICE_GLOW);
+        // Frost particles
+        if (trap.animFrame % 2 === 0) {
+          PA.pixel(ctx, x + 6, y + 14, '#aaddff');
+          PA.pixel(ctx, x + 9, y + 13, '#aaddff');
+        }
       }
-      // Emission point
-      PA.rect(ctx, x + 7, y + 10, 2, 2, C.TRAP_ICE);
+
+      // Wall mounting hooks
+      PA.pixel(ctx, x + 5, y + 2, C.TRAP_METAL);
+      PA.pixel(ctx, x + 10, y + 2, C.TRAP_METAL);
     }
   },
 
