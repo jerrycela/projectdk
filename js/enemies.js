@@ -504,22 +504,72 @@ DK.Enemies = {
   renderDeath(ctx, enemy, x, y) {
     const PA = DK.PixelArt;
     const progress = enemy.deathTimer / 500;
-
-    // Scatter pixels outward
     const rng = PA.seededRandom(Math.round(enemy.x * 100 + enemy.y));
-    const baseColor = enemy.type.id === 'goblin' ? DK.COLORS.GOBLIN_SKIN :
-                      enemy.type.id === 'skeleton' ? DK.COLORS.SKELETON_BONE :
-                      enemy.type.id === 'orc' ? DK.COLORS.ORC_SKIN :
-                      DK.COLORS.SLIME_BODY;
 
-    for (let i = 0; i < 8; i++) {
-      const angle = rng() * Math.PI * 2;
-      const dist = progress * 10 * (0.5 + rng() * 0.5);
-      const px = Math.round(x + Math.cos(angle) * dist);
-      const py = Math.round(y + Math.sin(angle) * dist);
-      const alpha = 1 - progress;
-      if (alpha > 0) {
-        PA.pixel(ctx, px, py, baseColor);
+    // Get type-specific colors
+    const colors = {
+      goblin: [DK.COLORS.GOBLIN_SKIN, DK.COLORS.GOBLIN_DARK, '#6a4a2a'],
+      skeleton: [DK.COLORS.SKELETON_BONE, DK.COLORS.SKELETON_DARK, '#505860'],
+      orc: [DK.COLORS.ORC_SKIN, DK.COLORS.ORC_DARK, DK.COLORS.ORC_ARMOR],
+      slime: [DK.COLORS.SLIME_BODY, DK.COLORS.SLIME_LIGHT, DK.COLORS.SLIME_DARK],
+    }[enemy.type.id] || ['#ffffff', '#aaaaaa', '#666666'];
+
+    if (enemy.type.id === 'slime') {
+      // Slime: splash/splatter effect
+      const splashR = progress * 12;
+      for (let i = 0; i < 12; i++) {
+        const angle = rng() * Math.PI * 2;
+        const dist = splashR * (0.3 + rng() * 0.7);
+        const px = Math.round(x + Math.cos(angle) * dist);
+        const py = Math.round(y + Math.sin(angle) * dist);
+        if (progress < 0.7) {
+          PA.pixel(ctx, px, py, colors[i % 3]);
+        }
+        // Small puddle remains
+        if (progress > 0.3 && dist < 4) {
+          PA.pixel(ctx, px, py + 2, DK.COLORS.SLIME_DARK);
+        }
+      }
+    } else if (enemy.type.id === 'skeleton') {
+      // Skeleton: bones scatter and collapse
+      for (let i = 0; i < 10; i++) {
+        const angle = rng() * Math.PI * 2;
+        const dist = progress * 6 * (0.3 + rng() * 0.7);
+        const px = Math.round(x + Math.cos(angle) * dist);
+        const py = Math.round(y + Math.sin(angle) * dist + progress * 3);
+        if (progress < 0.8) {
+          const col = i % 2 === 0 ? colors[0] : colors[1];
+          PA.pixel(ctx, px, py, col);
+          if (rng() > 0.5) PA.pixel(ctx, px + 1, py, col);
+        }
+      }
+      // Skull last to fade
+      if (progress < 0.6) {
+        PA.pixel(ctx, x, y + Math.round(progress * 4), colors[0]);
+        PA.pixel(ctx, x + 1, y + Math.round(progress * 4), colors[0]);
+      }
+    } else {
+      // Goblin/Orc: burst into particles flying upward
+      for (let i = 0; i < 14; i++) {
+        const angle = rng() * Math.PI * 2;
+        const speed = 0.5 + rng() * 0.8;
+        const dist = progress * 10 * speed;
+        const px = Math.round(x + Math.cos(angle) * dist);
+        const py = Math.round(y + Math.sin(angle) * dist - progress * 4);
+        const col = colors[i % 3];
+
+        if (progress < 0.8) {
+          PA.pixel(ctx, px, py, col);
+        }
+      }
+      // Poof cloud
+      if (progress < 0.3) {
+        const cloudR = progress * 8;
+        for (let a = 0; a < 6; a++) {
+          const angle = (a / 6) * Math.PI * 2;
+          PA.pixel(ctx, Math.round(x + Math.cos(angle) * cloudR),
+                   Math.round(y + Math.sin(angle) * cloudR), '#888888');
+        }
       }
     }
   },
@@ -527,18 +577,24 @@ DK.Enemies = {
   renderHPBar(ctx, enemy, x, y) {
     const PA = DK.PixelArt;
     const hpPercent = enemy.hp / enemy.maxHp;
-    const barWidth = 10;
-    const barX = x - 5;
-    const barY = y - 9;
+    const barWidth = 12;
+    const barX = x - 6;
+    const barY = y - 10;
 
-    // Background
-    PA.rect(ctx, barX, barY, barWidth, 2, '#1a1a1a');
-    // HP fill
-    const fillColor = hpPercent > 0.5 ? '#44aa44' :
-                      hpPercent > 0.25 ? '#aaaa44' : '#aa4444';
-    PA.rect(ctx, barX, barY, Math.ceil(barWidth * hpPercent), 2, fillColor);
-    // Border pixels
-    PA.pixel(ctx, barX - 1, barY, '#333333');
-    PA.pixel(ctx, barX + barWidth, barY, '#333333');
+    // Only show when damaged
+    if (hpPercent >= 1) return;
+
+    // Background (dark with border)
+    PA.rect(ctx, barX - 1, barY - 1, barWidth + 2, 4, '#0a0a0a');
+    PA.rect(ctx, barX, barY, barWidth, 2, '#2a1a1a');
+
+    // HP fill with gradient effect
+    const fillWidth = Math.ceil(barWidth * hpPercent);
+    const fillColor = hpPercent > 0.6 ? '#44cc44' :
+                      hpPercent > 0.3 ? '#cccc44' : '#cc4444';
+    const fillHighlight = hpPercent > 0.6 ? '#66ee66' :
+                          hpPercent > 0.3 ? '#eeee66' : '#ee6666';
+    PA.rect(ctx, barX, barY + 1, fillWidth, 1, fillColor);
+    PA.rect(ctx, barX, barY, fillWidth, 1, fillHighlight);
   },
 };

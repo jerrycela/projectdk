@@ -197,6 +197,9 @@ DK.UI = {
       this.renderPlacementPreview(ctx);
     }
 
+    // Tooltip / placement hint
+    this.renderTooltip(ctx);
+
     // Messages
     this.renderMessages(ctx);
 
@@ -570,67 +573,150 @@ DK.UI = {
 
     for (const msg of this.messageQueue) {
       const alpha = Math.min(1, msg.timer / 500);
-      ctx.fillStyle = `rgba(255,100,100,${alpha})`;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Message background
       ctx.font = DK.FONTS.bold(16);
+      const metrics = ctx.measureText(msg.text);
+      const msgW = metrics.width + 24;
+      const msgX = DK.CONFIG.DISPLAY_WIDTH / 2 - msgW / 2;
+
+      ctx.fillStyle = 'rgba(80,20,20,0.9)';
+      ctx.fillRect(msgX, y - 12, msgW, 24);
+      ctx.strokeStyle = '#cc4444';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(msgX, y - 12, msgW, 24);
+
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ff8888';
       ctx.fillText(msg.text, DK.CONFIG.DISPLAY_WIDTH / 2, y);
-      y -= 25;
+
+      ctx.restore();
+      y -= 30;
+    }
+  },
+
+  renderTooltip(ctx) {
+    // Show placement hint when a trap is selected
+    if (this.selectedTrap && !DK.Game.gameOver) {
+      const C = DK.COLORS;
+      const hintText = this.selectedTrap.type === 'wall'
+        ? '點擊紫色牆壁放置  |  右鍵取消選擇'
+        : '點擊地板路徑放置  |  右鍵取消選擇';
+
+      ctx.font = DK.FONTS.body(12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(18,16,30,0.8)';
+      const metrics = ctx.measureText(hintText);
+      const tw = metrics.width + 16;
+      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
+      ctx.fillStyle = C.UI_TEXT_DIM;
+      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
     }
   },
 
   renderWaveAnnouncement(ctx) {
     const C = DK.COLORS;
-    const alpha = Math.min(1, this.waveStartTimer / 500);
     const game = DK.Game;
     if (!game) return;
 
-    ctx.fillStyle = `rgba(18,16,30,${alpha * 0.7})`;
-    ctx.fillRect(0, 250, DK.CONFIG.DISPLAY_WIDTH, 80);
+    const progress = 1 - this.waveStartTimer / 2000;
+    const alpha = progress < 0.2 ? progress * 5 :
+                  progress > 0.75 ? (1 - progress) * 4 : 1;
 
-    ctx.fillStyle = `rgba(232,224,208,${alpha})`;
-    ctx.font = DK.FONTS.heavy(30);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+    // Dark overlay band
+    ctx.fillStyle = 'rgba(18,16,30,0.85)';
+    ctx.fillRect(0, 240, DK.CONFIG.DISPLAY_WIDTH, 100);
+
+    // Top and bottom borders
+    ctx.fillStyle = C.UI_BORDER;
+    ctx.fillRect(0, 240, DK.CONFIG.DISPLAY_WIDTH, 2);
+    ctx.fillRect(0, 338, DK.CONFIG.DISPLAY_WIDTH, 2);
+    ctx.fillStyle = C.UI_BORDER_LIGHT;
+    for (let i = 0; i < DK.CONFIG.DISPLAY_WIDTH; i += 6) {
+      ctx.fillRect(i, 241, 3, 1);
+      ctx.fillRect(i, 337, 3, 1);
+    }
+
+    // Wave number (large)
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`第 ${game.currentWave + 1} 波`, DK.CONFIG.DISPLAY_WIDTH / 2, 280);
+    ctx.font = DK.FONTS.heavy(34);
+    this.drawTextWithOutline(ctx,
+      `第 ${game.currentWave + 1} 波`,
+      DK.CONFIG.DISPLAY_WIDTH / 2, 275,
+      '#e8e0d0', 'rgba(0,0,0,0.8)');
 
-    ctx.fillStyle = `rgba(138,128,112,${alpha})`;
-    ctx.font = DK.FONTS.body(16);
-    ctx.fillText('敵人來襲！', DK.CONFIG.DISPLAY_WIDTH / 2, 310);
+    // Subtitle
+    ctx.font = DK.FONTS.bold(16);
+    ctx.fillStyle = '#ff8866';
+    ctx.fillText('敵人來襲！準備防禦！', DK.CONFIG.DISPLAY_WIDTH / 2, 310);
+
+    // Enemy preview (which types in this wave)
+    if (DK.WAVES[game.currentWave]) {
+      const wave = DK.WAVES[game.currentWave];
+      const enemyNames = wave.enemies.map(e => {
+        const type = DK.ENEMY_TYPES[e.type];
+        return type ? `${type.name} x${e.count}` : '';
+      }).join('  |  ');
+      ctx.font = DK.FONTS.body(12);
+      ctx.fillStyle = C.UI_TEXT_DIM;
+      ctx.fillText(enemyNames, DK.CONFIG.DISPLAY_WIDTH / 2, 328);
+    }
+
+    ctx.restore();
   },
 
   renderGameOver(ctx) {
     const game = DK.Game;
     if (!game) return;
 
-    ctx.fillStyle = 'rgba(10,10,18,0.85)';
+    // Full-screen overlay
+    ctx.fillStyle = 'rgba(10,10,18,0.9)';
     ctx.fillRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
 
     const isVictory = game.lives > 0;
+    const cx = DK.CONFIG.DISPLAY_WIDTH / 2;
+    const cy = DK.CONFIG.DISPLAY_HEIGHT / 2 - 20;
 
-    ctx.fillStyle = isVictory ? '#44ff44' : '#ff4444';
-    ctx.font = DK.FONTS.heavy(38);
+    // Result panel
+    ctx.fillStyle = 'rgba(30,26,46,0.95)';
+    ctx.fillRect(cx - 200, cy - 80, 400, 200);
+    this.drawPixelBorder(ctx, cx - 200, cy - 80, 400, 200);
+
+    // Title
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(
-      isVictory ? '勝利！' : '失敗...',
-      DK.CONFIG.DISPLAY_WIDTH / 2,
-      DK.CONFIG.DISPLAY_HEIGHT / 2 - 30
-    );
+    ctx.font = DK.FONTS.heavy(40);
+    this.drawTextWithOutline(ctx,
+      isVictory ? '勝 利 ！' : '失 敗 ...',
+      cx, cy - 40,
+      isVictory ? '#44ff44' : '#ff4444',
+      'rgba(0,0,0,0.8)');
 
+    // Stats
+    ctx.font = DK.FONTS.bold(18);
     ctx.fillStyle = '#e8e0d0';
-    ctx.font = DK.FONTS.body(18);
-    ctx.fillText(
-      `存活波次: ${game.currentWave + 1}  |  剩餘金幣: ${game.gold}`,
-      DK.CONFIG.DISPLAY_WIDTH / 2,
-      DK.CONFIG.DISPLAY_HEIGHT / 2 + 20
-    );
+    ctx.fillText(`完成波次: ${game.currentWave}/${DK.WAVES.length}`, cx, cy + 10);
 
+    ctx.font = DK.FONTS.body(16);
+    ctx.fillStyle = DK.COLORS.UI_GOLD;
+    ctx.fillText(`剩餘金幣: ${game.gold}`, cx - 70, cy + 40);
+    ctx.fillStyle = DK.COLORS.UI_HP;
+    ctx.fillText(`剩餘生命: ${game.lives}`, cx + 70, cy + 40);
+
+    // Restart hint (pulsing)
+    const pulse = Math.sin(Date.now() / 600) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    ctx.font = DK.FONTS.bold(14);
     ctx.fillStyle = '#8a8070';
-    ctx.font = DK.FONTS.body(14);
-    ctx.fillText(
-      '點擊任意位置重新開始',
-      DK.CONFIG.DISPLAY_WIDTH / 2,
-      DK.CONFIG.DISPLAY_HEIGHT / 2 + 55
-    );
+    ctx.fillText('點擊任意位置重新開始', cx, cy + 80);
+    ctx.globalAlpha = 1;
   },
 };
