@@ -5,6 +5,21 @@
 window.DK = window.DK || {};
 
 DK.Map = {
+  // Torch positions (wall tiles with torches for ambient lighting)
+  torches: [
+    { col: 0, row: 1 },   // Near entrance
+    { col: 15, row: 2 },
+    { col: 2, row: 4 },
+    { col: 17, row: 5 },
+    { col: 15, row: 6 },
+    { col: 2, row: 8 },
+    { col: 17, row: 9 },
+    { col: 15, row: 10 },
+    { col: 19, row: 11 }, // Near exit
+    { col: 8, row: 0 },   // Top wall
+    { col: 10, row: 12 }, // Bottom wall
+  ],
+
   // Map layout: W=wall, .=path, E=entrance, X=exit
   layout: [
     'WWWWWWWWWWWWWWWWWWWW',
@@ -436,6 +451,94 @@ DK.Map = {
         }
       }
     }
+
+    // Third pass: render torches and their ambient glow
+    this.renderTorches(ctx);
+
+    // Fourth pass: subtle vignette darkening at map edges
+    this.renderVignette(ctx);
+  },
+
+  renderTorches(ctx) {
+    const PA = DK.PixelArt;
+    const T = DK.CONFIG.TILE_SIZE;
+    const time = DK.Game ? DK.Game.time : 0;
+
+    for (const torch of this.torches) {
+      const tx = torch.col * T;
+      const ty = torch.row * T;
+
+      // Torch bracket (metal)
+      PA.rect(ctx, tx + 6, ty + 3, 4, 2, '#586878');
+      PA.rect(ctx, tx + 7, ty + 5, 2, 4, '#6b5010');
+
+      // Flame (animated)
+      const flicker = Math.sin(time / 150 + torch.col * 3 + torch.row * 7) * 0.5 + 0.5;
+      const flicker2 = Math.sin(time / 100 + torch.col * 5) * 0.5 + 0.5;
+
+      // Flame core
+      PA.pixel(ctx, tx + 7, ty + 2, '#ffffff');
+      PA.pixel(ctx, tx + 8, ty + 2, '#ffffaa');
+      // Middle flame
+      PA.pixel(ctx, tx + 7, ty + 1, '#ffcc44');
+      PA.pixel(ctx, tx + 8, ty + 1, '#ffaa22');
+      // Outer flame (flickering)
+      if (flicker > 0.3) {
+        PA.pixel(ctx, tx + 6, ty + 2, '#ff6622');
+        PA.pixel(ctx, tx + 9, ty + 2, '#ff6622');
+      }
+      if (flicker2 > 0.5) {
+        PA.pixel(ctx, tx + 7, ty, '#ff8844');
+      }
+
+      // Ambient glow on surrounding tiles (warm orange light)
+      const glowRadius = 3;
+      const glowIntensity = 0.08 + flicker * 0.04;
+      for (let gr = -glowRadius; gr <= glowRadius; gr++) {
+        for (let gc = -glowRadius; gc <= glowRadius; gc++) {
+          const dist = Math.sqrt(gr * gr + gc * gc);
+          if (dist > glowRadius) continue;
+          const nr = torch.row + gr;
+          const nc = torch.col + gc;
+          if (nr < 0 || nr >= this.layout.length || nc < 0 || nc >= this.layout[0].length) continue;
+
+          const falloff = 1 - dist / glowRadius;
+          const alpha = glowIntensity * falloff * falloff;
+          if (alpha < 0.01) continue;
+
+          const gx = nc * T;
+          const gy = nr * T;
+          // Warm orange glow
+          ctx.fillStyle = `rgba(255,180,80,${alpha})`;
+          ctx.fillRect(gx, gy, T, T);
+        }
+      }
+    }
+  },
+
+  renderVignette(ctx) {
+    const PA = DK.PixelArt;
+    const T = DK.CONFIG.TILE_SIZE;
+    const W = DK.CONFIG.GAME_WIDTH;
+    const H = DK.CONFIG.GAME_HEIGHT;
+
+    // Subtle edge darkening for atmosphere
+    // Top edge
+    ctx.fillStyle = 'rgba(10,8,18,0.15)';
+    ctx.fillRect(0, 0, W, T);
+    // Bottom edge
+    ctx.fillRect(0, H - T, W, T);
+    // Left edge
+    ctx.fillRect(0, 0, T, H);
+    // Right edge
+    ctx.fillRect(W - T, 0, T, H);
+
+    // Corner darkening (stronger)
+    ctx.fillStyle = 'rgba(10,8,18,0.1)';
+    ctx.fillRect(0, 0, T * 2, T * 2);
+    ctx.fillRect(W - T * 2, 0, T * 2, T * 2);
+    ctx.fillRect(0, H - T * 2, T * 2, T * 2);
+    ctx.fillRect(W - T * 2, H - T * 2, T * 2, T * 2);
   },
 
   /**
