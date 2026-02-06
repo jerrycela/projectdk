@@ -170,7 +170,7 @@ window.DK = window.DK || {};
 
       ctx.fillStyle = effect.color;
       ctx.globalAlpha = alpha;
-      ctx.font = 'bold 14px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+      ctx.font = DK.FONTS.bold(14);
       ctx.textAlign = 'center';
       ctx.fillText(
         effect.text,

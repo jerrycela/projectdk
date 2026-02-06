@@ -4,6 +4,21 @@
  */
 window.DK = window.DK || {};
 
+// Font definitions for crisp Chinese rendering
+DK.FONTS = {
+  // Chinese text font stack (high quality, fallbacks for all platforms)
+  CN: '"Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Hiragino Sans GB", sans-serif',
+  // Pixel art accent font (for English labels/numbers)
+  PIXEL: '"Press Start 2P", monospace',
+
+  // Pre-built font strings for common sizes
+  title(size) { return `bold ${size}px ${this.CN}`; },
+  body(size) { return `${size}px ${this.CN}`; },
+  bold(size) { return `bold ${size}px ${this.CN}`; },
+  heavy(size) { return `900 ${size}px ${this.CN}`; },
+  pixel(size) { return `${size}px ${this.PIXEL}`; },
+};
+
 DK.UI = {
   selectedTrap: null,
   hoveredTile: null,
@@ -12,11 +27,24 @@ DK.UI = {
   showWaveStart: false,
   waveStartTimer: 0,
   messageQueue: [],
+  fontsReady: false,
 
   init() {
     this.selectedTrap = null;
     this.hoveredTile = null;
     this.buildButtons();
+    this.checkFonts();
+  },
+
+  checkFonts() {
+    // Ensure fonts are loaded before rendering text
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        this.fontsReady = true;
+      });
+    } else {
+      this.fontsReady = true;
+    }
   },
 
   buildButtons() {
@@ -222,7 +250,7 @@ DK.UI = {
       // Wave button
       const isActive = game && game.waveActive;
       ctx.fillStyle = isActive ? C.UI_TEXT_DIM : C.UI_WAVE;
-      ctx.font = 'bold 16px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+      ctx.font = DK.FONTS.bold(16);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(
@@ -234,7 +262,7 @@ DK.UI = {
       // Wave number
       if (game) {
         ctx.fillStyle = C.UI_TEXT_DIM;
-        ctx.font = '12px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+        ctx.font = DK.FONTS.body(12);
         ctx.fillText(
           `第 ${game.currentWave + 1} / ${DK.WAVES.length} 波`,
           btn.x + btn.width / 2,
@@ -252,32 +280,47 @@ DK.UI = {
     ctx.fillStyle = typeColor;
     ctx.fillRect(btn.x + 2, btn.y + 2, 30, 14);
     ctx.fillStyle = '#e8e0d0';
-    ctx.font = 'bold 10px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.bold(11);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(typeLabel, btn.x + 17, btn.y + 9);
 
     // Trap name
     ctx.fillStyle = canAfford ? C.UI_TEXT : '#664444';
-    ctx.font = 'bold 14px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.bold(15);
     ctx.textAlign = 'center';
     ctx.fillText(btn.trap.name, btn.x + btn.width / 2, btn.y + 30);
 
     // Cost
     ctx.fillStyle = canAfford ? C.UI_GOLD : '#664400';
-    ctx.font = '12px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.body(12);
     ctx.fillText(`${btn.trap.cost} 金`, btn.x + btn.width / 2, btn.y + 48);
 
     // Damage info
     if (btn.trap.damage > 0) {
       ctx.fillStyle = C.UI_TEXT_DIM;
-      ctx.font = '10px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+      ctx.font = DK.FONTS.body(11);
       ctx.fillText(`傷害: ${btn.trap.damage}`, btn.x + btn.width / 2, btn.y + 62);
     } else if (btn.trap.slowAmount) {
       ctx.fillStyle = C.TRAP_ICE;
-      ctx.font = '10px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+      ctx.font = DK.FONTS.body(11);
       ctx.fillText('減速效果', btn.x + btn.width / 2, btn.y + 62);
     }
+  },
+
+  /**
+   * Draw text with outline for readability
+   */
+  drawTextWithOutline(ctx, text, x, y, fillColor, outlineColor) {
+    ctx.fillStyle = outlineColor || 'rgba(0,0,0,0.6)';
+    for (let ox = -1; ox <= 1; ox++) {
+      for (let oy = -1; oy <= 1; oy++) {
+        if (ox === 0 && oy === 0) continue;
+        ctx.fillText(text, x + ox, y + oy);
+      }
+    }
+    ctx.fillStyle = fillColor;
+    ctx.fillText(text, x, y);
   },
 
   renderHUD(ctx) {
@@ -286,40 +329,49 @@ DK.UI = {
     if (!game) return;
 
     // Semi-transparent HUD bar at top
-    ctx.fillStyle = 'rgba(18,16,30,0.85)';
-    ctx.fillRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, 36);
+    ctx.fillStyle = 'rgba(18,16,30,0.9)';
+    ctx.fillRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, 40);
 
-    // Bottom border
+    // Bottom border (decorative pixel line)
     ctx.fillStyle = C.UI_BORDER;
-    ctx.fillRect(0, 34, DK.CONFIG.DISPLAY_WIDTH, 2);
+    ctx.fillRect(0, 38, DK.CONFIG.DISPLAY_WIDTH, 2);
+    ctx.fillStyle = C.UI_BORDER_LIGHT;
+    for (let i = 0; i < DK.CONFIG.DISPLAY_WIDTH; i += 6) {
+      ctx.fillRect(i, 37, 3, 1);
+    }
 
-    // Gold
-    ctx.fillStyle = C.UI_GOLD;
-    ctx.font = 'bold 18px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
-    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`💰 ${game.gold}`, 15, 18);
 
-    // Lives
-    ctx.fillStyle = C.UI_HP;
-    ctx.fillText(`❤️ ${game.lives}`, 160, 18);
+    // Gold icon + text
+    ctx.textAlign = 'left';
+    ctx.font = DK.FONTS.bold(18);
+    this.drawTextWithOutline(ctx, '金幣', 15, 20, C.UI_GOLD);
+    ctx.font = DK.FONTS.heavy(20);
+    this.drawTextWithOutline(ctx, `${game.gold}`, 70, 20, '#ffe040');
 
-    // Wave
-    ctx.fillStyle = C.UI_WAVE;
-    ctx.fillText(`🌊 波次 ${game.currentWave + 1}/${DK.WAVES.length}`, 310, 18);
+    // Lives icon + text
+    ctx.font = DK.FONTS.bold(18);
+    this.drawTextWithOutline(ctx, '生命', 160, 20, C.UI_HP);
+    ctx.font = DK.FONTS.heavy(20);
+    this.drawTextWithOutline(ctx, `${game.lives}`, 215, 20, '#ff6666');
+
+    // Wave info
+    ctx.font = DK.FONTS.bold(18);
+    this.drawTextWithOutline(ctx, '波次', 310, 20, C.UI_WAVE);
+    ctx.font = DK.FONTS.heavy(20);
+    this.drawTextWithOutline(ctx, `${game.currentWave + 1}/${DK.WAVES.length}`, 365, 20, '#66bbff');
 
     // Enemies remaining
     if (game.waveActive) {
-      ctx.fillStyle = C.UI_TEXT;
-      ctx.font = '14px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
-      ctx.fillText(`敵人: ${DK.Enemies.active.filter(e => e.alive).length} 存活`, 520, 18);
+      ctx.font = DK.FONTS.bold(16);
+      const aliveCount = DK.Enemies.active.filter(e => e.alive).length;
+      this.drawTextWithOutline(ctx, `存活敵人: ${aliveCount}`, 480, 20, C.UI_TEXT);
     }
 
     // Game title
-    ctx.fillStyle = C.UI_TEXT_DIM;
-    ctx.font = '14px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('地層塔防', DK.CONFIG.DISPLAY_WIDTH - 15, 18);
+    ctx.font = DK.FONTS.heavy(16);
+    this.drawTextWithOutline(ctx, '地層塔防', DK.CONFIG.DISPLAY_WIDTH - 15, 20, C.UI_TEXT_DIM);
   },
 
   renderHoverIndicator(ctx) {
@@ -380,7 +432,7 @@ DK.UI = {
     for (const msg of this.messageQueue) {
       const alpha = Math.min(1, msg.timer / 500);
       ctx.fillStyle = `rgba(255,100,100,${alpha})`;
-      ctx.font = 'bold 16px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+      ctx.font = DK.FONTS.bold(16);
       ctx.textAlign = 'center';
       ctx.fillText(msg.text, DK.CONFIG.DISPLAY_WIDTH / 2, y);
       y -= 25;
@@ -397,13 +449,13 @@ DK.UI = {
     ctx.fillRect(0, 250, DK.CONFIG.DISPLAY_WIDTH, 80);
 
     ctx.fillStyle = `rgba(232,224,208,${alpha})`;
-    ctx.font = 'bold 28px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.heavy(30);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`第 ${game.currentWave + 1} 波`, DK.CONFIG.DISPLAY_WIDTH / 2, 280);
 
     ctx.fillStyle = `rgba(138,128,112,${alpha})`;
-    ctx.font = '16px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.body(16);
     ctx.fillText('敵人來襲！', DK.CONFIG.DISPLAY_WIDTH / 2, 310);
   },
 
@@ -417,7 +469,7 @@ DK.UI = {
     const isVictory = game.lives > 0;
 
     ctx.fillStyle = isVictory ? '#44ff44' : '#ff4444';
-    ctx.font = 'bold 36px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.heavy(38);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(
@@ -427,7 +479,7 @@ DK.UI = {
     );
 
     ctx.fillStyle = '#e8e0d0';
-    ctx.font = '18px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.body(18);
     ctx.fillText(
       `存活波次: ${game.currentWave + 1}  |  剩餘金幣: ${game.gold}`,
       DK.CONFIG.DISPLAY_WIDTH / 2,
@@ -435,7 +487,7 @@ DK.UI = {
     );
 
     ctx.fillStyle = '#8a8070';
-    ctx.font = '14px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+    ctx.font = DK.FONTS.body(14);
     ctx.fillText(
       '點擊任意位置重新開始',
       DK.CONFIG.DISPLAY_WIDTH / 2,

@@ -1,5 +1,6 @@
 /* Dungeon Keep - Style */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+/* Load Noto Sans TC for crisp Chinese text + Press Start 2P for pixel headings */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Press+Start+2P&display=swap');
 
 * {
   margin: 0;
@@ -14,7 +15,9 @@ body {
   align-items: center;
   min-height: 100vh;
   overflow: hidden;
-  font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #game-container {
@@ -24,6 +27,9 @@ body {
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+  /* Pixel art border frame */
+  border: 3px solid #4a3e6e;
+  box-shadow: 0 0 20px rgba(74, 62, 110, 0.4), inset 0 0 10px rgba(0,0,0,0.5);
 }
 
 #game-canvas {
@@ -44,4 +50,5 @@ body {
   width: 960px;
   height: 720px;
   pointer-events: auto;
+  /* UI canvas should NOT have pixel rendering - we want smooth text */
 }
