@@ -358,62 +358,172 @@ DK.Traps = {
   renderFloorTrap(ctx, trap, x, y) {
     const PA = DK.PixelArt;
     const C = DK.COLORS;
+    const firing = trap.active || trap.cooldownTimer > trap.type.cooldown * 0.6;
 
     if (trap.type.id === 'floor_spikes') {
-      // Floor spikes: metal grate with spikes
-      // Base plate
-      PA.rect(ctx, x + 2, y + 2, 12, 12, C.TRAP_METAL_DARK);
-      PA.rect(ctx, x + 3, y + 3, 10, 10, '#3a3a3a');
-      // Spike holes pattern
+      // === FLOOR SPIKES: Pressure-plate activated spike pit ===
+      // Recessed into the floor - darker border shows pit edges
+
+      // Pit border (stone edge, inset into floor)
+      PA.rect(ctx, x + 1, y + 1, 14, 14, '#3a3428');
+      PA.rect(ctx, x + 2, y + 2, 12, 12, '#2a2418');
+
+      // Inner pit darkness
+      PA.rect(ctx, x + 3, y + 3, 10, 10, '#1a1410');
+
+      // Metal grate over the pit
+      // Horizontal bars
+      PA.rect(ctx, x + 2, y + 4, 12, 1, C.TRAP_METAL_DARK);
+      PA.rect(ctx, x + 2, y + 7, 12, 1, C.TRAP_METAL_DARK);
+      PA.rect(ctx, x + 2, y + 10, 12, 1, C.TRAP_METAL_DARK);
+      // Vertical bars
+      PA.rect(ctx, x + 4, y + 2, 1, 12, C.TRAP_METAL_DARK);
+      PA.rect(ctx, x + 7, y + 2, 1, 12, C.TRAP_METAL_DARK);
+      PA.rect(ctx, x + 10, y + 2, 1, 12, C.TRAP_METAL_DARK);
+
+      // Spike tips protruding through grate (3x3 grid)
+      const extended = firing || trap.animFrame < 2;
       for (let sx = 0; sx < 3; sx++) {
         for (let sy = 0; sy < 3; sy++) {
-          const spx = x + 4 + sx * 3;
-          const spy = y + 4 + sy * 3;
-          PA.pixel(ctx, spx, spy, C.WALL_MORTAR);
-          // Spike tips (animated)
-          if (trap.active || trap.animFrame < 2) {
-            PA.pixel(ctx, spx, spy, C.TRAP_SPIKE_TIP);
-            PA.pixel(ctx, spx, spy - 1, C.TRAP_SPIKE);
+          const spx = x + 3 + sx * 3;
+          const spy = y + 3 + sy * 3;
+          if (extended) {
+            // Spike visible - bright tip, darker base
+            PA.pixel(ctx, spx, spy - 1, C.TRAP_SPIKE_TIP);
+            PA.pixel(ctx, spx, spy, C.TRAP_SPIKE);
+            PA.pixel(ctx, spx + 1, spy, C.TRAP_SPIKE);
+            PA.pixel(ctx, spx, spy + 1, C.TRAP_METAL_DARK);
+          } else {
+            // Retracted - just dark holes
+            PA.pixel(ctx, spx, spy, '#0a0808');
           }
         }
       }
-      // Border rivets
-      PA.pixel(ctx, x + 2, y + 2, C.TRAP_METAL_LIGHT);
-      PA.pixel(ctx, x + 13, y + 2, C.TRAP_METAL_LIGHT);
-      PA.pixel(ctx, x + 2, y + 13, C.TRAP_METAL_LIGHT);
-      PA.pixel(ctx, x + 13, y + 13, C.TRAP_METAL_LIGHT);
+
+      // Corner bolts (flush with floor)
+      PA.pixel(ctx, x + 1, y + 1, C.TRAP_METAL);
+      PA.pixel(ctx, x + 14, y + 1, C.TRAP_METAL);
+      PA.pixel(ctx, x + 1, y + 14, C.TRAP_METAL);
+      PA.pixel(ctx, x + 14, y + 14, C.TRAP_METAL);
+
+      // Edge highlight (floor-level)
+      PA.rect(ctx, x + 1, y + 1, 14, 1, '#4a4236');
+      PA.rect(ctx, x + 1, y + 1, 1, 14, '#4a4236');
+
+      // "FLOOR" indicator: visible pressure plate edges
+      PA.pixel(ctx, x + 6, y + 1, '#5a5040');
+      PA.pixel(ctx, x + 9, y + 1, '#5a5040');
+      PA.pixel(ctx, x + 6, y + 14, '#5a5040');
+      PA.pixel(ctx, x + 9, y + 14, '#5a5040');
+
     } else if (trap.type.id === 'tar_trap') {
-      // Tar trap: dark sticky pool
-      // Tar pool shape (irregular)
-      PA.rect(ctx, x + 3, y + 4, 10, 8, C.TRAP_TAR);
-      PA.rect(ctx, x + 4, y + 3, 8, 10, C.TRAP_TAR);
+      // === TAR TRAP: Viscous dark pool flush with the floor ===
+
+      // Pool shape - organic, seeping into flagstone cracks
+      // Outer edge (thin, seeping)
+      PA.pixel(ctx, x + 3, y + 3, C.TRAP_TAR);
+      PA.pixel(ctx, x + 12, y + 3, C.TRAP_TAR);
+      PA.pixel(ctx, x + 2, y + 5, C.TRAP_TAR);
+      PA.pixel(ctx, x + 13, y + 6, C.TRAP_TAR);
+      PA.pixel(ctx, x + 2, y + 10, C.TRAP_TAR);
+      PA.pixel(ctx, x + 13, y + 10, C.TRAP_TAR);
+      PA.pixel(ctx, x + 4, y + 13, C.TRAP_TAR);
+      PA.pixel(ctx, x + 11, y + 13, C.TRAP_TAR);
+
+      // Main pool body
+      PA.rect(ctx, x + 3, y + 4, 10, 9, C.TRAP_TAR);
+      PA.rect(ctx, x + 4, y + 3, 8, 11, C.TRAP_TAR);
       PA.rect(ctx, x + 5, y + 2, 6, 12, C.TRAP_TAR);
-      // Tar highlights (shiny)
-      PA.pixel(ctx, x + 6, y + 5, C.TRAP_TAR_HIGHLIGHT);
-      PA.pixel(ctx, x + 7, y + 5, C.TRAP_TAR_HIGHLIGHT);
-      PA.pixel(ctx, x + 9, y + 8, C.TRAP_TAR_HIGHLIGHT);
+
+      // Surface reflections (tar is glossy)
+      PA.pixel(ctx, x + 5, y + 5, '#2a2a3a');
+      PA.pixel(ctx, x + 6, y + 5, '#2a2a3a');
+      PA.pixel(ctx, x + 6, y + 4, '#303040');
+      PA.pixel(ctx, x + 9, y + 7, '#2a2a3a');
+      PA.pixel(ctx, x + 10, y + 8, '#2a2a3a');
+      PA.pixel(ctx, x + 5, y + 10, '#303040');
+
+      // Depth gradient (darker center)
+      PA.rect(ctx, x + 6, y + 6, 4, 4, '#0e0e1a');
+      PA.pixel(ctx, x + 7, y + 7, '#0a0a12');
+      PA.pixel(ctx, x + 8, y + 8, '#0a0a12');
+
       // Bubble animation
-      if (trap.animFrame === 0) {
-        PA.pixel(ctx, x + 8, y + 7, '#3a3a4a');
-      } else if (trap.animFrame === 2) {
+      const frame = trap.animFrame;
+      if (frame === 0) {
+        PA.pixel(ctx, x + 8, y + 6, '#3a3a4a');
+        PA.pixel(ctx, x + 9, y + 6, '#2a2a3a');
+      } else if (frame === 1) {
+        PA.pixel(ctx, x + 8, y + 5, '#2a2a3a');
+      } else if (frame === 2) {
         PA.pixel(ctx, x + 5, y + 9, '#3a3a4a');
+        PA.pixel(ctx, x + 6, y + 9, '#2a2a3a');
+      } else {
+        PA.pixel(ctx, x + 5, y + 8, '#2a2a3a');
       }
+
+      // Edge where tar meets stone (brown/dark blend)
+      PA.pixel(ctx, x + 4, y + 2, '#2a2218');
+      PA.pixel(ctx, x + 11, y + 2, '#2a2218');
+      PA.pixel(ctx, x + 3, y + 13, '#2a2218');
+      PA.pixel(ctx, x + 12, y + 13, '#2a2218');
+
     } else if (trap.type.id === 'bomb_trap') {
-      // Bomb: round bomb with fuse
-      // Body
-      PA.circle(ctx, x + 8, y + 9, 3, C.TRAP_BOMB_BODY);
-      PA.circle(ctx, x + 8, y + 9, 2, '#5a5a5a');
-      // Highlight
+      // === BOMB: Buried explosive with visible fuse and detonator ===
+
+      // Buried plate (slightly raised from floor)
+      PA.rect(ctx, x + 3, y + 5, 10, 8, '#4a4236');
+      PA.rect(ctx, x + 4, y + 6, 8, 6, '#3a3428');
+
+      // Bomb casing (dark iron sphere, partially buried)
+      PA.rect(ctx, x + 5, y + 6, 6, 6, C.TRAP_BOMB_BODY);
+      PA.rect(ctx, x + 4, y + 7, 8, 4, C.TRAP_BOMB_BODY);
+      PA.pixel(ctx, x + 4, y + 6, C.TRAP_BOMB_BODY);
+      PA.pixel(ctx, x + 11, y + 6, C.TRAP_BOMB_BODY);
+      PA.pixel(ctx, x + 4, y + 11, C.TRAP_BOMB_BODY);
+      PA.pixel(ctx, x + 11, y + 11, C.TRAP_BOMB_BODY);
+
+      // Sphere shading (3D look)
+      PA.rect(ctx, x + 6, y + 7, 4, 4, '#5a5a5a');
+      PA.pixel(ctx, x + 5, y + 8, '#555555');
+      PA.pixel(ctx, x + 10, y + 8, '#3a3a3a');
+      // Highlight (top-left)
       PA.pixel(ctx, x + 6, y + 7, '#7a7a7a');
-      // Fuse
-      PA.pixel(ctx, x + 8, y + 5, C.TRAP_BOMB_FUSE);
-      PA.pixel(ctx, x + 9, y + 4, C.TRAP_BOMB_FUSE);
-      PA.pixel(ctx, x + 10, y + 3, C.TRAP_BOMB_FUSE);
-      // Spark
-      if (trap.animFrame % 2 === 0) {
-        PA.pixel(ctx, x + 10, y + 2, C.TRAP_BOMB_SPARK);
-        PA.pixel(ctx, x + 11, y + 2, '#ffaa22');
+      PA.pixel(ctx, x + 7, y + 7, '#6a6a6a');
+      // Deep shadow (bottom-right)
+      PA.pixel(ctx, x + 9, y + 10, '#2a2a2a');
+      PA.pixel(ctx, x + 10, y + 10, '#2a2a2a');
+
+      // Danger band (red stripe around equator)
+      PA.pixel(ctx, x + 5, y + 9, '#aa2222');
+      PA.rect(ctx, x + 6, y + 9, 4, 1, '#cc3333');
+      PA.pixel(ctx, x + 10, y + 9, '#aa2222');
+
+      // Fuse assembly (top)
+      PA.pixel(ctx, x + 7, y + 5, '#5a5a5a');
+      PA.pixel(ctx, x + 8, y + 5, '#5a5a5a');
+      // Fuse cord
+      PA.pixel(ctx, x + 8, y + 4, C.TRAP_BOMB_FUSE);
+      PA.pixel(ctx, x + 9, y + 3, C.TRAP_BOMB_FUSE);
+      PA.pixel(ctx, x + 10, y + 2, C.TRAP_BOMB_FUSE);
+      PA.pixel(ctx, x + 11, y + 2, C.TRAP_BOMB_FUSE);
+
+      // Animated spark at fuse tip
+      const frame = trap.animFrame;
+      if (frame === 0 || frame === 2) {
+        PA.pixel(ctx, x + 12, y + 1, C.TRAP_BOMB_SPARK);
+        PA.pixel(ctx, x + 12, y + 2, '#ffaa22');
+        PA.pixel(ctx, x + 11, y + 1, '#ff8800');
+      } else {
+        PA.pixel(ctx, x + 12, y + 2, '#ff6600');
+        PA.pixel(ctx, x + 12, y + 1, '#ffcc44');
       }
+
+      // Dirt/soil around buried base
+      PA.pixel(ctx, x + 3, y + 11, '#5a5040');
+      PA.pixel(ctx, x + 12, y + 11, '#5a5040');
+      PA.pixel(ctx, x + 3, y + 12, '#4a4236');
+      PA.pixel(ctx, x + 12, y + 12, '#4a4236');
     }
   },
 
