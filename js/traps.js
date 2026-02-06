@@ -74,6 +74,7 @@ DK.Traps = {
 
           // Deal damage
           target.hp -= trap.type.damage;
+          target.flashTimer = 150; // Visual hit feedback
 
           // Apply slow
           if (trap.type.slowAmount) {
@@ -113,6 +114,7 @@ DK.Traps = {
 
             if (trap.type.damage > 0) {
               enemy.hp -= trap.type.damage;
+              enemy.flashTimer = 150; // Visual hit feedback
               // Damage number
               if (DK.Game && DK.Game.effects) {
                 DK.Game.effects.push({

@@ -105,6 +105,7 @@ window.DK = window.DK || {};
 
   function renderEffects(ctx) {
     const PA = DK.PixelArt;
+    const C = DK.COLORS;
 
     for (const effect of DK.Game.effects) {
       const progress = effect.timer / effect.duration;
@@ -114,45 +115,117 @@ window.DK = window.DK || {};
           const t = Math.min(1, progress * 3);
           const px = effect.x + (effect.targetX - effect.x) * t;
           const py = effect.y + (effect.targetY - effect.y) * t;
+          const ipx = Math.round(px);
+          const ipy = Math.round(py);
+
+          // Direction for trail
+          const dx = effect.targetX - effect.x;
+          const dy = effect.targetY - effect.y;
+          const len = Math.sqrt(dx * dx + dy * dy) || 1;
+          const nx = -dx / len;
+          const ny = -dy / len;
 
           if (effect.trapType === 'flame_jet') {
-            // Fire projectile
-            PA.pixel(ctx, Math.round(px), Math.round(py), DK.COLORS.TRAP_FIRE);
-            PA.pixel(ctx, Math.round(px) + 1, Math.round(py), DK.COLORS.TRAP_FIRE_GLOW);
-            PA.pixel(ctx, Math.round(px) - 1, Math.round(py), '#ff4400');
+            // Fire stream: white core -> orange -> red -> smoke
+            PA.pixel(ctx, ipx, ipy, '#ffffff');
+            PA.pixel(ctx, ipx + 1, ipy, C.TRAP_FIRE_GLOW);
+            PA.pixel(ctx, ipx - 1, ipy, C.TRAP_FIRE_GLOW);
+            PA.pixel(ctx, ipx, ipy - 1, C.TRAP_FIRE);
+            PA.pixel(ctx, ipx, ipy + 1, C.TRAP_FIRE);
+            // Trail
+            PA.pixel(ctx, ipx + Math.round(nx * 2), ipy + Math.round(ny * 2), C.TRAP_FIRE);
+            PA.pixel(ctx, ipx + Math.round(nx * 3), ipy + Math.round(ny * 3), '#ff4400');
+            PA.pixel(ctx, ipx + Math.round(nx * 4), ipy + Math.round(ny * 4), '#882200');
+            // Sparks (randomized)
+            if (Math.random() > 0.5) {
+              PA.pixel(ctx, ipx + Math.round((Math.random() - 0.5) * 3),
+                       ipy + Math.round((Math.random() - 0.5) * 3), '#ffcc44');
+            }
           } else if (effect.trapType === 'ice_trap') {
-            // Ice projectile
-            PA.pixel(ctx, Math.round(px), Math.round(py), DK.COLORS.TRAP_ICE);
-            PA.pixel(ctx, Math.round(px), Math.round(py) - 1, DK.COLORS.TRAP_ICE_GLOW);
+            // Ice shard: bright blue crystal shape
+            PA.pixel(ctx, ipx, ipy, '#ffffff');
+            PA.pixel(ctx, ipx - 1, ipy, C.TRAP_ICE_GLOW);
+            PA.pixel(ctx, ipx + 1, ipy, C.TRAP_ICE_GLOW);
+            PA.pixel(ctx, ipx, ipy - 1, C.TRAP_ICE);
+            PA.pixel(ctx, ipx, ipy + 1, C.TRAP_ICE);
+            // Frost trail
+            PA.pixel(ctx, ipx + Math.round(nx * 2), ipy + Math.round(ny * 2), C.TRAP_ICE);
+            PA.pixel(ctx, ipx + Math.round(nx * 3), ipy + Math.round(ny * 3), '#2266aa');
+            // Sparkle
+            if (Math.random() > 0.6) {
+              PA.pixel(ctx, ipx + Math.round((Math.random() - 0.5) * 2),
+                       ipy + Math.round((Math.random() - 0.5) * 2), '#aaddff');
+            }
           } else {
-            // Arrow projectile
-            PA.pixel(ctx, Math.round(px), Math.round(py), DK.COLORS.TRAP_ARROW_TIP);
-            PA.pixel(ctx, Math.round(px) - 1, Math.round(py), DK.COLORS.TRAP_ARROW_WOOD);
+            // Arrow: wooden shaft with metal tip
+            PA.pixel(ctx, ipx, ipy, C.TRAP_ARROW_TIP);
+            PA.pixel(ctx, ipx + Math.round(nx), ipy + Math.round(ny), '#d0d8e0');
+            PA.pixel(ctx, ipx + Math.round(nx * 2), ipy + Math.round(ny * 2), C.TRAP_ARROW_WOOD);
+            PA.pixel(ctx, ipx + Math.round(nx * 3), ipy + Math.round(ny * 3), C.TRAP_ARROW_WOOD);
+            // Fletching
+            PA.pixel(ctx, ipx + Math.round(nx * 4), ipy + Math.round(ny * 4) - 1, '#cc4444');
+            PA.pixel(ctx, ipx + Math.round(nx * 4), ipy + Math.round(ny * 4) + 1, '#cc4444');
           }
           break;
         }
+
         case 'explosion': {
-          const radius = effect.radius * progress;
-          const alpha = 1 - progress;
-          // Draw expanding circle
-          for (let angle = 0; angle < Math.PI * 2; angle += 0.3) {
-            const r = radius * (0.8 + Math.random() * 0.4);
-            const px = Math.round(effect.x + Math.cos(angle) * r);
-            const py = Math.round(effect.y + Math.sin(angle) * r);
-            const color = progress < 0.3 ? '#ffffff' :
-                         progress < 0.6 ? DK.COLORS.TRAP_FIRE :
-                         DK.COLORS.TRAP_FIRE_GLOW;
-            PA.pixel(ctx, px, py, color);
+          const maxR = effect.radius;
+          const expandProgress = Math.min(1, progress * 2);
+          const fadeProgress = Math.max(0, (progress - 0.3) / 0.7);
+
+          // Phase 1: White flash (0-20%)
+          if (progress < 0.2) {
+            const flashR = maxR * progress * 3;
+            PA.circle(ctx, Math.round(effect.x), Math.round(effect.y),
+                     Math.round(flashR), '#ffffff');
           }
-          // Center flash
-          if (progress < 0.3) {
-            PA.circle(ctx, Math.round(effect.x), Math.round(effect.y), 2, '#ffffff');
+
+          // Phase 2: Fire ring expanding (10-60%)
+          if (progress > 0.1 && progress < 0.6) {
+            const ringR = maxR * expandProgress;
+            for (let angle = 0; angle < Math.PI * 2; angle += 0.25) {
+              const r = ringR * (0.7 + Math.random() * 0.3);
+              const epx = Math.round(effect.x + Math.cos(angle) * r);
+              const epy = Math.round(effect.y + Math.sin(angle) * r);
+              const color = Math.random() > 0.5 ? C.TRAP_FIRE : C.TRAP_FIRE_GLOW;
+              PA.pixel(ctx, epx, epy, color);
+              // Inner fire
+              const ir = r * 0.6;
+              PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * ir),
+                       Math.round(effect.y + Math.sin(angle) * ir),
+                       Math.random() > 0.5 ? '#ffcc44' : '#ff8822');
+            }
+          }
+
+          // Phase 3: Smoke and embers (30-100%)
+          if (progress > 0.3) {
+            const smokeR = maxR * 1.2;
+            for (let i = 0; i < 6; i++) {
+              const angle = (i / 6) * Math.PI * 2 + progress * 2;
+              const r = smokeR * (0.5 + Math.random() * 0.5) * (1 - fadeProgress * 0.5);
+              const spx = Math.round(effect.x + Math.cos(angle) * r);
+              const spy = Math.round(effect.y + Math.sin(angle) * r - fadeProgress * 3);
+              PA.pixel(ctx, spx, spy, '#443322');
+              // Embers
+              if (Math.random() > 0.7) {
+                PA.pixel(ctx, spx + 1, spy - 1, '#ff6622');
+              }
+            }
+          }
+
+          // Scorch mark at center (persists)
+          if (progress > 0.4) {
+            PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y), '#1a1008');
+            PA.pixel(ctx, Math.round(effect.x) + 1, Math.round(effect.y), '#1a1008');
+            PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y) + 1, '#1a1008');
           }
           break;
         }
+
         case 'damage':
         case 'gold': {
-          // Text effects are rendered on UI canvas at high resolution
+          // Rendered on UI canvas at high resolution
           break;
         }
       }
@@ -165,19 +238,27 @@ window.DK = window.DK || {};
       if (effect.type !== 'damage' && effect.type !== 'gold') continue;
 
       const progress = effect.timer / effect.duration;
-      const alpha = 1 - progress;
-      const offsetY = progress * -20;
+      const alpha = Math.min(1, (1 - progress) * 2); // Fade out in second half
+      const offsetY = progress * -25; // Float upward
+      const scale = progress < 0.1 ? 0.5 + progress * 5 : 1; // Pop-in
 
-      ctx.fillStyle = effect.color;
+      ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.font = DK.FONTS.bold(14);
       ctx.textAlign = 'center';
-      ctx.fillText(
-        effect.text,
-        effect.x * DK.CONFIG.SCALE,
-        effect.y * DK.CONFIG.SCALE + offsetY
-      );
-      ctx.globalAlpha = 1;
+
+      const screenX = effect.x * DK.CONFIG.SCALE;
+      const screenY = effect.y * DK.CONFIG.SCALE + offsetY;
+
+      // Text shadow for readability
+      ctx.font = DK.FONTS.bold(Math.round(14 * scale));
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillText(effect.text, screenX + 1, screenY + 1);
+
+      // Main text
+      ctx.fillStyle = effect.color;
+      ctx.fillText(effect.text, screenX, screenY);
+
+      ctx.restore();
     }
   };
 
