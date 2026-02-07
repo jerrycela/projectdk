@@ -430,40 +430,6 @@ window.DK = window.DK || {};
           break;
         }
 
-        case 'fire_bolt': {
-          // 火球投射物
-          const t = Math.min(1, progress * 3);
-          const px = effect.x + (effect.targetX - effect.x) * t;
-          const py = effect.y + (effect.targetY - effect.y) * t;
-          const ipx = Math.round(px);
-          const ipy = Math.round(py);
-          // 方向
-          const dx = effect.targetX - effect.x;
-          const dy = effect.targetY - effect.y;
-          const len = Math.sqrt(dx * dx + dy * dy) || 1;
-          const nx = -dx / len;
-          const ny = -dy / len;
-          // 火球核心（白→橘→紅）
-          PA.pixel(ctx, ipx, ipy, '#ffffff');
-          PA.pixel(ctx, ipx + 1, ipy, '#ffaa44');
-          PA.pixel(ctx, ipx - 1, ipy, '#ffaa44');
-          PA.pixel(ctx, ipx, ipy - 1, '#ff6622');
-          PA.pixel(ctx, ipx, ipy + 1, '#ff6622');
-          PA.pixel(ctx, ipx + 1, ipy + 1, '#ff6622');
-          PA.pixel(ctx, ipx - 1, ipy - 1, '#ff6622');
-          // 火尾跡
-          for (let i = 2; i < 5; i++) {
-            PA.pixel(ctx, ipx + Math.round(nx * i), ipy + Math.round(ny * i),
-                     i < 3 ? '#ff6622' : '#882200');
-          }
-          // 火花
-          if (Math.random() > 0.4) {
-            PA.pixel(ctx, ipx + Math.round((Math.random()-0.5)*3),
-                     ipy + Math.round((Math.random()-0.5)*3), '#ffcc44');
-          }
-          break;
-        }
-
         case 'ice_ray': {
           // 直線冰霜射線
           const rayProgress = Math.min(1, progress * 2);

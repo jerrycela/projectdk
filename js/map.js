@@ -812,8 +812,45 @@ DK.Map = {
     this.renderPoolAnimation(ctx);
     this.renderGrassAnimation(ctx);
 
-    // 第六通道：邊緣暗角
+    // 第六通道：入口與出口傳送門脈動光暈
+    this.renderPortalGlow(ctx);
+
+    // 第七通道：邊緣暗角
     this.renderVignette(ctx);
+  },
+
+  /** 入口與出口傳送門脈動光暈動畫 */
+  renderPortalGlow(ctx) {
+    const T = DK.CONFIG.TILE_SIZE;
+    const timestamp = DK.Game ? DK.Game.time : 0;
+    const alpha = 0.1 + 0.08 * Math.sin(timestamp * 0.003);
+
+    for (let r = 0; r < this.layout.length; r++) {
+      for (let c = 0; c < this.layout[r].length; c++) {
+        const tile = this.layout[r][c];
+        if (tile !== 'E' && tile !== 'X') continue;
+
+        const x = c * T;
+        const y = r * T;
+        const isEntrance = tile === 'E';
+        const baseR = isEntrance ? 68 : 255;
+        const baseG = isEntrance ? 255 : 68;
+        const baseB = isEntrance ? 68 : 68;
+
+        // 3 層同心半透明矩形模擬光暈擴散（由外到內漸亮）
+        // 第 3 層（最外層）
+        ctx.fillStyle = `rgba(${baseR},${baseG},${baseB},${alpha * 0.4})`;
+        ctx.fillRect(x - 3, y - 3, T + 6, T + 6);
+
+        // 第 2 層（中層）
+        ctx.fillStyle = `rgba(${baseR},${baseG},${baseB},${alpha * 0.7})`;
+        ctx.fillRect(x - 1, y - 1, T + 2, T + 2);
+
+        // 第 1 層（內層，最亮）
+        ctx.fillStyle = `rgba(${baseR},${baseG},${baseB},${alpha})`;
+        ctx.fillRect(x + 1, y + 1, T - 2, T - 2);
+      }
+    }
   },
 
   renderTorches(ctx) {

@@ -56,8 +56,9 @@ DK.Enemies = {
       if (enemy.hp <= 0) {
         enemy.alive = false;
         enemy.deathTimer = 0;
-        // Award gold
+        // Award gold and count kill
         if (DK.Game) {
+          DK.Game.enemiesKilled++;
           DK.Game.gold += enemy.type.reward;
           DK.Game.effects.push({
             type: 'gold',
@@ -109,6 +110,7 @@ DK.Enemies = {
             enemy.y = enemy.pushed.targetY;
 
             if (DK.Game) {
+              DK.Game.enemiesKilled++;
               DK.Game.gold += enemy.type.reward;
               DK.Game.effects.push({
                 type: 'gold',
@@ -219,7 +221,7 @@ DK.Enemies = {
       if (enemy.deathTimer > 500) continue;
 
       let x = Math.round(enemy.x);
-      const y = Math.round(enemy.y);
+      let y = Math.round(enemy.y);
 
       if (!enemy.alive && !enemy.reachedEnd) {
         this.renderDeath(ctx, enemy, x, y);
@@ -232,6 +234,12 @@ DK.Enemies = {
       if (enemy.pushResistTimer > 0) {
         const shake = Math.sin(enemy.pushResistTimer / 15) * 2;
         x += Math.round(shake);
+      }
+
+      // Walking bounce effect (only when alive and not being pushed)
+      if (enemy.alive && !enemy.pushed) {
+        const bounceY = Math.round(Math.sin(enemy.animFrame * Math.PI * 0.5));
+        y -= bounceY;
       }
 
       // Draw enemy based on type

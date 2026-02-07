@@ -50,5 +50,14 @@ body {
   width: 960px;
   height: 720px;
   pointer-events: auto;
+  cursor: default;
   /* UI canvas should NOT have pixel rendering - we want smooth text */
+}
+
+#ui-canvas.cursor-pointer {
+  cursor: pointer;
+}
+
+#ui-canvas.cursor-crosshair {
+  cursor: crosshair;
 }

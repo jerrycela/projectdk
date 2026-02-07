@@ -10,6 +10,7 @@ DK.Game = {
   currentWave: 0,
   waveActive: false,
   gameOver: false,
+  enemiesKilled: 0,
   effects: [],
   spawnQueue: [],
   spawnTimer: 0,
@@ -22,6 +23,7 @@ DK.Game = {
     this.currentWave = 0;
     this.waveActive = false;
     this.gameOver = false;
+    this.enemiesKilled = 0;
     this.effects = [];
     this.spawnQueue = [];
     this.spawnTimer = 0;
@@ -139,6 +141,12 @@ DK.Game = {
 
   updateEffects(dt) {
     for (const effect of this.effects) {
+      // Add random y offset to floating text effects on first frame to prevent overlap
+      if (effect.timer === 0 && !effect._offsetApplied &&
+          (effect.type === 'damage' || effect.type === 'gold' || effect.type === 'reaction_text')) {
+        effect.y += (Math.random() - 0.5) * 16; // -8 to +8 pixel offset
+        effect._offsetApplied = true;
+      }
       effect.timer += dt;
     }
     this.effects = this.effects.filter(e => e.timer < e.duration);

@@ -24,8 +24,11 @@ DK.UI = {
   selectedHeroType: null, // Hero type to deploy
   selectedPlacedTrap: null, // Currently selected placed trap (for info panel)
   hoveredTile: null,
+  hoveredButton: null, // Currently hovered button for highlight effect
   buttons: [],
   tooltipText: '',
+  mouseX: 0,
+  mouseY: 0,
   showWaveStart: false,
   waveStartTimer: 0,
   messageQueue: [],
@@ -250,6 +253,9 @@ DK.UI = {
   },
 
   handleMouseMove(mx, my) {
+    this.mouseX = mx;
+    this.mouseY = my;
+
     if (my < DK.CONFIG.UI_TOP) {
       const col = Math.floor(mx / DK.CONFIG.DISPLAY_TILE);
       const row = Math.floor(my / DK.CONFIG.DISPLAY_TILE);
@@ -258,11 +264,13 @@ DK.UI = {
       this.hoveredTile = null;
     }
 
-    // Update tooltip
+    // Update tooltip and hovered button
     this.tooltipText = '';
+    this.hoveredButton = null;
     for (const btn of this.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.width &&
           my >= btn.y && my <= btn.y + btn.height) {
+        this.hoveredButton = btn;
         if (btn.trap) {
           this.tooltipText = `${btn.trap.name}: ${btn.trap.description} (點擊選取)`;
         } else if (btn.hero) {
@@ -270,6 +278,15 @@ DK.UI = {
         }
         break;
       }
+    }
+
+    // Update cursor style based on state
+    const uiCanvas = document.getElementById('ui-canvas');
+    uiCanvas.classList.remove('cursor-pointer', 'cursor-crosshair');
+    if (this.hoveredButton) {
+      uiCanvas.classList.add('cursor-pointer');
+    } else if (this.selectedTrap || this.selectedHeroType) {
+      uiCanvas.classList.add('cursor-crosshair');
     }
   },
 
@@ -350,6 +367,9 @@ DK.UI = {
 
     // Tooltip / placement hint
     this.renderTooltip(ctx);
+
+    // Wave preview (next wave composition)
+    this.renderWavePreview(ctx);
 
     // Messages
     this.renderMessages(ctx);
@@ -534,6 +554,12 @@ DK.UI = {
           btn.y + btn.height / 2 + 10
         );
       }
+
+      // Hover highlight overlay
+      if (btn === this.hoveredButton) {
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+      }
       return;
     }
 
@@ -620,6 +646,12 @@ DK.UI = {
         ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
       }
 
+      // Hover highlight overlay
+      if (btn === this.hoveredButton) {
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+      }
+
       return;
     }
 
@@ -703,6 +735,12 @@ DK.UI = {
       ctx.strokeStyle = `rgba(255,170,68,${pulse})`;
       ctx.lineWidth = 2;
       ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
+    }
+
+    // Hover highlight overlay
+    if (btn === this.hoveredButton) {
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
     }
   },
 
@@ -898,52 +936,55 @@ DK.UI = {
     }
   },
 
+  /**
+   * 共用提示框渲染輔助函式
+   * 在遊戲區域底部中央繪製帶背景的提示文字
+   */
+  drawHintBox(ctx, text, textColor) {
+    ctx.font = DK.FONTS.body(12);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const metrics = ctx.measureText(text);
+    const tw = metrics.width + 16;
+    const hx = DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2;
+    const hy = DK.CONFIG.UI_TOP - 22;
+
+    // 背景圓角矩形
+    ctx.fillStyle = 'rgba(18,16,30,0.8)';
+    ctx.beginPath();
+    ctx.roundRect(hx, hy, tw, 18, 3);
+    ctx.fill();
+
+    // 邊框
+    ctx.strokeStyle = 'rgba(74,62,110,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(hx, hy, tw, 18, 3);
+    ctx.stroke();
+
+    // 文字
+    ctx.fillStyle = textColor;
+    ctx.fillText(text, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+  },
+
   renderTooltip(ctx) {
+    const C = DK.COLORS;
+
     // Show hint for placed trap inspection
     if (this.selectedPlacedTrap && !DK.Game.gameOver) {
-      const hintText = '點擊其他陷阱查看  |  右鍵取消選擇';
-
-      ctx.font = DK.FONTS.body(12);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(18,16,30,0.8)';
-      const metrics = ctx.measureText(hintText);
-      const tw = metrics.width + 16;
-      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
-      ctx.fillStyle = '#ccaa44';
-      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      this.drawHintBox(ctx, '點擊其他陷阱查看  |  右鍵取消選擇', '#ccaa44');
       return;
     }
 
     // Show hint for hero deployment
     if (this.selectedHeroType && !DK.Game.gameOver) {
-      const hintText = '點擊地板放置英雄  |  右鍵取消選擇';
-
-      ctx.font = DK.FONTS.body(12);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(18,16,30,0.8)';
-      const metrics = ctx.measureText(hintText);
-      const tw = metrics.width + 16;
-      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
-      ctx.fillStyle = '#6688cc';
-      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      this.drawHintBox(ctx, '點擊地板放置英雄  |  右鍵取消選擇', '#6688cc');
       return;
     }
 
     // Show hint for hero movement
     if (DK.Heroes && DK.Heroes.selectedHero && !DK.Game.gameOver) {
-      const hintText = '點擊地板移動英雄  |  右鍵取消選擇';
-
-      ctx.font = DK.FONTS.body(12);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(18,16,30,0.8)';
-      const metrics = ctx.measureText(hintText);
-      const tw = metrics.width + 16;
-      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
-      ctx.fillStyle = '#66cc66';
-      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      this.drawHintBox(ctx, '點擊地板移動英雄  |  右鍵取消選擇', '#66cc66');
       return;
     }
 
@@ -952,17 +993,91 @@ DK.UI = {
       const hintText = this.selectedTrap.type === 'wall'
         ? '點擊紫色牆壁放置  |  右鍵取消選擇'
         : '點擊地板路徑放置  |  右鍵取消選擇';
-
-      ctx.font = DK.FONTS.body(12);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(18,16,30,0.8)';
-      const metrics = ctx.measureText(hintText);
-      const tw = metrics.width + 16;
-      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
-      ctx.fillStyle = C.UI_TEXT_DIM;
-      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      this.drawHintBox(ctx, hintText, C.UI_TEXT_DIM);
     }
+
+    // Render tooltipText near mouse cursor
+    if (this.tooltipText) {
+      ctx.font = DK.FONTS.body(12);
+      const tipMetrics = ctx.measureText(this.tooltipText);
+      const padX = 6;
+      const padY = 4;
+      const tipW = tipMetrics.width + padX * 2;
+      const tipH = 12 + padY * 2;
+      let tipX = this.mouseX + 15;
+      const tipY = this.mouseY - 10;
+
+      // If overflows right edge, show on left side of cursor
+      if (tipX + tipW > DK.CONFIG.DISPLAY_WIDTH) {
+        tipX = this.mouseX - tipW - 5;
+      }
+
+      ctx.fillStyle = 'rgba(18,16,30,0.92)';
+      ctx.fillRect(tipX, tipY, tipW, tipH);
+      ctx.strokeStyle = '#4a3e6e';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tipX + 0.5, tipY + 0.5, tipW - 1, tipH - 1);
+
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#e8e0d0';
+      ctx.fillText(this.tooltipText, tipX + padX, tipY + tipH / 2);
+    }
+  },
+
+  /** 波次預告提示：在波次未開始時顯示下一波敵人組成 */
+  renderWavePreview(ctx) {
+    const game = DK.Game;
+    if (!game || game.gameOver) return;
+    if (game.waveActive) return;
+    if (game.currentWave >= DK.WAVES.length) return;
+
+    const wave = DK.WAVES[game.currentWave];
+    if (!wave || !wave.enemies) return;
+
+    // 組合預告文字
+    const parts = wave.enemies.map(e => {
+      const typeDef = DK.ENEMY_TYPES[e.type];
+      const name = typeDef ? typeDef.name : e.type;
+      return `${name} x${e.count}`;
+    });
+    const previewText = `下一波：${parts.join('、')}`;
+
+    // 淡入淡出脈動
+    const timestamp = game.time || 0;
+    const pulse = 0.6 + 0.2 * Math.sin(timestamp * 0.002);
+
+    ctx.save();
+    ctx.globalAlpha = pulse;
+
+    // 面板尺寸與位置
+    ctx.font = DK.FONTS.body(13);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const metrics = ctx.measureText(previewText);
+    const panelW = metrics.width + 28;
+    const panelH = 24;
+    const panelX = DK.CONFIG.DISPLAY_WIDTH / 2 - panelW / 2;
+    const panelY = 46;
+
+    // 半透明背景
+    ctx.fillStyle = 'rgba(18,16,30,0.85)';
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, panelH, 4);
+    ctx.fill();
+
+    // 邊框
+    ctx.strokeStyle = 'rgba(74,62,110,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, panelH, 4);
+    ctx.stroke();
+
+    // 文字
+    ctx.fillStyle = '#aaa090';
+    ctx.fillText(previewText, DK.CONFIG.DISPLAY_WIDTH / 2, panelY + panelH / 2);
+
+    ctx.restore();
   },
 
   renderWaveAnnouncement(ctx) {
@@ -1030,40 +1145,93 @@ DK.UI = {
 
     const isVictory = game.lives > 0;
     const cx = DK.CONFIG.DISPLAY_WIDTH / 2;
-    const cy = DK.CONFIG.DISPLAY_HEIGHT / 2 - 20;
+    const cy = DK.CONFIG.DISPLAY_HEIGHT / 2 - 30;
+    const C = DK.COLORS;
 
-    // Result panel
+    // Panel dimensions (taller to fit more stats)
+    const panelW = 440;
+    const panelH = 280;
+    const panelX = cx - panelW / 2;
+    const panelY = cy - 100;
+
+    // Result panel background
     ctx.fillStyle = 'rgba(30,26,46,0.95)';
-    ctx.fillRect(cx - 200, cy - 80, 400, 200);
-    this.drawPixelBorder(ctx, cx - 200, cy - 80, 400, 200);
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    this.drawPixelBorder(ctx, panelX, panelY, panelW, panelH);
 
-    // Title
+    // Title with thematic text
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = DK.FONTS.heavy(40);
-    this.drawTextWithOutline(ctx,
-      isVictory ? '勝 利 ！' : '失 敗 ...',
-      cx, cy - 40,
-      isVictory ? '#44ff44' : '#ff4444',
-      'rgba(0,0,0,0.8)');
+    ctx.font = DK.FONTS.heavy(36);
+    const titleText = isVictory ? '地城守衛成功！' : '地城陷落...';
+    const titleColor = isVictory ? '#44ff44' : '#ff4444';
+    this.drawTextWithOutline(ctx, titleText, cx, panelY + 42, titleColor, 'rgba(0,0,0,0.8)');
 
-    // Stats
-    ctx.font = DK.FONTS.bold(18);
-    ctx.fillStyle = '#e8e0d0';
-    ctx.fillText(`完成波次: ${game.currentWave}/${DK.WAVES.length}`, cx, cy + 10);
+    // Subtitle
+    ctx.font = DK.FONTS.body(14);
+    ctx.fillStyle = isVictory ? '#88cc88' : '#cc8888';
+    const subtitle = isVictory
+      ? '所有入侵者已被擊退！地城安全了！'
+      : '入侵者突破了防線...地城失守了。';
+    ctx.fillText(subtitle, cx, panelY + 70);
 
-    ctx.font = DK.FONTS.body(16);
-    ctx.fillStyle = DK.COLORS.UI_GOLD;
-    ctx.fillText(`剩餘金幣: ${game.gold}`, cx - 70, cy + 40);
-    ctx.fillStyle = DK.COLORS.UI_HP;
-    ctx.fillText(`剩餘生命: ${game.lives}`, cx + 70, cy + 40);
+    // Divider line
+    ctx.fillStyle = C.UI_BORDER;
+    ctx.fillRect(panelX + 20, panelY + 85, panelW - 40, 2);
+    ctx.fillStyle = C.UI_BORDER_LIGHT;
+    for (let i = panelX + 20; i < panelX + panelW - 20; i += 6) {
+      ctx.fillRect(i, panelY + 86, 3, 1);
+    }
+
+    // Stats area with pixel border
+    const statsX = panelX + 20;
+    const statsY = panelY + 95;
+    const statsW = panelW - 40;
+    const statsH = 110;
+    ctx.fillStyle = 'rgba(18,16,30,0.6)';
+    ctx.fillRect(statsX, statsY, statsW, statsH);
+    ctx.strokeStyle = C.UI_BORDER;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(statsX + 0.5, statsY + 0.5, statsW - 1, statsH - 1);
+
+    // Stats grid (2 columns, 2 rows)
+    const leftCol = cx - 90;
+    const rightCol = cx + 90;
+    let rowY = statsY + 22;
+
+    // Row 1: Wave progress + Kills
+    ctx.font = DK.FONTS.body(14);
+    ctx.fillStyle = C.UI_TEXT_DIM;
+    ctx.textAlign = 'center';
+    ctx.fillText('存活波數', leftCol, rowY);
+    ctx.fillText('擊殺數', rightCol, rowY);
+
+    ctx.font = DK.FONTS.heavy(20);
+    this.drawTextWithOutline(ctx, `${game.currentWave} / ${DK.WAVES.length}`, leftCol, rowY + 20, C.UI_WAVE);
+    this.drawTextWithOutline(ctx, `${game.enemiesKilled}`, rightCol, rowY + 20, '#ff8866');
+
+    rowY += 56;
+
+    // Row 2: Gold + Lives
+    ctx.font = DK.FONTS.body(14);
+    ctx.fillStyle = C.UI_TEXT_DIM;
+    ctx.fillText('剩餘金幣', leftCol, rowY);
+    ctx.fillText('剩餘生命', rightCol, rowY);
+
+    ctx.font = DK.FONTS.heavy(20);
+    this.drawTextWithOutline(ctx, `${game.gold}`, leftCol, rowY + 20, C.UI_GOLD);
+    this.drawTextWithOutline(ctx, `${game.lives}`, rightCol, rowY + 20, game.lives > 0 ? '#ff6666' : '#882222');
+
+    // Bottom divider
+    ctx.fillStyle = C.UI_BORDER;
+    ctx.fillRect(panelX + 20, panelY + statsH + 100, panelW - 40, 1);
 
     // Restart hint (pulsing)
     const pulse = Math.sin(Date.now() / 600) * 0.3 + 0.7;
     ctx.globalAlpha = pulse;
     ctx.font = DK.FONTS.bold(14);
     ctx.fillStyle = '#8a8070';
-    ctx.fillText('點擊任意位置重新開始', cx, cy + 80);
+    ctx.fillText('點擊任意位置重新開始', cx, panelY + panelH - 25);
     ctx.globalAlpha = 1;
   },
 

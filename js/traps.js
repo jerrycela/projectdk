@@ -262,6 +262,31 @@ DK.Traps = {
         ctx.strokeRect(x + 0.5, y + 0.5, DK.CONFIG.TILE_SIZE - 1, DK.CONFIG.TILE_SIZE - 1);
       }
     }
+
+    // 選中陷阱的攻擊範圍圈
+    const selected = DK.UI ? DK.UI.selectedPlacedTrap : null;
+    if (selected) {
+      const selT = DK.CONFIG.TILE_SIZE;
+      const selCX = selected.col * selT + selT / 2;
+      const selCY = selected.row * selT + selT / 2;
+      const selRange = selected.type ? selected.type.range : 0;
+
+      if (selRange > 0) {
+        // 遠程/範圍型陷阱：畫範圍圈
+        const rangePixels = selRange * selT;
+        ctx.beginPath();
+        ctx.arc(selCX, selCY, rangePixels, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,170,68,0.15)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,170,68,0.4)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      } else {
+        // 接觸型陷阱（range=0）：高亮陷阱所在格子
+        ctx.fillStyle = 'rgba(255,170,68,0.2)';
+        ctx.fillRect(selected.col * selT, selected.row * selT, selT, selT);
+      }
+    }
   },
 
   renderWallTrap(ctx, trap, x, y) {

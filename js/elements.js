@@ -512,9 +512,15 @@ DK.Elements = {
   renderStatusIndicators(ctx, enemy, x, y, time) {
     if (!enemy.statusEffects) return;
 
+    // 計算活躍效果的 index，讓多重狀態垂直錯開
+    let activeIndex = 0;
+
     for (const status of enemy.statusEffects) {
       const def = this.EFFECTS[status.id];
       if (!def) continue;
+
+      // 每個活躍狀態效果的軌道垂直偏移：第一個 -2px，之後每個再高 3px
+      const yOffset = -(activeIndex * 3);
 
       if (status.id === 'wet') {
         const PA = DK.PixelArt;
@@ -523,14 +529,14 @@ DK.Elements = {
 
         // Blue aura glow around enemy (pulsing)
         const glowAlpha = 0.15 + pulse * 0.12;
-        PA.rect(ctx, x - 5, y - 8, 11, 13, `rgba(68,136,255,${glowAlpha})`);
+        PA.rect(ctx, x - 5, y - 8 + yOffset, 11, 13, `rgba(68,136,255,${glowAlpha})`);
 
         // 6 orbiting water droplets (2px tall, brighter)
         for (let i = 0; i < 6; i++) {
           const angle = t + (i * Math.PI * 2) / 6;
           const radius = 6 + Math.sin(t * 3 + i) * 1;
           const px = Math.round(x + Math.cos(angle) * radius);
-          const py = Math.round(y - 2 + Math.sin(angle) * radius * 0.6);
+          const py = Math.round(y - 2 + yOffset + Math.sin(angle) * radius * 0.6);
           const bright = i % 2 === 0;
           PA.pixel(ctx, px, py, bright ? '#aaddff' : '#66aaff');
           PA.pixel(ctx, px, py + 1, '#4488ff');
@@ -541,7 +547,7 @@ DK.Elements = {
           const dripPhase = ((t * 2) + i * 1.2) % 3.0;
           if (dripPhase < 2.0) {
             const dripX = x - 3 + Math.round(i * 3);
-            const dripY = Math.round(y + dripPhase * 4);
+            const dripY = Math.round(y + yOffset + dripPhase * 4);
             PA.pixel(ctx, dripX, dripY, '#4488ff');
             PA.pixel(ctx, dripX, dripY - 1, '#66aaff');
           }
@@ -559,21 +565,20 @@ DK.Elements = {
         const t = (time || 0);
         const flicker = Math.floor(t / 60) % 4;
 
-        // Enemy flicker between normal and white (handled by flashTimer mostly)
         // Small electric arcs
         for (let i = 0; i < 4; i++) {
           const angle = (t / 100) + (i * Math.PI / 2);
           const r = 4 + Math.sin(t / 80 + i) * 2;
           const px = Math.round(x + Math.cos(angle) * r);
-          const py = Math.round(y - 2 + Math.sin(angle) * r * 0.7);
+          const py = Math.round(y - 2 + yOffset + Math.sin(angle) * r * 0.7);
           const color = flicker === i ? '#ffffff' : '#ffff44';
           DK.PixelArt.pixel(ctx, px, py, color);
         }
 
         // Periodic bright flash
         if (flicker === 0) {
-          DK.PixelArt.pixel(ctx, x - 1, y - 3, '#ffffff');
-          DK.PixelArt.pixel(ctx, x + 1, y + 1, '#ffffff');
+          DK.PixelArt.pixel(ctx, x - 1, y - 3 + yOffset, '#ffffff');
+          DK.PixelArt.pixel(ctx, x + 1, y + 1 + yOffset, '#ffffff');
         }
       } else if (status.id === 'burning') {
         // 灼印：火焰粒子環繞敵人
@@ -582,7 +587,7 @@ DK.Elements = {
 
         // 底部微弱橘光
         const glowAlpha = 0.12 + Math.sin(t * 3) * 0.06;
-        PA.rect(ctx, x - 4, y - 6, 9, 11, `rgba(255,102,34,${glowAlpha})`);
+        PA.rect(ctx, x - 4, y - 6 + yOffset, 9, 11, `rgba(255,102,34,${glowAlpha})`);
 
         // 6 個火焰粒子環繞（橘紅色，向上飄動）
         for (let i = 0; i < 6; i++) {
@@ -591,7 +596,7 @@ DK.Elements = {
           const px = Math.round(x + Math.cos(angle) * radius);
           // 火焰粒子向上飄動
           const floatY = Math.sin(t * 3 + i * 1.1) * 2 - 1;
-          const py = Math.round(y - 2 + Math.sin(angle) * radius * 0.5 + floatY);
+          const py = Math.round(y - 2 + yOffset + Math.sin(angle) * radius * 0.5 + floatY);
           const bright = i % 2 === 0;
           PA.pixel(ctx, px, py, bright ? '#ffaa44' : '#ff6622');
           PA.pixel(ctx, px, py - 1, bright ? '#ff8833' : '#cc4411');
@@ -608,14 +613,14 @@ DK.Elements = {
 
         // 身體微弱藍色光暈
         const glowAlpha = 0.1 + Math.sin(t * 2) * 0.05;
-        PA.rect(ctx, x - 4, y - 6, 9, 11, `rgba(136,204,255,${glowAlpha})`);
+        PA.rect(ctx, x - 4, y - 6 + yOffset, 9, 11, `rgba(136,204,255,${glowAlpha})`);
 
         // 冰晶粒子環繞（淺藍色小菱形）
         for (let i = 0; i < 6; i++) {
           const angle = t + (i * Math.PI * 2) / 6;
           const radius = 5 + Math.sin(t * 1.5 + i) * 1;
           const px = Math.round(x + Math.cos(angle) * radius);
-          const py = Math.round(y - 2 + Math.sin(angle) * radius * 0.6);
+          const py = Math.round(y - 2 + yOffset + Math.sin(angle) * radius * 0.6);
           // 小菱形（3像素）
           PA.pixel(ctx, px, py - 1, '#aaddff');
           PA.pixel(ctx, px - 1, py, '#88ccff');
@@ -623,6 +628,8 @@ DK.Elements = {
           PA.pixel(ctx, px, py + 1, '#aaddff');
         }
       }
+
+      activeIndex++;
     }
   },
 };
