@@ -49,7 +49,7 @@ DK.Map = {
     'WWWWWAWWWWWWAWWWWW.WWWWWWWAWWWWWWAWWWWWW', // row 10
     'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 11
     'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 12
-    'WW....GGG.PP...GGG..PP......GGG..PP...WW', // row 13
+    'WW....GGG.PP...GGG..PPRRRRRRRRRR.PP...WW', // row 13
     'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 14
     'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 15
     'WWWWWAWWWWWWAWWWWWWWW.WWWWWWAWWWWWWAWWWW', // row 16
@@ -79,10 +79,14 @@ DK.Map = {
   // 草叢狀態管理：key 為 'col,row'，value 為 { state, timer }
   grassState: {},
 
+  // 軌道定義（由 init 從 LAYOUT 自動建構）
+  tracks: [],
+
   init() {
     this.initGrassState();
     this.computePath();
     this.computeTrapSlots();
+    this.computeTracks();
     this.prerenderTiles();
   },
 
@@ -98,6 +102,71 @@ DK.Map = {
     }
   },
 
+  /** 從 LAYOUT 自動掃描所有 R 格子建構 tracks 路徑 */
+  computeTracks() {
+    // 收集所有 R 格子
+    const railCells = [];
+    for (let r = 0; r < this.layout.length; r++) {
+      for (let c = 0; c < this.layout[r].length; c++) {
+        if (this.layout[r][c] === 'R') {
+          railCells.push({ col: c, row: r });
+        }
+      }
+    }
+
+    if (railCells.length === 0) {
+      this.tracks = [];
+      return;
+    }
+
+    // 用 BFS 將相鄰的 R 格子分組成不同軌道
+    const visited = new Set();
+    const trackGroups = [];
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    for (const cell of railCells) {
+      const key = `${cell.col},${cell.row}`;
+      if (visited.has(key)) continue;
+
+      // BFS 收集此連通區域的所有 R 格
+      const group = [];
+      const queue = [cell];
+      visited.add(key);
+
+      while (queue.length > 0) {
+        const cur = queue.shift();
+        group.push({ col: cur.col, row: cur.row });
+
+        for (const [dc, dr] of dirs) {
+          const nc = cur.col + dc;
+          const nr = cur.row + dr;
+          const nk = `${nc},${nr}`;
+          if (!visited.has(nk) && nr >= 0 && nr < this.layout.length &&
+              nc >= 0 && nc < this.layout[nr].length && this.layout[nr][nc] === 'R') {
+            visited.add(nk);
+            queue.push({ col: nc, row: nr });
+          }
+        }
+      }
+
+      // 按 col 排序（左→右），同 col 則按 row 排序
+      group.sort((a, b) => a.col !== b.col ? a.col - b.col : a.row - b.row);
+      trackGroups.push(group);
+    }
+
+    // 建構 tracks 資料
+    this.tracks = trackGroups.map(group => ({
+      path: group,
+      speed: DK.CONFIG.MINECART_SPEED,
+      damage: DK.CONFIG.MINECART_DAMAGE,
+      knockback: DK.CONFIG.MINECART_KNOCKBACK,
+    }));
+  },
+
+  isTrack(col, row) {
+    return this.getTile(col, row) === 'R';
+  },
+
   getTile(col, row) {
     if (row < 0 || row >= this.layout.length || col < 0 || col >= this.layout[0].length) {
       return 'W';
@@ -111,7 +180,7 @@ DK.Map = {
 
   isPath(col, row) {
     const t = this.getTile(col, row);
-    return t === '.' || t === 'E' || t === 'X' || t === 'P' || t === 'G';
+    return t === '.' || t === 'E' || t === 'X' || t === 'P' || t === 'G' || t === 'R';
   },
 
   isAbyss(col, row) {
@@ -346,6 +415,16 @@ DK.Map = {
       const ctx = canvas.getContext('2d');
       this.drawGrassScorchedTile(ctx, 0, 0, v);
       this.tileCache[`grass_scorched_${v}`] = canvas;
+    }
+
+    // 軌道地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = T;
+      canvas.height = T;
+      const ctx = canvas.getContext('2d');
+      this.drawTrackTile(ctx, 0, 0, v);
+      this.tileCache[`track_${v}`] = canvas;
     }
 
     // 入口地磚
@@ -867,6 +946,66 @@ DK.Map = {
     }
   },
 
+  /** 軌道地磚：地板 + 鐵軌 + 枕木 */
+  drawTrackTile(ctx, x, y, variant) {
+    const PA = DK.PixelArt;
+    const C = DK.COLORS;
+    const rng = PA.seededRandom(variant * 337 + 101);
+
+    // 基底是普通地板色
+    this.drawFloorTile(ctx, x, y, variant);
+
+    // 鐵軌顏色
+    const RAIL_COLOR = '#3a3a4a';
+    const RAIL_HIGHLIGHT = '#4a4a5a';
+    const TIE_COLOR = '#4a3828';
+    const TIE_DARK = '#3a2818';
+
+    // 橫向枕木（棕色，每 4px 一根）
+    for (let i = 0; i < 16; i += 4) {
+      const tieX = x + i;
+      PA.rect(ctx, tieX, y + 4, 3, 1, TIE_COLOR);
+      PA.rect(ctx, tieX, y + 11, 3, 1, TIE_COLOR);
+      // 枕木陰影
+      PA.rect(ctx, tieX, y + 5, 3, 1, TIE_DARK);
+      PA.rect(ctx, tieX, y + 12, 3, 1, TIE_DARK);
+    }
+
+    // 兩條平行鐵軌（深灰色，寬 1px，間距約 6px）
+    // 上軌
+    PA.rect(ctx, x, y + 5, 16, 1, RAIL_COLOR);
+    // 上軌高光
+    for (let i = 0; i < 16; i += 3) {
+      PA.pixel(ctx, x + i, y + 5, RAIL_HIGHLIGHT);
+    }
+    // 下軌
+    PA.rect(ctx, x, y + 11, 16, 1, RAIL_COLOR);
+    // 下軌高光
+    for (let i = 1; i < 16; i += 3) {
+      PA.pixel(ctx, x + i, y + 11, RAIL_HIGHLIGHT);
+    }
+
+    // 鐵軌間地面紋理（稍微暗化中間區域表示磨損）
+    for (let i = 0; i < 16; i++) {
+      if (rng() > 0.6) {
+        PA.pixel(ctx, x + i, y + 7 + Math.floor(rng() * 3), C.FLOOR_DARK_MID);
+      }
+    }
+
+    // 碎石散落（鐵軌旁邊的碎石）
+    for (let t = 0; t < 3; t++) {
+      const gx = Math.floor(rng() * 14) + 1;
+      const gy = rng() > 0.5 ? (2 + Math.floor(rng() * 2)) : (13 + Math.floor(rng() * 2));
+      PA.pixel(ctx, x + gx, y + gy, '#5a5248');
+    }
+
+    // 鉚釘裝飾（枕木與鐵軌交叉處）
+    for (let i = 2; i < 16; i += 4) {
+      PA.pixel(ctx, x + i, y + 5, '#5a5a6a');
+      PA.pixel(ctx, x + i, y + 11, '#5a5a6a');
+    }
+  },
+
   /** 計算可見範圍（以格子為單位），向後相容無 camera 場景 */
   getVisibleRange() {
     const T = DK.CONFIG.TILE_SIZE;
@@ -919,6 +1058,9 @@ DK.Map = {
           } else {
             ctx.drawImage(this.tileCache[`grass_${variant}`], x, y);
           }
+        } else if (tile === 'R') {
+          const variant = (c * 11 + r * 17) % 6;
+          ctx.drawImage(this.tileCache[`track_${variant}`], x, y);
         } else {
           const variant = (c * 11 + r * 17) % 6;
           ctx.drawImage(this.tileCache[`floor_${variant}`], x, y);

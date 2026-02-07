@@ -131,6 +131,7 @@ window.DK = window.DK || {};
     }
 
     DK.Traps.render(offCtx);
+    renderMinecarts(offCtx);
     DK.Enemies.render(offCtx, DK.Game.time);
     if (DK.Heroes) DK.Heroes.render(offCtx, DK.Game.time);
     renderEffects(offCtx);
@@ -935,6 +936,71 @@ window.DK = window.DK || {};
     }
   }
 
+  // === Minecart Renderer ===
+
+  function renderMinecarts(ctx) {
+    if (!DK.Game.minecarts) return;
+
+    for (const cart of DK.Game.minecarts) {
+      const x = Math.round(cart.x);
+      const y = Math.round(cart.y);
+
+      // 礦車車體（約 12x10 像素，像素風格）
+      // 車斗底部（深棕）
+      ctx.fillStyle = '#3a2010';
+      ctx.fillRect(x - 6, y - 3, 12, 6);
+
+      // 車斗側板（棕色）
+      ctx.fillStyle = '#5a3820';
+      ctx.fillRect(x - 6, y - 5, 12, 2);  // 上邊
+      ctx.fillRect(x - 7, y - 5, 1, 8);   // 左邊
+      ctx.fillRect(x + 6, y - 5, 1, 8);   // 右邊
+
+      // 車斗高光（左上光源）
+      ctx.fillStyle = '#7a5838';
+      ctx.fillRect(x - 5, y - 5, 4, 1);   // 上邊高光
+      ctx.fillRect(x - 6, y - 4, 1, 3);   // 左邊高光
+
+      // 礦石內容（灰色石頭，略微凸出車斗）
+      ctx.fillStyle = '#555566';
+      ctx.fillRect(x - 4, y - 6, 3, 2);
+      ctx.fillStyle = '#666677';
+      ctx.fillRect(x, y - 7, 3, 3);
+      ctx.fillStyle = '#444455';
+      ctx.fillRect(x + 2, y - 5, 2, 1);
+
+      // 車輪（2 個）
+      ctx.fillStyle = '#222233';
+      ctx.fillRect(x - 5, y + 3, 3, 3);   // 左輪
+      ctx.fillRect(x + 2, y + 3, 3, 3);   // 右輪
+      // 輪軸高光
+      ctx.fillStyle = '#444455';
+      ctx.fillRect(x - 4, y + 4, 1, 1);
+      ctx.fillRect(x + 3, y + 4, 1, 1);
+    }
+  }
+
+  function renderMinecartHit(ctx, PA, effect, progress) {
+    const alpha = 1 - progress;
+    const radius = 4 + progress * 8;
+
+    // 碰撞火花
+    ctx.fillStyle = `rgba(255,200,100,${alpha * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 碎石飛散
+    for (let i = 0; i < 4; i++) {
+      const angle = (i / 4) * Math.PI * 2 + progress * 2;
+      const dist = progress * 12;
+      const px = effect.x + Math.cos(angle) * dist;
+      const py = effect.y + Math.sin(angle) * dist;
+      ctx.fillStyle = `rgba(150,120,80,${alpha})`;
+      ctx.fillRect(Math.round(px), Math.round(py), 2, 2);
+    }
+  }
+
   // === Main renderEffects dispatcher ===
 
   function renderEffects(ctx) {
@@ -964,8 +1030,10 @@ window.DK = window.DK || {};
         case 'stun_wave': renderStunWave(ctx, PA, effect, progress); break;
         case 'gold_sparkle': renderGoldSparkle(ctx, PA, effect, progress); break;
         case 'hero_deploy': renderHeroDeploy(ctx, PA, effect, progress); break;
+        case 'minecart_hit': renderMinecartHit(ctx, PA, effect, progress); break;
         case 'damage':
         case 'gold':
+        case 'float_text':
         case 'reaction_text':
           break; // Rendered on UI canvas
       }
@@ -975,7 +1043,7 @@ window.DK = window.DK || {};
   // Render floating text effects on UI canvas
   DK.renderUIEffects = function(ctx) {
     for (const effect of DK.Game.effects) {
-      if (effect.type !== 'damage' && effect.type !== 'gold' && effect.type !== 'reaction_text') continue;
+      if (effect.type !== 'damage' && effect.type !== 'gold' && effect.type !== 'reaction_text' && effect.type !== 'float_text') continue;
 
       const progress = effect.timer / effect.duration;
       const alpha = Math.min(1, (1 - progress) * 2); // Fade out in second half

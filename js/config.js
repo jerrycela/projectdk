@@ -37,6 +37,11 @@ DK.CONFIG = {
 
   // FPS
   TARGET_FPS: 60,
+
+  // Minecart
+  MINECART_SPEED: 1.5,        // 格/秒
+  MINECART_DAMAGE: 25,
+  MINECART_KNOCKBACK: 2,      // 擊退格數
 };
 
 // Color Palette - Dungeon Theme

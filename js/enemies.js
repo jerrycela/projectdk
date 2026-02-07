@@ -6,9 +6,11 @@ window.DK = window.DK || {};
 
 DK.Enemies = {
   active: [],
+  _nextId: 1,
 
   init() {
     this.active = [];
+    this._nextId = 1;
   },
 
   spawn(typeName, pathIndex) {
@@ -17,6 +19,7 @@ DK.Enemies = {
 
     const startPos = DK.Map.path[pathIndex || 0];
     const enemy = {
+      id: this._nextId++,
       type: typeDef,
       x: startPos.x,
       y: startPos.y,
