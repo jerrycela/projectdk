@@ -24,10 +24,10 @@ DK.CONFIG = {
   UI_HEIGHT: 96,
 
   // Game settings
-  STARTING_GOLD: 150,
+  STARTING_GOLD: 350,
   STARTING_LIVES: 20,
   WAVE_DELAY: 5000,
-  ENEMY_SPAWN_INTERVAL: 800,
+  ENEMY_SPAWN_INTERVAL: 500,
 
   // FPS
   TARGET_FPS: 60,
@@ -57,21 +57,6 @@ DK.COLORS = {
   TRAP_METAL: '#7888a0',
   TRAP_METAL_LIGHT: '#98a8c0',
   TRAP_METAL_DARK: '#586878',
-  TRAP_FIRE: '#ff6622',
-  TRAP_FIRE_GLOW: '#ffaa44',
-  TRAP_ICE: '#44aaff',
-  TRAP_ICE_GLOW: '#88ccff',
-  TRAP_ARROW_WOOD: '#8b6914',
-  TRAP_ARROW_TIP: '#c0c8d0',
-
-  // Traps - Floor
-  TRAP_SPIKE: '#a0a8b8',
-  TRAP_SPIKE_TIP: '#d0d8e0',
-  TRAP_TAR: '#1a1a2a',
-  TRAP_TAR_HIGHLIGHT: '#2a2a3a',
-  TRAP_BOMB_BODY: '#4a4a4a',
-  TRAP_BOMB_FUSE: '#c8a050',
-  TRAP_BOMB_SPARK: '#ffdd66',
 
   // Enemies
   GOBLIN_SKIN: '#44aa44',
@@ -105,82 +90,176 @@ DK.COLORS = {
   DAMAGE_TEXT: '#ff4444',
   GOLD_TEXT: '#ffd700',
   HEAL_TEXT: '#44ff44',
+
+  // Elements
+  ELEMENT_WATER: '#4488ff',
+  ELEMENT_WATER_LIGHT: '#66aaff',
+  ELEMENT_ELECTRIC: '#ffdd44',
+  ELEMENT_ELECTRIC_LIGHT: '#ffff88',
+  ELEMENT_REACTION: '#ffffff',
+
+  // Heroes
+  HERO_ROBE: '#2244aa',
+  HERO_ROBE_DARK: '#1a3388',
+  HERO_ROBE_LIGHT: '#3355cc',
+  HERO_SKIN: '#e8d0b0',
+  HERO_SELECTED: '#44ff44',
+
+  // Electric trap
+  TRAP_ELECTRIC: '#ffdd44',
+  TRAP_ELECTRIC_LIGHT: '#ffff88',
+  TRAP_ELECTRIC_DARK: '#aa8800',
+  TRAP_ELECTRIC_PLATE: '#4a4a5a',
+
+  // Push trap
+  TRAP_PUSH_HOUSING: '#5a5060',
+  TRAP_PUSH_PISTON: '#8a8090',
+  TRAP_PUSH_CHARGE: '#ff6622',
+  TRAP_PUSH_GLOW: '#ffaa44',
+
+  // Blast trap
+  TRAP_BLAST_BODY: '#5a3020',
+  TRAP_BLAST_CORE: '#aa4422',
+  TRAP_BLAST_GLOW: '#ff6633',
+  TRAP_BLAST_FUSE: '#cc8844',
+
+  // Wind trap
+  TRAP_WIND_HOUSING: '#2a3448',
+  TRAP_WIND_FAN: '#88aacc',
+  TRAP_WIND_GLOW: '#aaddff',
+
+  // Abyss (replaces lava)
+  ABYSS_DARK: '#050508',
+  ABYSS_EDGE: '#1a1a2a',
+  ABYSS_CRACK: '#0a0a14',
+  ABYSS_ROCK: '#2a2838',
+
+  // Water pool
+  POOL_DARK: '#1a2a4a',
+  POOL_MID: '#2a4a7a',
+  POOL_LIGHT: '#3a6aaa',
+  POOL_HIGHLIGHT: '#5a8acc',
+  POOL_RIPPLE: '#6aaaee',
+
+  // Grassland
+  GRASS_DARK: '#1a3a1a',
+  GRASS_MID: '#2a5a2a',
+  GRASS_LIGHT: '#3a7a3a',
+  GRASS_HIGHLIGHT: '#4a9a4a',
+  GRASS_BURNING: '#cc5522',
+  GRASS_SCORCHED: '#2a2420',
+
+  // Fire element
+  ELEMENT_FIRE: '#ff6622',
+  ELEMENT_FIRE_LIGHT: '#ffaa44',
+
+  // Ice element
+  ELEMENT_ICE: '#88ccff',
+  ELEMENT_ICE_LIGHT: '#aaddff',
+  ELEMENT_ICE_DARK: '#4488cc',
+
+  // Heroes - Fire mage
+  HERO_FIRE_ROBE: '#aa3322',
+  HERO_FIRE_ROBE_DARK: '#882211',
+  HERO_FIRE_ROBE_LIGHT: '#cc4433',
+
+  // Heroes - Ice mage
+  HERO_ICE_ROBE: '#4488aa',
+  HERO_ICE_ROBE_DARK: '#336688',
+  HERO_ICE_ROBE_LIGHT: '#55aacc',
 };
 
 // Trap definitions
 DK.TRAP_TYPES = {
-  // Wall-mounted traps
-  ARROW_TOWER: {
-    id: 'arrow_tower',
-    name: '箭塔',
-    description: '發射箭矢攻擊敵人',
-    cost: 30,
-    damage: 15,
-    range: 3,
-    cooldown: 1000,
-    type: 'wall',
-    icon: 'arrow',
-  },
-  FLAME_JET: {
-    id: 'flame_jet',
-    name: '火焰噴射',
-    description: '噴射火焰造成範圍傷害',
-    cost: 50,
-    damage: 25,
-    range: 2,
-    cooldown: 2000,
-    type: 'wall',
-    icon: 'flame',
-  },
-  ICE_TRAP: {
-    id: 'ice_trap',
-    name: '冰凍陷阱',
-    description: '減緩敵人移動速度',
-    cost: 40,
-    damage: 5,
-    range: 2,
-    cooldown: 1500,
-    type: 'wall',
-    slowAmount: 0.5,
-    slowDuration: 2000,
-    icon: 'ice',
-  },
   // Floor traps
-  FLOOR_SPIKES: {
-    id: 'floor_spikes',
-    name: '地刺',
-    description: '對經過的敵人造成傷害',
-    cost: 20,
-    damage: 20,
+  SHOCK_PLATE: {
+    id: 'shock_plate',
+    name: '電擊板',
+    description: '電擊敵人，潮濕時觸發感電',
+    cost: 45,
+    damage: 18,
     range: 0,
-    cooldown: 800,
+    cooldown: 1200,
     type: 'floor',
-    icon: 'spike',
+    element: 'electric',
+    icon: 'shock_plate',
   },
-  TAR_TRAP: {
-    id: 'tar_trap',
-    name: '焦油陷阱',
-    description: '大幅減緩敵人速度',
-    cost: 25,
+  PUSH_TRAP: {
+    id: 'push_trap',
+    name: '推力陷阱',
+    description: '定時推動敵人，可推入深淵秒殺',
+    cost: 35,
     damage: 0,
     range: 0,
-    cooldown: 500,
-    type: 'floor',
-    slowAmount: 0.3,
-    slowDuration: 3000,
-    icon: 'tar',
+    cooldown: 3000,
+    type: 'wall',
+    pushForce: 2,
+    icon: 'push_trap',
   },
-  BOMB_TRAP: {
-    id: 'bomb_trap',
-    name: '炸彈',
-    description: '爆炸造成大範圍傷害',
+  BLAST_TRAP: {
+    id: 'blast_trap',
+    name: '爆破陷阱',
+    description: '踩到時爆炸，灼印敵人觸發烈焰引爆',
     cost: 60,
-    damage: 50,
+    damage: 40,
     range: 1.5,
     cooldown: 3000,
     type: 'floor',
-    icon: 'bomb',
+    element: 'fire',
+    icon: 'blast_trap',
   },
+  WIND_TRAP: {
+    id: 'wind_trap',
+    name: '風壓陷阱',
+    description: '釋放風壓推動敵人，冰凍印記觸發暴風雪',
+    cost: 45,
+    damage: 0,
+    range: 0,
+    cooldown: 3000,
+    type: 'wall',
+    pushForce: 1,
+    element: 'ice',
+    icon: 'wind_trap',
+  },
+};
+
+// Evolution definitions (aura upgrade system)
+DK.EVOLUTION_TYPES = {
+  thunder_shock_plate: {
+    baseTrap: 'shock_plate',
+    name: '雷暴電擊板',
+    cost: 60,
+    requiredHeroElement: 'water',
+    description: '連鎖範圍+2格、感電範圍+50%',
+    chainRangeBonus: 2,
+    electrocuteRangeBonus: 0.5,
+  },
+  seismic_blast_trap: {
+    baseTrap: 'blast_trap',
+    name: '震爆陷阱',
+    cost: 80,
+    requiredHeroElement: 'fire',
+    description: '擊退2格、1秒眩暈波、範圍+30%',
+    knockbackTiles: 2,
+    stunDuration: 1000,
+    rangeBonus: 0.3,
+  },
+  glacial_wind_trap: {
+    baseTrap: 'wind_trap',
+    name: '極寒風壓',
+    cost: 70,
+    requiredHeroElement: 'ice',
+    description: '暴風雪×1.5、凍結+1秒、可推中型敵',
+    blizzardMultiplier: 1.5,
+    freezeBonus: 1000,
+    pushMassBonus: 1,
+  },
+};
+
+DK.AURA_PAIRS = {
+  water: 'shock_plate',
+  fire: 'blast_trap',
+  ice: 'wind_trap',
 };
 
 // Enemy wave definitions
@@ -192,6 +271,7 @@ DK.ENEMY_TYPES = {
     speed: 1.2,
     reward: 10,
     size: 0.7,
+    mass: 1,
   },
   SKELETON: {
     id: 'skeleton',
@@ -200,6 +280,7 @@ DK.ENEMY_TYPES = {
     speed: 0.8,
     reward: 15,
     size: 0.85,
+    mass: 2,
   },
   ORC: {
     id: 'orc',
@@ -208,6 +289,7 @@ DK.ENEMY_TYPES = {
     speed: 0.5,
     reward: 25,
     size: 1.0,
+    mass: 3,
   },
   SLIME: {
     id: 'slime',
@@ -216,20 +298,21 @@ DK.ENEMY_TYPES = {
     speed: 0.9,
     reward: 12,
     size: 0.65,
+    mass: 1,
     splits: true,
   },
 };
 
 // Wave definitions
 DK.WAVES = [
-  { enemies: [{ type: 'GOBLIN', count: 5 }] },
-  { enemies: [{ type: 'GOBLIN', count: 8 }] },
-  { enemies: [{ type: 'GOBLIN', count: 5 }, { type: 'SKELETON', count: 3 }] },
-  { enemies: [{ type: 'SKELETON', count: 6 }, { type: 'GOBLIN', count: 4 }] },
-  { enemies: [{ type: 'ORC', count: 3 }, { type: 'GOBLIN', count: 6 }] },
-  { enemies: [{ type: 'SLIME', count: 8 }] },
-  { enemies: [{ type: 'ORC', count: 5 }, { type: 'SKELETON', count: 5 }] },
-  { enemies: [{ type: 'GOBLIN', count: 10 }, { type: 'ORC', count: 3 }, { type: 'SLIME', count: 5 }] },
-  { enemies: [{ type: 'SKELETON', count: 8 }, { type: 'ORC', count: 6 }] },
-  { enemies: [{ type: 'ORC', count: 8 }, { type: 'SLIME', count: 8 }, { type: 'SKELETON', count: 5 }] },
+  { enemies: [{ type: 'GOBLIN', count: 10 }] },
+  { enemies: [{ type: 'GOBLIN', count: 14 }] },
+  { enemies: [{ type: 'GOBLIN', count: 8 }, { type: 'SKELETON', count: 6 }] },
+  { enemies: [{ type: 'SKELETON', count: 10 }, { type: 'GOBLIN', count: 8 }] },
+  { enemies: [{ type: 'ORC', count: 6 }, { type: 'GOBLIN', count: 10 }] },
+  { enemies: [{ type: 'SLIME', count: 14 }] },
+  { enemies: [{ type: 'ORC', count: 8 }, { type: 'SKELETON', count: 8 }] },
+  { enemies: [{ type: 'GOBLIN', count: 15 }, { type: 'ORC', count: 6 }, { type: 'SLIME', count: 8 }] },
+  { enemies: [{ type: 'SKELETON', count: 12 }, { type: 'ORC', count: 10 }] },
+  { enemies: [{ type: 'ORC', count: 12 }, { type: 'SLIME', count: 12 }, { type: 'SKELETON', count: 8 }] },
 ];

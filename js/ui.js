@@ -21,6 +21,8 @@ DK.FONTS = {
 
 DK.UI = {
   selectedTrap: null,
+  selectedHeroType: null, // Hero type to deploy
+  selectedPlacedTrap: null, // Currently selected placed trap (for info panel)
   hoveredTile: null,
   buttons: [],
   tooltipText: '',
@@ -28,9 +30,13 @@ DK.UI = {
   waveStartTimer: 0,
   messageQueue: [],
   fontsReady: false,
+  _evolveButtonRect: null, // Cached evolve button hit area
 
   init() {
     this.selectedTrap = null;
+    this.selectedHeroType = null;
+    this.selectedPlacedTrap = null;
+    this._evolveButtonRect = null;
     this.hoveredTile = null;
     this.buildButtons();
     this.checkFonts();
@@ -50,12 +56,21 @@ DK.UI = {
   buildButtons() {
     this.buttons = [];
     const trapTypes = Object.values(DK.TRAP_TYPES);
-    const btnWidth = 120;
-    const btnHeight = 70;
-    const startX = 20;
-    const startY = DK.CONFIG.UI_TOP + 13;
-    const gap = 8;
+    const heroTypes = Object.values(DK.HERO_TYPES);
+    const totalItems = trapTypes.length + heroTypes.length;
+    const separatorGap = 14; // Gap between trap and hero sections
 
+    // Dynamic button sizing — now only 4+3 items, more room
+    const waveButtonWidth = 100;
+    const waveGap = 12;
+    const availableWidth = DK.CONFIG.DISPLAY_WIDTH - 20 - waveButtonWidth - waveGap - 20 - separatorGap;
+    const gap = 6;
+    const btnWidth = Math.min(120, Math.floor((availableWidth - gap * (totalItems - 1)) / totalItems));
+    const btnHeight = 70;
+    const startX = 12;
+    const startY = DK.CONFIG.UI_TOP + 13;
+
+    // Left side: trap buttons
     trapTypes.forEach((trap, i) => {
       this.buttons.push({
         trap,
@@ -66,18 +81,60 @@ DK.UI = {
       });
     });
 
-    // Wave start button
+    // Middle separator gap, then hero buttons
+    const heroStartX = startX + (btnWidth + gap) * trapTypes.length + separatorGap;
+    heroTypes.forEach((hero, i) => {
+      this.buttons.push({
+        hero,
+        x: heroStartX + (btnWidth + gap) * i,
+        y: startY,
+        width: btnWidth,
+        height: btnHeight,
+      });
+    });
+
+    // Store layout info for separator and labels
+    const trapEndX = startX + (btnWidth + gap) * trapTypes.length - gap;
+    this._sectionLayout = {
+      separatorX: Math.floor(trapEndX + separatorGap / 2),
+      separatorY: startY,
+      separatorH: btnHeight,
+      trapLabelX: startX + (trapEndX - startX) / 2,
+      heroLabelX: heroStartX + ((btnWidth + gap) * heroTypes.length - gap) / 2,
+      labelY: startY - 2,
+    };
+
+    // Wave start button (always far right)
     this.buttons.push({
       action: 'start_wave',
       label: '開始波次',
-      x: DK.CONFIG.DISPLAY_WIDTH - 140,
+      x: DK.CONFIG.DISPLAY_WIDTH - waveButtonWidth - 12,
       y: startY,
-      width: 120,
+      width: waveButtonWidth,
       height: btnHeight,
     });
   },
 
   handleClick(mx, my) {
+    // Check evolve button click (before anything else)
+    if (this.selectedPlacedTrap && this._evolveButtonRect) {
+      const eb = this._evolveButtonRect;
+      if (mx >= eb.x && mx <= eb.x + eb.w && my >= eb.y && my <= eb.y + eb.h) {
+        const trap = this.selectedPlacedTrap;
+        const evo = DK.Traps.getEvolutionForTrap(trap);
+        if (evo && DK.Game && DK.Game.gold >= evo.cost) {
+          DK.Game.gold -= evo.cost;
+          DK.Traps.evolveTrap(trap, evo.id);
+          this.selectedPlacedTrap = null;
+          this._evolveButtonRect = null;
+          return true;
+        } else if (evo && DK.Game && DK.Game.gold < evo.cost) {
+          this.showMessage('金幣不足！');
+          return true;
+        }
+      }
+    }
+
     // Check UI buttons
     for (const btn of this.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.width &&
@@ -90,8 +147,76 @@ DK.UI = {
         }
         if (btn.trap) {
           this.selectedTrap = btn.trap;
+          this.selectedHeroType = null;
+          this.selectedPlacedTrap = null;
+          this._evolveButtonRect = null;
+          if (DK.Heroes) DK.Heroes.selectedHero = null;
           return true;
         }
+        if (btn.hero) {
+          this.selectedHeroType = btn.hero;
+          this.selectedTrap = null;
+          this.selectedPlacedTrap = null;
+          this._evolveButtonRect = null;
+          if (DK.Heroes) DK.Heroes.selectedHero = null;
+          return true;
+        }
+      }
+    }
+
+    // Check game area clicks
+    if (my < DK.CONFIG.UI_TOP && DK.Game) {
+      const col = Math.floor(mx / DK.CONFIG.DISPLAY_TILE);
+      const row = Math.floor(my / DK.CONFIG.DISPLAY_TILE);
+
+      // Priority 1: Click on existing hero to select it
+      if (DK.Heroes) {
+        const pixelX = mx / DK.CONFIG.SCALE;
+        const pixelY = my / DK.CONFIG.SCALE;
+        const clickedHero = DK.Heroes.getHeroNear(pixelX, pixelY);
+        if (clickedHero) {
+          DK.Heroes.selectedHero = clickedHero;
+          this.selectedTrap = null;
+          this.selectedHeroType = null;
+          this.selectedPlacedTrap = null;
+          this._evolveButtonRect = null;
+          return true;
+        }
+      }
+
+      // Priority 1.5: Click on placed trap to inspect it
+      if (DK.Traps) {
+        const clickedTrap = DK.Traps.getTrapAt(col, row);
+        if (clickedTrap) {
+          this.selectedPlacedTrap = clickedTrap;
+          this.selectedTrap = null;
+          this.selectedHeroType = null;
+          if (DK.Heroes) DK.Heroes.selectedHero = null;
+          return true;
+        }
+      }
+
+      // Priority 2: Move selected hero
+      if (DK.Heroes && DK.Heroes.selectedHero) {
+        if (DK.Map.isPath(col, row) && DK.Map.layout[row][col] !== 'E' && DK.Map.layout[row][col] !== 'X') {
+          DK.Heroes.commandMove(DK.Heroes.selectedHero, col, row);
+          return true;
+        }
+      }
+
+      // Priority 3: Deploy hero
+      if (this.selectedHeroType) {
+        if (DK.Map.isPath(col, row) && DK.Map.layout[row][col] !== 'E' && DK.Map.layout[row][col] !== 'X') {
+          if (DK.Game.gold >= this.selectedHeroType.cost) {
+            if (DK.Heroes && DK.Heroes.deploy(this.selectedHeroType.id, col, row)) {
+              DK.Game.gold -= this.selectedHeroType.cost;
+              return true;
+            }
+          } else {
+            this.showMessage('金幣不足！');
+          }
+        }
+        return true;
       }
     }
 
@@ -139,7 +264,9 @@ DK.UI = {
       if (mx >= btn.x && mx <= btn.x + btn.width &&
           my >= btn.y && my <= btn.y + btn.height) {
         if (btn.trap) {
-          this.tooltipText = `${btn.trap.name}: ${btn.trap.description}`;
+          this.tooltipText = `${btn.trap.name}: ${btn.trap.description} (點擊選取)`;
+        } else if (btn.hero) {
+          this.tooltipText = `${btn.hero.name}: ${btn.hero.description} (點擊部署)`;
         }
         break;
       }
@@ -181,6 +308,22 @@ DK.UI = {
     // Top border line (decorative)
     this.drawPixelBorder(ctx, 0, DK.CONFIG.UI_TOP, W, DK.CONFIG.UI_HEIGHT);
 
+    // Section labels and separator
+    if (this._sectionLayout) {
+      const sl = this._sectionLayout;
+      // Separator line between trap and hero sections
+      ctx.fillStyle = C.UI_BORDER;
+      ctx.fillRect(sl.separatorX, sl.separatorY, 1, sl.separatorH);
+      // "陷阱" label
+      ctx.font = DK.FONTS.body(10);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = C.UI_TEXT_DIM;
+      ctx.fillText('陷阱', sl.trapLabelX, sl.labelY);
+      // "英雄" label
+      ctx.fillText('英雄', sl.heroLabelX, sl.labelY);
+    }
+
     // Trap selection buttons
     for (const btn of this.buttons) {
       this.renderButton(ctx, btn);
@@ -189,8 +332,16 @@ DK.UI = {
     // Top HUD bar
     this.renderHUD(ctx);
 
+    // Hero move target indicator
+    if (DK.Heroes && DK.Heroes.selectedHero && this.hoveredTile) {
+      this.renderHeroMoveIndicator(ctx);
+    }
+
     // Hover indicator on game area
     this.renderHoverIndicator(ctx);
+
+    // Selected placed trap info panel
+    this.renderSelectedTrapInfo(ctx);
 
     // Selected trap range preview
     if (this.selectedTrap && this.hoveredTile) {
@@ -255,81 +406,69 @@ DK.UI = {
     const hs = s / 2;
 
     switch (trapId) {
-      case 'arrow_tower':
-        // Crossbow icon
-        ctx.fillStyle = '#8b6914';
-        ctx.fillRect(x + hs - 1, y + 4, 2, s - 8);
-        ctx.fillStyle = '#6b5010';
-        ctx.fillRect(x + 2, y + 6, s - 4, 2);
-        ctx.fillStyle = '#aaa888';
-        ctx.fillRect(x + 2, y + 9, 1, 1);
-        ctx.fillRect(x + s - 3, y + 9, 1, 1);
-        ctx.fillStyle = '#c0c8d0';
-        ctx.fillRect(x + hs - 1, y + s - 6, 2, 3);
+      case 'shock_plate':
+        // Lightning bolt icon
+        ctx.fillStyle = '#ffdd44';
+        ctx.fillRect(x + hs, y + 3, 2, 3);
+        ctx.fillRect(x + hs - 2, y + 6, 5, 2);
+        ctx.fillRect(x + hs, y + 8, 2, 3);
+        ctx.fillRect(x + hs - 1, y + 11, 3, 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + hs, y + 6, 1, 1);
         break;
 
-      case 'flame_jet':
-        // Fire icon
-        ctx.fillStyle = '#aa6830';
-        ctx.fillRect(x + hs - 3, y + 2, 6, 6);
+      case 'push_trap':
+        // Piston/ram icon
+        ctx.fillStyle = '#5a5060';
+        ctx.fillRect(x + 4, y + 3, s - 8, 6);
+        ctx.fillStyle = '#8a8090';
+        ctx.fillRect(x + 5, y + 4, s - 10, 4);
+        // Ram plate
+        ctx.fillStyle = '#aaa0b0';
+        ctx.fillRect(x + 4, y + s - 8, s - 8, 3);
+        ctx.fillStyle = '#bbb0c0';
+        ctx.fillRect(x + 4, y + s - 8, s - 8, 1);
+        // Charge glow
         ctx.fillStyle = '#ff6622';
-        ctx.fillRect(x + hs - 2, y + 10, 4, 4);
-        ctx.fillStyle = '#ffaa44';
-        ctx.fillRect(x + hs - 1, y + 12, 2, 4);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x + hs - 1, y + 14, 2, 2);
+        ctx.fillRect(x + hs - 1, y + 6, 2, 2);
+        // Direction arrow
+        ctx.fillStyle = '#ff8844';
+        ctx.fillRect(x + hs - 1, y + s - 4, 2, 2);
+        ctx.fillRect(x + hs, y + s - 3, 1, 2);
         break;
 
-      case 'ice_trap':
-        // Crystal icon
-        ctx.fillStyle = '#44aaff';
-        ctx.fillRect(x + hs - 1, y + 2, 2, s - 4);
-        ctx.fillRect(x + 4, y + hs - 1, s - 8, 2);
-        ctx.fillStyle = '#88ccff';
-        ctx.fillRect(x + hs - 1, y + hs - 1, 2, 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x + hs, y + hs, 1, 1);
-        break;
-
-      case 'floor_spikes':
-        // Spike icon
-        ctx.fillStyle = '#3a3428';
-        ctx.fillRect(x + 2, y + s - 6, s - 4, 4);
-        ctx.fillStyle = '#a0a8b8';
-        for (let i = 0; i < 3; i++) {
-          const sx = x + 5 + i * 5;
-          ctx.fillRect(sx, y + 6, 2, s - 12);
-          ctx.fillStyle = '#d0d8e0';
-          ctx.fillRect(sx, y + 4, 2, 2);
-          ctx.fillStyle = '#a0a8b8';
-        }
-        break;
-
-      case 'tar_trap':
-        // Tar pool icon
-        ctx.fillStyle = '#1a1a2a';
-        ctx.beginPath();
-        ctx.ellipse(x + hs, y + hs + 2, hs - 4, hs - 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#2a2a3a';
-        ctx.fillRect(x + hs - 2, y + hs - 1, 4, 2);
-        break;
-
-      case 'bomb_trap':
-        // Bomb icon
-        ctx.fillStyle = '#4a4a4a';
+      case 'blast_trap':
+        // 爆破裝置圖標
+        ctx.fillStyle = '#5a3020';
         ctx.beginPath();
         ctx.arc(x + hs, y + hs + 2, hs - 6, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#5a5a5a';
+        ctx.fillStyle = '#aa4422';
         ctx.beginPath();
         ctx.arc(x + hs, y + hs + 2, hs - 8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#c8a050';
+        // 火焰紋路
+        ctx.fillStyle = '#ff6633';
+        ctx.fillRect(x + hs - 1, y + hs, 2, 3);
+        ctx.fillRect(x + hs - 2, y + hs + 1, 4, 1);
+        // 引信
+        ctx.fillStyle = '#cc8844';
         ctx.fillRect(x + hs, y + 3, 1, 4);
-        ctx.fillRect(x + hs + 1, y + 2, 2, 1);
         ctx.fillStyle = '#ffdd66';
-        ctx.fillRect(x + hs + 3, y + 1, 2, 2);
+        ctx.fillRect(x + hs, y + 2, 2, 2);
+        break;
+
+      case 'wind_trap':
+        // 風壓裝置圖標
+        ctx.fillStyle = '#2a3448';
+        ctx.fillRect(x + 3, y + 2, s - 6, s - 4);
+        ctx.fillStyle = '#88aacc';
+        // 風扇葉片 (X 形)
+        ctx.fillRect(x + hs - 1, y + 4, 2, s - 8);
+        ctx.fillRect(x + 4, y + hs - 1, s - 8, 2);
+        // 中心軸
+        ctx.fillStyle = '#aaddff';
+        ctx.fillRect(x + hs - 1, y + hs - 1, 2, 2);
         break;
     }
   },
@@ -398,6 +537,92 @@ DK.UI = {
       return;
     }
 
+    // Hero button rendering
+    if (btn.hero) {
+      const heroType = btn.hero;
+      const isHeroSelected = this.selectedHeroType && this.selectedHeroType.id === heroType.id;
+      const heroCanAfford = game && game.gold >= heroType.cost;
+
+      // 根據元素決定配色
+      const elementColors = {
+        water: { badge: '#1a3388', border: '#3355cc', icon: '#4488ff', iconLight: '#88ccff', selected: '#4488ff' },
+        fire:  { badge: '#882211', border: '#cc4433', icon: '#ff6622', iconLight: '#ffaa44', selected: '#ff6622' },
+        ice:   { badge: '#336688', border: '#55aacc', icon: '#88ccff', iconLight: '#aaddff', selected: '#88ccff' },
+      };
+      const ec = elementColors[heroType.element] || elementColors.water;
+
+      // Button background
+      const grad = ctx.createLinearGradient(btn.x, btn.y, btn.x, btn.y + btn.height);
+      if (isHeroSelected) {
+        grad.addColorStop(0, '#1a2850');
+        grad.addColorStop(1, '#102040');
+      } else {
+        grad.addColorStop(0, '#1a2236');
+        grad.addColorStop(1, '#101830');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
+
+      // Border
+      ctx.strokeStyle = isHeroSelected ? ec.selected : C.UI_BORDER;
+      ctx.lineWidth = isHeroSelected ? 2 : 1;
+      ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
+
+      // Hero badge（根據元素配色）
+      ctx.fillStyle = ec.badge;
+      ctx.fillRect(btn.x + 3, btn.y + 3, 20, 16);
+      ctx.strokeStyle = ec.border;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(btn.x + 3.5, btn.y + 3.5, 19, 15);
+      ctx.fillStyle = '#e8e0d0';
+      ctx.font = DK.FONTS.bold(12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('英', btn.x + 13, btn.y + 11);
+
+      // Mini element icon（根據元素配色）
+      ctx.fillStyle = ec.icon;
+      ctx.beginPath();
+      ctx.arc(btn.x + btn.width - 16, btn.y + 12, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ec.iconLight;
+      ctx.beginPath();
+      ctx.arc(btn.x + btn.width - 17, btn.y + 11, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hero name
+      ctx.fillStyle = heroCanAfford ? C.UI_TEXT : '#444488';
+      ctx.font = DK.FONTS.bold(15);
+      ctx.textAlign = 'center';
+      ctx.fillText(heroType.name, btn.x + btn.width / 2, btn.y + 32);
+
+      // Cost
+      ctx.font = DK.FONTS.bold(13);
+      ctx.fillStyle = heroCanAfford ? C.UI_GOLD : '#664400';
+      ctx.fillText(`⚙ ${heroType.cost} 金`, btn.x + btn.width / 2, btn.y + 48);
+
+      // Stats
+      ctx.font = DK.FONTS.body(11);
+      ctx.fillStyle = '#8888cc';
+      ctx.fillText(`傷害:${heroType.damage} 射程:${heroType.range}`, btn.x + btn.width / 2, btn.y + 62);
+
+      // Cannot afford overlay
+      if (!heroCanAfford) {
+        ctx.fillStyle = 'rgba(10,8,20,0.45)';
+        ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+      }
+
+      // Selected hero button pulsing border
+      if (isHeroSelected) {
+        const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+        ctx.strokeStyle = `rgba(68,136,255,${pulse})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
+      }
+
+      return;
+    }
+
     if (!btn.trap) return;
 
     // === Trap type badge (wall vs floor) ===
@@ -436,17 +661,48 @@ DK.UI = {
 
     // Stats row
     ctx.font = DK.FONTS.body(11);
-    if (btn.trap.damage > 0 && btn.trap.slowAmount) {
+    const statsY = btn.y + 62;
+    const statsCX = btn.x + btn.width / 2;
+    if (btn.trap.damage > 0 && btn.trap.element === 'electric') {
+      // shock_plate: 傷害 + 雷電
       ctx.fillStyle = '#cc8888';
-      ctx.fillText(`傷害:${btn.trap.damage}`, btn.x + btn.width / 2 - 20, btn.y + 62);
-      ctx.fillStyle = C.TRAP_ICE;
-      ctx.fillText('減速', btn.x + btn.width / 2 + 25, btn.y + 62);
+      ctx.fillText(`傷害:${btn.trap.damage}`, statsCX - 18, statsY);
+      ctx.fillStyle = C.TRAP_ELECTRIC;
+      ctx.fillText('⚡', statsCX + 20, statsY);
+    } else if (btn.trap.damage > 0 && btn.trap.element === 'fire') {
+      // blast_trap: 傷害 + 火焰
+      ctx.fillStyle = '#cc8888';
+      ctx.fillText(`傷害:${btn.trap.damage}`, statsCX - 18, statsY);
+      ctx.fillStyle = '#ff6622';
+      ctx.fillText('🔥', statsCX + 20, statsY);
+    } else if (btn.trap.damage === 0 && btn.trap.element === 'ice') {
+      // wind_trap: 推力 + 冰
+      ctx.fillStyle = C.ELEMENT_ICE;
+      ctx.fillText('推力+冰❄', statsCX, statsY);
+    } else if (btn.trap.damage === 0 && btn.trap.pushForce) {
+      // push_trap: 推力 + 方向箭頭
+      ctx.fillStyle = '#aaa0b0';
+      ctx.fillText(`推力:${btn.trap.pushForce}`, statsCX - 8, statsY);
+      ctx.fillStyle = '#ff8844';
+      ctx.fillText('\u2192', statsCX + 22, statsY);
     } else if (btn.trap.damage > 0) {
+      // fallback: 只有傷害
       ctx.fillStyle = '#cc8888';
-      ctx.fillText(`傷害: ${btn.trap.damage}`, btn.x + btn.width / 2, btn.y + 62);
-    } else if (btn.trap.slowAmount) {
-      ctx.fillStyle = C.TRAP_ICE;
-      ctx.fillText(`減速: ${Math.round(btn.trap.slowAmount * 100)}%`, btn.x + btn.width / 2, btn.y + 62);
+      ctx.fillText(`傷害:${btn.trap.damage}`, statsCX, statsY);
+    }
+
+    // Cannot afford overlay
+    if (!canAfford) {
+      ctx.fillStyle = 'rgba(10,8,20,0.45)';
+      ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+    }
+
+    // Selected button pulsing border
+    if (isSelected) {
+      const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+      ctx.strokeStyle = `rgba(255,170,68,${pulse})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
     }
   },
 
@@ -517,12 +773,35 @@ DK.UI = {
   },
 
   renderHoverIndicator(ctx) {
-    if (!this.hoveredTile || !this.selectedTrap) return;
+    if (!this.hoveredTile) return;
+    if (DK.Game && DK.Game.gameOver) return;
 
     const { col, row } = this.hoveredTile;
     const T = DK.CONFIG.DISPLAY_TILE;
     const x = col * T;
     const y = row * T;
+
+    // Hero deployment hover
+    if (this.selectedHeroType) {
+      const validFloor = DK.Map.isPath(col, row) &&
+                         DK.Map.layout[row] && DK.Map.layout[row][col] !== 'E' &&
+                         DK.Map.layout[row][col] !== 'X';
+      const notOccupied = !DK.Traps.placed.some(t => t.col === col && t.row === row) &&
+                          !(DK.Heroes && DK.Heroes.active.some(h => h.col === col && h.row === row));
+      const valid = validFloor && notOccupied;
+
+      ctx.strokeStyle = valid ? 'rgba(68,136,255,0.7)' : 'rgba(255,100,100,0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
+      if (valid) {
+        ctx.fillStyle = 'rgba(68,136,255,0.15)';
+        ctx.fillRect(x, y, T, T);
+      }
+      return;
+    }
+
+    // Trap placement hover
+    if (!this.selectedTrap) return;
 
     let valid = false;
     if (this.selectedTrap.type === 'wall') {
@@ -598,10 +877,78 @@ DK.UI = {
     }
   },
 
+  renderHeroMoveIndicator(ctx) {
+    if (!DK.Heroes || !DK.Heroes.selectedHero || !this.hoveredTile) return;
+
+    const { col, row } = this.hoveredTile;
+    const T = DK.CONFIG.DISPLAY_TILE;
+    const x = col * T;
+    const y = row * T;
+
+    const valid = DK.Map.isPath(col, row) &&
+                  DK.Map.layout[row][col] !== 'E' &&
+                  DK.Map.layout[row][col] !== 'X';
+
+    if (valid) {
+      ctx.strokeStyle = 'rgba(68,255,68,0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
+      ctx.fillStyle = 'rgba(68,255,68,0.1)';
+      ctx.fillRect(x, y, T, T);
+    }
+  },
+
   renderTooltip(ctx) {
+    // Show hint for placed trap inspection
+    if (this.selectedPlacedTrap && !DK.Game.gameOver) {
+      const hintText = '點擊其他陷阱查看  |  右鍵取消選擇';
+
+      ctx.font = DK.FONTS.body(12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(18,16,30,0.8)';
+      const metrics = ctx.measureText(hintText);
+      const tw = metrics.width + 16;
+      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
+      ctx.fillStyle = '#ccaa44';
+      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      return;
+    }
+
+    // Show hint for hero deployment
+    if (this.selectedHeroType && !DK.Game.gameOver) {
+      const hintText = '點擊地板放置英雄  |  右鍵取消選擇';
+
+      ctx.font = DK.FONTS.body(12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(18,16,30,0.8)';
+      const metrics = ctx.measureText(hintText);
+      const tw = metrics.width + 16;
+      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
+      ctx.fillStyle = '#6688cc';
+      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      return;
+    }
+
+    // Show hint for hero movement
+    if (DK.Heroes && DK.Heroes.selectedHero && !DK.Game.gameOver) {
+      const hintText = '點擊地板移動英雄  |  右鍵取消選擇';
+
+      ctx.font = DK.FONTS.body(12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(18,16,30,0.8)';
+      const metrics = ctx.measureText(hintText);
+      const tw = metrics.width + 16;
+      ctx.fillRect(DK.CONFIG.DISPLAY_WIDTH / 2 - tw / 2, DK.CONFIG.UI_TOP - 22, tw, 18);
+      ctx.fillStyle = '#66cc66';
+      ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, DK.CONFIG.UI_TOP - 13);
+      return;
+    }
+
     // Show placement hint when a trap is selected
     if (this.selectedTrap && !DK.Game.gameOver) {
-      const C = DK.COLORS;
       const hintText = this.selectedTrap.type === 'wall'
         ? '點擊紫色牆壁放置  |  右鍵取消選擇'
         : '點擊地板路徑放置  |  右鍵取消選擇';
@@ -718,5 +1065,193 @@ DK.UI = {
     ctx.fillStyle = '#8a8070';
     ctx.fillText('點擊任意位置重新開始', cx, cy + 80);
     ctx.globalAlpha = 1;
+  },
+
+  clearSelection() {
+    this.selectedTrap = null;
+    this.selectedHeroType = null;
+    this.selectedPlacedTrap = null;
+    this._evolveButtonRect = null;
+    this.tooltipText = '';
+    if (DK.Heroes) DK.Heroes.selectedHero = null;
+  },
+
+  renderSelectedTrapInfo(ctx) {
+    // Clear evolve button rect if no trap selected
+    if (!this.selectedPlacedTrap) {
+      this._evolveButtonRect = null;
+      return;
+    }
+
+    const trap = this.selectedPlacedTrap;
+    const T = DK.CONFIG.DISPLAY_TILE;
+    const trapCX = trap.col * T + T / 2;
+
+    // Draw highlight around selected trap
+    ctx.strokeStyle = '#ffcc44';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(trap.col * T + 1, trap.row * T + 1, T - 2, T - 2);
+    // Inner glow
+    const glowAlpha = Math.sin(Date.now() / 400) * 0.15 + 0.2;
+    ctx.fillStyle = `rgba(255,204,68,${glowAlpha})`;
+    ctx.fillRect(trap.col * T, trap.row * T, T, T);
+
+    // Determine trap info
+    const trapDef = trap.type || {};
+    const isEvolved = !!trap.evolved;
+    const evoInfo = (!isEvolved && DK.Traps) ? DK.Traps.getEvolutionForTrap(trap) : null;
+    const auraHero = (!isEvolved && DK.Traps) ? DK.Traps.getAuraHeroForTrap(trap) : null;
+    const canEvolve = !!evoInfo && !!auraHero;
+    const hasEvolutionPath = !!evoInfo; // Has evolution but may lack aura
+
+    // Panel dimensions
+    const panelW = 220;
+    const lineH = 18;
+    let contentLines = 3; // name + stats + element
+    if (isEvolved) contentLines += 2; // evolved name + description
+    if (canEvolve) contentLines += 2; // evolve button + description preview
+    if (!isEvolved && hasEvolutionPath && !canEvolve) contentLines += 1; // aura hint
+    const panelH = 16 + contentLines * lineH + (canEvolve ? 30 : 8);
+
+    // Position: above the trap, or below if not enough room
+    let panelX = trapCX - panelW / 2;
+    let panelY = trap.row * T - panelH - 8;
+    if (panelY < 42) {
+      panelY = (trap.row + 1) * T + 8;
+    }
+    // Clamp horizontal
+    if (panelX < 4) panelX = 4;
+    if (panelX + panelW > DK.CONFIG.DISPLAY_WIDTH - 4) {
+      panelX = DK.CONFIG.DISPLAY_WIDTH - panelW - 4;
+    }
+
+    // Panel background
+    ctx.fillStyle = 'rgba(18,16,30,0.95)';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    this.drawPixelBorder(ctx, panelX, panelY, panelW, panelH);
+
+    // Content rendering
+    let curY = panelY + 14;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const centerX = panelX + panelW / 2;
+
+    // Trap name (gold if evolved, white otherwise)
+    ctx.font = DK.FONTS.bold(16);
+    const nameColor = isEvolved ? '#ffcc44' : '#e8e0d0';
+    this.drawTextWithOutline(ctx, trapDef.name || trapDef.id || '陷阱', centerX, curY, nameColor);
+    curY += lineH;
+
+    // Evolved name + description
+    if (isEvolved && trap.evolutionType) {
+      const evoType = DK.EVOLUTION_TYPES ? DK.EVOLUTION_TYPES[trap.evolutionType] : null;
+      const evoName = evoType ? evoType.name : trap.evolutionType;
+      ctx.font = DK.FONTS.bold(14);
+      this.drawTextWithOutline(ctx, `★ ${evoName}`, centerX, curY, '#ffcc44');
+      curY += lineH;
+
+      // Evolution description
+      if (evoType && evoType.description) {
+        ctx.font = DK.FONTS.body(11);
+        this.drawTextWithOutline(ctx, evoType.description, centerX, curY, '#ccaa66');
+        curY += lineH;
+      }
+    }
+
+    // Stats: damage / cooldown (adapt for push traps)
+    ctx.font = DK.FONTS.body(13);
+    const damage = trapDef.damage || 0;
+    const cooldown = trapDef.cooldown || 0;
+    let statsText;
+    if (damage === 0 && trapDef.pushForce) {
+      statsText = `推力: ${trapDef.pushForce}  冷卻: ${(cooldown / 1000).toFixed(1)}s`;
+    } else {
+      statsText = `傷害: ${damage}  冷卻: ${(cooldown / 1000).toFixed(1)}s`;
+    }
+    this.drawTextWithOutline(ctx, statsText, centerX, curY, '#ccbbaa');
+    curY += lineH;
+
+    // Element info
+    const element = trapDef.element || '';
+    const elementNames = {
+      electric: '雷電',
+      fire: '火焰',
+      ice: '冰霜',
+      wind: '風',
+      physical: '物理',
+    };
+    const elementColors = {
+      electric: '#ffdd44',
+      fire: '#ff6622',
+      ice: '#88ccff',
+      wind: '#88aacc',
+      physical: '#ccbbaa',
+    };
+    if (element) {
+      ctx.font = DK.FONTS.body(12);
+      const eName = elementNames[element] || element;
+      const eColor = elementColors[element] || '#ccbbaa';
+      this.drawTextWithOutline(ctx, `元素: ${eName}`, centerX, curY, eColor);
+      curY += lineH;
+    }
+
+    // Evolve section
+    if (canEvolve && evoInfo) {
+      // Evolution effect preview
+      if (evoInfo.description) {
+        ctx.font = DK.FONTS.body(11);
+        this.drawTextWithOutline(ctx, evoInfo.description, centerX, curY, '#aabb88');
+        curY += lineH;
+      }
+
+      // Evolve button
+      const btnW = panelW - 20;
+      const btnH = 24;
+      const btnX = panelX + 10;
+      const btnY = curY + 2;
+      const canAfford = DK.Game && DK.Game.gold >= evoInfo.cost;
+
+      // Store for click detection
+      this._evolveButtonRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+      // Button background
+      const grad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
+      if (canAfford) {
+        grad.addColorStop(0, '#4a3e10');
+        grad.addColorStop(1, '#3a2e08');
+      } else {
+        grad.addColorStop(0, '#3a3030');
+        grad.addColorStop(1, '#2a2020');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+
+      // Button border (pulsing if affordable)
+      if (canAfford) {
+        const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+        ctx.strokeStyle = `rgba(255,204,68,${pulse})`;
+      } else {
+        ctx.strokeStyle = '#665533';
+      }
+      ctx.lineWidth = 1;
+      ctx.strokeRect(btnX + 0.5, btnY + 0.5, btnW - 1, btnH - 1);
+
+      // Button text
+      const evoName = evoInfo.name || evoInfo.id;
+      const evoCost = evoInfo.cost;
+      ctx.font = DK.FONTS.bold(13);
+      ctx.textAlign = 'center';
+      const btnText = `進化 → ${evoName} (${evoCost}金)`;
+      this.drawTextWithOutline(ctx, btnText, btnX + btnW / 2, btnY + btnH / 2,
+        canAfford ? '#ffdd66' : '#887744');
+    } else if (!isEvolved && hasEvolutionPath && !canEvolve) {
+      // Has evolution path but not in aura range
+      ctx.font = DK.FONTS.body(11);
+      this.drawTextWithOutline(ctx, '需要對應英雄光環才能進化', centerX, curY, '#666060');
+      curY += lineH;
+      this._evolveButtonRect = null;
+    } else {
+      this._evolveButtonRect = null;
+    }
   },
 };

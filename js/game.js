@@ -14,6 +14,7 @@ DK.Game = {
   spawnQueue: [],
   spawnTimer: 0,
   time: 0,
+  screenShake: { intensity: 0, timer: 0 },
 
   init() {
     this.gold = DK.CONFIG.STARTING_GOLD;
@@ -25,10 +26,13 @@ DK.Game = {
     this.spawnQueue = [];
     this.spawnTimer = 0;
     this.time = 0;
+    this.screenShake = { intensity: 0, timer: 0 };
 
     DK.Map.init();
     DK.Traps.init();
     DK.Enemies.init();
+    if (DK.Elements) DK.Elements.init();
+    if (DK.Heroes) DK.Heroes.init();
     DK.UI.init();
   },
 
@@ -90,8 +94,31 @@ DK.Game = {
     // Update traps
     DK.Traps.update(dt, DK.Enemies.active);
 
+    // 更新草叢狀態
+    if (DK.Map.updateGrass) {
+      DK.Map.updateGrass(dt);
+    }
+
+    // Update heroes
+    if (DK.Heroes) {
+      DK.Heroes.update(dt, DK.Enemies.active);
+    }
+
+    // Update elements
+    if (DK.Elements) {
+      DK.Elements.update(dt);
+    }
+
     // Update effects
     this.updateEffects(dt);
+
+    // Update screen shake
+    if (this.screenShake.timer > 0) {
+      this.screenShake.timer -= dt;
+      if (this.screenShake.timer <= 0) {
+        this.screenShake.intensity = 0;
+      }
+    }
 
     // Update UI
     DK.UI.update(dt);

@@ -31,7 +31,12 @@ DK.Enemies = {
       alive: true,
       reachedEnd: false,
       deathTimer: 0,
+      deathType: null,
       flashTimer: 0,
+      statusEffects: [],
+      paralyzed: false,
+      pushed: null,
+      pushResistTimer: 0,
     };
 
     this.active.push(enemy);
@@ -80,12 +85,107 @@ DK.Enemies = {
         enemy.flashTimer -= dt;
       }
 
+      // Push resist timer
+      if (enemy.pushResistTimer > 0) {
+        enemy.pushResistTimer -= dt;
+      }
+
+      // Handle being pushed
+      if (enemy.pushed) {
+        enemy.pushed.timer += dt;
+        const progress = Math.min(1, enemy.pushed.timer / enemy.pushed.duration);
+
+        // Smooth movement toward target
+        enemy.x = enemy.pushed.startX + (enemy.pushed.targetX - enemy.pushed.startX) * progress;
+        enemy.y = enemy.pushed.startY + (enemy.pushed.targetY - enemy.pushed.startY) * progress;
+
+        if (progress >= 1) {
+          if (enemy.pushed.intoAbyss) {
+            // 深淵死亡！
+            enemy.alive = false;
+            enemy.deathTimer = 0;
+            enemy.deathType = 'abyss';
+            enemy.x = enemy.pushed.targetX;
+            enemy.y = enemy.pushed.targetY;
+
+            if (DK.Game) {
+              DK.Game.gold += enemy.type.reward;
+              DK.Game.effects.push({
+                type: 'gold',
+                x: enemy.x,
+                y: enemy.y - 10,
+                text: `+${enemy.type.reward}`,
+                color: DK.COLORS.GOLD_TEXT,
+                duration: 1000,
+                timer: 0,
+              });
+              DK.Game.effects.push({
+                type: 'abyss_fall',
+                x: enemy.x,
+                y: enemy.y,
+                duration: 800,
+                timer: 0,
+              });
+            }
+          } else {
+            // Pushed onto path - update position
+            enemy.x = enemy.pushed.targetX;
+            enemy.y = enemy.pushed.targetY;
+
+            // Find nearest pathIndex for new position
+            const path = DK.Map.path;
+            let bestIdx = enemy.pathIndex;
+            let bestDist = Infinity;
+            for (let i = 0; i < path.length; i++) {
+              const pdx = path[i].x - enemy.x;
+              const pdy = path[i].y - enemy.y;
+              const dist = pdx * pdx + pdy * pdy;
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestIdx = i;
+              }
+            }
+            enemy.pathIndex = bestIdx;
+          }
+          enemy.pushed = null;
+        }
+        continue; // Skip normal movement while being pushed
+      }
+
+      // Update elemental status effects
+      if (DK.Elements) {
+        DK.Elements.updateStatuses(enemy, dt);
+      }
+
       // Animation
       enemy.animTimer += dt;
       if (enemy.animTimer > 250) {
         enemy.animFrame = (enemy.animFrame + 1) % 4;
         enemy.animTimer = 0;
       }
+
+      // 環境互動：水潭自動掛濕
+      const tileCol = Math.floor(enemy.x / T);
+      const tileRow = Math.floor(enemy.y / T);
+      const tile = DK.Map.getTile(tileCol, tileRow);
+      if (tile === 'P' && DK.Elements && !DK.Elements.hasStatus(enemy, 'wet')) {
+        DK.Elements.applyElement(enemy, 'water');
+      }
+      // 環境互動：燃燒草叢自動掛灼印
+      if (tile === 'G' && DK.Map.getGrassState && DK.Map.getGrassState(tileCol, tileRow)?.state === 'burning') {
+        if (DK.Elements && !DK.Elements.hasStatus(enemy, 'burning')) {
+          DK.Elements.addStatus(enemy, 'burning');
+        }
+      }
+      // 草叢點燃：帶 burning 的敵人走入 normal 草叢 → 點燃
+      if (tile === 'G' && DK.Map.getGrassState && DK.Map.getGrassState(tileCol, tileRow)?.state === 'normal') {
+        if (DK.Elements && DK.Elements.hasStatus(enemy, 'burning')) {
+          DK.Map.igniteGrass(tileCol, tileRow);
+        }
+      }
+
+      // Skip movement if paralyzed
+      if (enemy.paralyzed) continue;
 
       // Movement along path
       if (enemy.pathIndex >= path.length - 1) {
@@ -110,7 +210,7 @@ DK.Enemies = {
 
     // Clean up dead enemies after animation
     this.active = this.active.filter(e =>
-      e.alive || e.deathTimer < 500 || e.reachedEnd === false
+      e.alive || (e.deathTimer < 500 && !e.reachedEnd)
     );
   },
 
@@ -118,7 +218,7 @@ DK.Enemies = {
     for (const enemy of this.active) {
       if (enemy.deathTimer > 500) continue;
 
-      const x = Math.round(enemy.x);
+      let x = Math.round(enemy.x);
       const y = Math.round(enemy.y);
 
       if (!enemy.alive && !enemy.reachedEnd) {
@@ -127,6 +227,12 @@ DK.Enemies = {
       }
 
       if (enemy.reachedEnd) continue;
+
+      // Push resist shake effect
+      if (enemy.pushResistTimer > 0) {
+        const shake = Math.sin(enemy.pushResistTimer / 15) * 2;
+        x += Math.round(shake);
+      }
 
       // Draw enemy based on type
       switch (enemy.type.id) {
@@ -144,13 +250,29 @@ DK.Enemies = {
           break;
       }
 
+      // Wet status: blue tint overlay on enemy body
+      if (DK.Elements && DK.Elements.hasStatus(enemy, 'wet')) {
+        const wetPulse = Math.sin((time || 0) / 300) * 0.1;
+        const alpha = 0.3 + wetPulse;
+        const size = enemy.type.size || 0.8;
+        const w = Math.round(12 * size);
+        const h = Math.round(16 * size);
+        ctx.fillStyle = `rgba(68,136,255,${alpha})`;
+        ctx.fillRect(x - Math.floor(w / 2), y - h + 4, w, h);
+      }
+
       // HP bar
       this.renderHPBar(ctx, enemy, x, y);
 
       // Slow indicator
       if (enemy.slowTimer > 0) {
-        DK.PixelArt.pixel(ctx, x - 1, y - 7, DK.COLORS.TRAP_ICE);
-        DK.PixelArt.pixel(ctx, x + 1, y - 7, DK.COLORS.TRAP_ICE);
+        DK.PixelArt.pixel(ctx, x - 1, y - 7, DK.COLORS.ELEMENT_ICE);
+        DK.PixelArt.pixel(ctx, x + 1, y - 7, DK.COLORS.ELEMENT_ICE);
+      }
+
+      // Elemental status indicators
+      if (DK.Elements) {
+        DK.Elements.renderStatusIndicators(ctx, enemy, x, y, time);
       }
     }
   },
@@ -505,6 +627,72 @@ DK.Enemies = {
     const PA = DK.PixelArt;
     const progress = enemy.deathTimer / 500;
     const rng = PA.seededRandom(Math.round(enemy.x * 100 + enemy.y));
+
+    // 深淵死亡：沉入黑暗深淵
+    if (enemy.deathType === 'abyss') {
+      const sinkProgress = Math.min(1, enemy.deathTimer / 600);
+
+      // 敵人身體逐漸縮小 + 透明度降低，向下沉入黑暗
+      if (sinkProgress < 0.85) {
+        const bodyAlpha = 1 - sinkProgress * 1.15;
+        const scale = Math.max(0.1, 1 - sinkProgress);
+        const size = Math.max(1, Math.round(scale * 6));
+        const sinkY = y + Math.round(sinkProgress * 6);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, bodyAlpha);
+        const bodyColor = enemy.type.id === 'goblin' ? DK.COLORS.GOBLIN_SKIN :
+                          enemy.type.id === 'skeleton' ? DK.COLORS.SKELETON_BONE :
+                          enemy.type.id === 'orc' ? DK.COLORS.ORC_SKIN : DK.COLORS.SLIME_BODY;
+        PA.rect(ctx, x - Math.floor(size / 2), sinkY - size, size, size, bodyColor);
+        ctx.restore();
+      }
+
+      // 邊緣小石子碎裂掉落粒子（灰色/暗色）
+      for (let i = 0; i < 5; i++) {
+        const angle = rng() * Math.PI * 2;
+        const dist = sinkProgress * 4 * (0.3 + rng() * 0.7);
+        const bx = Math.round(x + Math.cos(angle) * dist);
+        const by = Math.round(y + Math.sin(angle) * dist * 0.5);
+
+        if (sinkProgress < 0.6) {
+          // 石子碎裂粒子
+          const stoneColor = rng() > 0.5 ? '#555550' : '#3a3830';
+          PA.pixel(ctx, bx, by, stoneColor);
+        }
+        if (sinkProgress > 0.2 && sinkProgress < 0.8) {
+          // 碎石掉落
+          const fallY = by + Math.round((sinkProgress - 0.2) * 6);
+          PA.pixel(ctx, bx, fallY, '#2a2820');
+        }
+      }
+
+      // 黑暗漩渦效果（暗色環形）
+      if (sinkProgress < 0.8) {
+        const vortexR = 2 + Math.round(sinkProgress * 3);
+        for (let a = 0; a < 8; a++) {
+          const ga = (a / 8) * Math.PI * 2 + sinkProgress * 3;
+          const vx = Math.round(x + Math.cos(ga) * vortexR);
+          const vy = Math.round(y + Math.sin(ga) * vortexR * 0.4);
+          PA.pixel(ctx, vx, vy, '#1a1a1a');
+        }
+        // 內圈更暗漩渦
+        const innerR = Math.max(1, vortexR - 2);
+        for (let a = 0; a < 4; a++) {
+          const ga = (a / 4) * Math.PI * 2 - sinkProgress * 2;
+          PA.pixel(ctx, Math.round(x + Math.cos(ga) * innerR),
+                   Math.round(y + Math.sin(ga) * innerR * 0.4),
+                   '#0a0a0a');
+        }
+      }
+
+      // 最後消失點：純黑
+      if (sinkProgress > 0.7) {
+        const fadeSize = Math.max(1, Math.round((1 - sinkProgress) * 4));
+        PA.rect(ctx, x - Math.floor(fadeSize / 2), y - Math.floor(fadeSize / 2),
+                fadeSize, fadeSize, '#000000');
+      }
+      return;
+    }
 
     // Get type-specific colors
     const colors = {
