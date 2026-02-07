@@ -5,6 +5,7 @@
 window.DK = window.DK || {};
 
 DK.Game = {
+  state: 'start', // 'start' | 'playing'
   gold: 0,
   lives: 0,
   currentWave: 0,
@@ -38,6 +39,11 @@ DK.Game = {
     DK.UI.init();
   },
 
+  startGame() {
+    this.state = 'playing';
+    this.init();
+  },
+
   startWave() {
     if (this.waveActive || this.gameOver) return;
     if (this.currentWave >= DK.WAVES.length) return;
@@ -65,6 +71,10 @@ DK.Game = {
   },
 
   update(dt) {
+    if (this.state === 'start') {
+      this.time += dt;
+      return;
+    }
     if (this.gameOver) return;
 
     this.time += dt;
@@ -163,6 +173,7 @@ DK.Game = {
   },
 
   restart() {
+    this.state = 'playing';
     this.init();
   },
 };

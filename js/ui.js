@@ -1528,4 +1528,157 @@ DK.UI = {
       this._evolveButtonRect = null;
     }
   },
+
+  /**
+   * 渲染開始畫面
+   * gameCtx: 主 canvas context (960×720)
+   * uiCtx: UI overlay canvas context (960×720)
+   * time: 經過時間 (ms)
+   */
+  renderStartScreen(gameCtx, uiCtx, time) {
+    const W = DK.CONFIG.DISPLAY_WIDTH;
+    const H = DK.CONFIG.DISPLAY_HEIGHT;
+    const cx = W / 2;
+
+    // === 背景層 (gameCtx) ===
+
+    // 深色地牢背景
+    gameCtx.fillStyle = '#08080e';
+    gameCtx.fillRect(0, 0, W, H);
+
+    // 裝飾性磚牆紋理（像素風）
+    gameCtx.fillStyle = '#0e0e16';
+    for (let row = 0; row < H; row += 48) {
+      for (let col = 0; col < W; col += 48) {
+        const offset = (Math.floor(row / 48) % 2) * 24;
+        gameCtx.fillRect(col + offset, row, 46, 46);
+      }
+    }
+
+    // 磚縫高光
+    gameCtx.fillStyle = '#14141e';
+    for (let row = 0; row < H; row += 48) {
+      for (let col = 0; col < W; col += 48) {
+        const offset = (Math.floor(row / 48) % 2) * 24;
+        gameCtx.fillRect(col + offset, row, 46, 1);
+        gameCtx.fillRect(col + offset, row, 1, 46);
+      }
+    }
+
+    // 中央聚光效果（徑向漸層）
+    const spotGrad = gameCtx.createRadialGradient(cx, H * 0.38, 0, cx, H * 0.38, 320);
+    spotGrad.addColorStop(0, 'rgba(80,60,30,0.15)');
+    spotGrad.addColorStop(0.5, 'rgba(40,30,15,0.08)');
+    spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    gameCtx.fillStyle = spotGrad;
+    gameCtx.fillRect(0, 0, W, H);
+
+    // 飄浮粒子（灰塵微粒）
+    const particleCount = 20;
+    for (let i = 0; i < particleCount; i++) {
+      const seed = i * 137.5;
+      const px = (seed * 7.3 + time * 0.01 * (0.5 + (i % 3) * 0.3)) % W;
+      const py = (seed * 3.7 + Math.sin(time * 0.001 + i) * 30 + time * 0.005) % H;
+      const alpha = 0.1 + Math.sin(time * 0.002 + i * 0.5) * 0.05;
+      gameCtx.fillStyle = `rgba(200,180,140,${alpha})`;
+      gameCtx.fillRect(Math.round(px), Math.round(py), 1, 1);
+    }
+
+    // 左右火把光暈（裝飾）
+    const torchY = H * 0.35;
+    const torchGlow = (side) => {
+      const tx = side === 'left' ? cx - 260 : cx + 260;
+      const flicker = Math.sin(time * 0.008 + side.length) * 8 + 50;
+      const tGrad = gameCtx.createRadialGradient(tx, torchY, 0, tx, torchY, flicker);
+      tGrad.addColorStop(0, 'rgba(255,140,40,0.12)');
+      tGrad.addColorStop(0.5, 'rgba(255,100,20,0.05)');
+      tGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      gameCtx.fillStyle = tGrad;
+      gameCtx.fillRect(tx - flicker, torchY - flicker, flicker * 2, flicker * 2);
+      // 火把本體
+      gameCtx.fillStyle = '#3a2810';
+      gameCtx.fillRect(tx - 2, torchY - 5, 4, 20);
+      // 火焰
+      const fh = 6 + Math.sin(time * 0.01) * 2;
+      gameCtx.fillStyle = '#ffaa33';
+      gameCtx.fillRect(tx - 2, torchY - 5 - fh, 4, fh);
+      gameCtx.fillStyle = '#ff6611';
+      gameCtx.fillRect(tx - 1, torchY - 5 - fh - 2, 2, 3);
+      gameCtx.fillStyle = '#ffdd66';
+      gameCtx.fillRect(tx, torchY - 5 - fh + 1, 1, 2);
+    };
+    torchGlow('left');
+    torchGlow('right');
+
+    // === 文字層 (uiCtx) ===
+
+    // 遊戲標題：PROJECT DK
+    const titleY = H * 0.30;
+    const titlePulse = Math.sin(time * 0.002) * 0.08 + 1;
+
+    uiCtx.save();
+    uiCtx.textAlign = 'center';
+    uiCtx.textBaseline = 'middle';
+
+    // 標題陰影
+    uiCtx.font = DK.FONTS.pixel(48);
+    uiCtx.fillStyle = 'rgba(0,0,0,0.6)';
+    uiCtx.fillText('PROJECT DK', cx + 3, titleY + 3);
+
+    // 標題主體（金色漸層）
+    const titleGrad = uiCtx.createLinearGradient(cx - 200, titleY - 30, cx + 200, titleY + 30);
+    titleGrad.addColorStop(0, '#ffcc44');
+    titleGrad.addColorStop(0.3, '#ffd700');
+    titleGrad.addColorStop(0.5, '#fff0a0');
+    titleGrad.addColorStop(0.7, '#ffd700');
+    titleGrad.addColorStop(1, '#cc9922');
+    uiCtx.fillStyle = titleGrad;
+    uiCtx.font = DK.FONTS.pixel(48);
+    uiCtx.fillText('PROJECT DK', cx, titleY);
+
+    // 標題上方裝飾線
+    const lineW = 280;
+    uiCtx.fillStyle = '#665522';
+    uiCtx.fillRect(cx - lineW / 2, titleY - 38, lineW, 2);
+    uiCtx.fillRect(cx - lineW / 2, titleY + 32, lineW, 2);
+    // 端點裝飾
+    uiCtx.fillStyle = '#998844';
+    uiCtx.fillRect(cx - lineW / 2, titleY - 40, 4, 6);
+    uiCtx.fillRect(cx + lineW / 2 - 4, titleY - 40, 4, 6);
+    uiCtx.fillRect(cx - lineW / 2, titleY + 30, 4, 6);
+    uiCtx.fillRect(cx + lineW / 2 - 4, titleY + 30, 4, 6);
+
+    // 副標題：地層塔防
+    const subY = titleY + 60;
+    uiCtx.font = DK.FONTS.bold(22);
+    uiCtx.fillStyle = 'rgba(0,0,0,0.5)';
+    uiCtx.fillText('地 層 塔 防', cx + 1, subY + 1);
+    uiCtx.fillStyle = '#aa9966';
+    uiCtx.fillText('地 層 塔 防', cx, subY);
+
+    // 開發者：Jerry Lee
+    const devY = H * 0.60;
+    uiCtx.font = DK.FONTS.body(14);
+    uiCtx.fillStyle = '#665544';
+    uiCtx.fillText('Developer', cx, devY);
+    uiCtx.font = DK.FONTS.bold(18);
+    uiCtx.fillStyle = '#998877';
+    uiCtx.fillText('Jerry Lee', cx, devY + 24);
+
+    // 點擊開始（脈動閃爍）
+    const startY = H * 0.78;
+    const blinkAlpha = Math.sin(time * 0.004) * 0.3 + 0.7;
+    uiCtx.font = DK.FONTS.bold(18);
+    uiCtx.fillStyle = `rgba(0,0,0,${blinkAlpha * 0.5})`;
+    uiCtx.fillText('— 點擊開始 —', cx + 1, startY + 1);
+    uiCtx.fillStyle = `rgba(255,220,150,${blinkAlpha})`;
+    uiCtx.fillText('— 點擊開始 —', cx, startY);
+
+    // 底部版本資訊
+    uiCtx.font = DK.FONTS.body(10);
+    uiCtx.fillStyle = '#333328';
+    uiCtx.fillText('v1.0 — HTML5 Canvas', cx, H - 15);
+
+    uiCtx.restore();
+  },
 };

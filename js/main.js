@@ -43,6 +43,12 @@ window.DK = window.DK || {};
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
+    // 開始畫面：點擊進入遊戲
+    if (DK.Game.state === 'start') {
+      DK.Game.startGame();
+      return;
+    }
+
     if (DK.Game.gameOver) {
       DK.Game.restart();
       return;
@@ -73,6 +79,15 @@ window.DK = window.DK || {};
 
     // Update
     DK.Game.update(dt);
+
+    // 開始畫面：只渲染標題畫面
+    if (DK.Game.state === 'start') {
+      gameCtx.clearRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
+      uiCtx.clearRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
+      DK.UI.renderStartScreen(gameCtx, uiCtx, DK.Game.time);
+      requestAnimationFrame(gameLoop);
+      return;
+    }
 
     // Render game world (low-res pixel art)
     offCtx.clearRect(0, 0, DK.CONFIG.GAME_WIDTH, DK.CONFIG.GAME_HEIGHT);
