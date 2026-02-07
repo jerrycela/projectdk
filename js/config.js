@@ -9,11 +9,17 @@ DK.CONFIG = {
   SCALE: 3,             // Display scale factor
   DISPLAY_TILE: 48,     // TILE_SIZE * SCALE
 
-  // Grid dimensions
+  // Grid dimensions (viewport)
   GRID_COLS: 20,
   GRID_ROWS: 13,
 
-  // Canvas sizes
+  // World dimensions (full map)
+  WORLD_COLS: 40,
+  WORLD_ROWS: 26,
+  WORLD_WIDTH: 640,     // 40 * 16
+  WORLD_HEIGHT: 416,    // 26 * 16
+
+  // Canvas sizes (viewport)
   GAME_WIDTH: 320,      // 20 * 16
   GAME_HEIGHT: 208,     // 13 * 16
   DISPLAY_WIDTH: 960,   // 320 * 3

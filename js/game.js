@@ -18,6 +18,14 @@ DK.Game = {
   spawnTimer: 0,
   time: 0,
   screenShake: { intensity: 0, timer: 0 },
+  camera: { x: 0, y: 0 },
+
+  clampCamera() {
+    const maxX = (DK.CONFIG.WORLD_COLS - DK.CONFIG.GRID_COLS) * DK.CONFIG.TILE_SIZE;
+    const maxY = (DK.CONFIG.WORLD_ROWS - DK.CONFIG.GRID_ROWS) * DK.CONFIG.TILE_SIZE;
+    this.camera.x = Math.max(0, Math.min(maxX, this.camera.x));
+    this.camera.y = Math.max(0, Math.min(maxY, this.camera.y));
+  },
 
   init() {
     this.gold = DK.CONFIG.STARTING_GOLD;
@@ -32,6 +40,7 @@ DK.Game = {
     this.spawnTimer = 0;
     this.time = 0;
     this.screenShake = { intensity: 0, timer: 0 };
+    this.camera = { x: 0, y: 0 };
 
     DK.Map.init();
     this.initParticles();

@@ -5,37 +5,63 @@
 window.DK = window.DK || {};
 
 DK.Map = {
-  // 火把位置（牆壁格上的環境光源）
+  // 火把位置（牆壁格上的環境光源）- 24 個均勻分布在 40×26 地圖
   torches: [
-    { col: 0, row: 0 },
-    { col: 10, row: 0 },
-    { col: 4, row: 2 },
-    { col: 19, row: 2 },
-    { col: 0, row: 4 },
-    { col: 13, row: 4 },
-    { col: 0, row: 6 },
-    { col: 12, row: 6 },
-    { col: 4, row: 8 },
-    { col: 19, row: 8 },
-    { col: 0, row: 10 },
-    { col: 12, row: 10 },
+    { col: 13, row: 0 },
+    { col: 30, row: 0 },
+    { col: 38, row: 2 },
+    { col: 20, row: 4 },
+    { col: 20, row: 5 },
+    { col: 10, row: 6 },
+    { col: 32, row: 6 },
+    { col: 3, row: 8 },
+    { col: 13, row: 8 },
+    { col: 4, row: 10 },
+    { col: 17, row: 10 },
+    { col: 16, row: 12 },
+    { col: 35, row: 12 },
+    { col: 3, row: 14 },
+    { col: 29, row: 14 },
+    { col: 20, row: 16 },
+    { col: 20, row: 17 },
+    { col: 10, row: 18 },
+    { col: 32, row: 18 },
+    { col: 3, row: 20 },
+    { col: 13, row: 20 },
+    { col: 17, row: 22 },
+    { col: 30, row: 22 },
+    { col: 37, row: 24 },
   ],
 
   // 地圖佈局: W=牆壁, .=路徑, E=入口, X=出口, A=深淵, P=水潭, G=草叢
+  // 40×26 格（每行精確 40 字元）
   layout: [
-    'WWWWWAWWWWWWAWWWWWWW',
-    'E.PP..GGG....PP...WW',
-    'WWWWWWWAWWWWWWAWW.WW',
-    'WWWWWWWWWW..GGGPP.WW',
-    'WWWAWWWWWW.WWWWAWWWW',
-    'W..GGG.PP..WWWWWWWWW',
-    'W.WWWWWWAWWWWWWAWWWW',
-    'W..PP...GGG...PP...W',
-    'WWWWWWWWAWWWWWAWWW.W',
-    'WWWWW...GGG...PP...W',
-    'WWWWW.WWWAWWWWWAWWWW',
-    'WWWWW..GGG.PP......X',
-    'WWWWWWWWAWWWWWAWWWWW',
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWW', // row 0
+    'E.PP..GGG......PP...GGG.......PP..GG..WW', // row 1
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 2
+    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 3
+    'WWWWWAWWWWWWAWWWWWWWW.WWWWWWAWWWWWWAWWWW', // row 4
+    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 5
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 6
+    'WW....PP..GGG..PP...GGG..PP...GGG.....WW', // row 7
+    'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 8
+    'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 9
+    'WWWWWAWWWWWWAWWWWW.WWWWWWWAWWWWWWAWWWWWW', // row 10
+    'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 11
+    'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 12
+    'WW....GGG.PP...GGG..PP......GGG..PP...WW', // row 13
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 14
+    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 15
+    'WWWWWAWWWWWWAWWWWWWWW.WWWWWWAWWWWWWAWWWW', // row 16
+    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 17
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 18
+    'WW....PP..GGG..PP...GGG..PP...GGG.....WW', // row 19
+    'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 20
+    'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 21
+    'WWWWWAWWWWWWAWWWWW.WWWWWWWAWWWWWWAWWWWWW', // row 22
+    'WWWWWWWWWWWWWWWWWW....PP..GGG....PP....W', // row 23
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWWW.X', // row 24
+    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWW', // row 25
   ],
 
   // 地磚快取（預渲染提升效能）
@@ -841,13 +867,33 @@ DK.Map = {
     }
   },
 
+  /** 計算可見範圍（以格子為單位），向後相容無 camera 場景 */
+  getVisibleRange() {
+    const T = DK.CONFIG.TILE_SIZE;
+    const cam = DK.Game ? DK.Game.camera : null;
+    if (cam) {
+      const startCol = Math.max(0, Math.floor(cam.x / T) - 1);
+      const startRow = Math.max(0, Math.floor(cam.y / T) - 1);
+      const endCol = Math.min(this.layout[0].length - 1, Math.ceil((cam.x + DK.CONFIG.GAME_WIDTH) / T) + 1);
+      const endRow = Math.min(this.layout.length - 1, Math.ceil((cam.y + DK.CONFIG.GAME_HEIGHT) / T) + 1);
+      return { startCol, startRow, endCol, endRow };
+    }
+    return {
+      startCol: 0,
+      startRow: 0,
+      endCol: this.layout[0].length - 1,
+      endRow: this.layout.length - 1,
+    };
+  },
+
   render(ctx) {
     const PA = DK.PixelArt;
     const T = DK.CONFIG.TILE_SIZE;
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
-    // 第一通道：繪製所有地磚
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
+    // 第一通道：繪製所有地磚（僅可見範圍）
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
         const tile = this.layout[r][c];
         const x = c * T;
         const y = r * T;
@@ -880,9 +926,9 @@ DK.Map = {
       }
     }
 
-    // 第二通道：牆壁陰影投射到相鄰地板
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
+    // 第二通道：牆壁陰影投射到相鄰地板（僅可見範圍）
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
         if (!this.isPath(c, r)) continue;
         const x = c * T;
         const y = r * T;
@@ -921,8 +967,7 @@ DK.Map = {
     // 第六通道：入口與出口傳送門脈動光暈
     this.renderPortalGlow(ctx);
 
-    // 第七通道：邊緣暗角
-    this.renderVignette(ctx);
+    // 注意：renderVignette 已移至 main.js restore 之後（螢幕空間，不受 camera 影響）
   },
 
   /** 入口與出口傳送門脈動光暈動畫 */
@@ -930,9 +975,10 @@ DK.Map = {
     const T = DK.CONFIG.TILE_SIZE;
     const timestamp = DK.Game ? DK.Game.time : 0;
     const alpha = 0.1 + 0.08 * Math.sin(timestamp * 0.003);
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
         const tile = this.layout[r][c];
         if (tile !== 'E' && tile !== 'X') continue;
 
@@ -963,8 +1009,12 @@ DK.Map = {
     const PA = DK.PixelArt;
     const T = DK.CONFIG.TILE_SIZE;
     const time = DK.Game ? DK.Game.time : 0;
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
     for (const torch of this.torches) {
+      // 跳過不在可見範圍內的火把（含光暈半徑 3 格）
+      if (torch.col < startCol - 3 || torch.col > endCol + 3 ||
+          torch.row < startRow - 3 || torch.row > endRow + 3) continue;
       const tx = torch.col * T;
       const ty = torch.row * T;
 
@@ -1003,8 +1053,8 @@ DK.Map = {
       if (DK.Game && DK.Game.particles && DK.Game.particles.length < 40 && Math.random() < 0.02) {
         DK.Game.particles.push({
           type: 'ember',
-          x: (tx + 7) / DK.CONFIG.GAME_WIDTH,
-          y: ty / DK.CONFIG.GAME_HEIGHT,
+          x: (tx + 7) / (DK.CONFIG.WORLD_WIDTH || DK.CONFIG.GAME_WIDTH),
+          y: ty / (DK.CONFIG.WORLD_HEIGHT || DK.CONFIG.GAME_HEIGHT),
           vx: (Math.random() - 0.5) * 0.004,
           vy: -0.02,
           life: 0,
@@ -1040,8 +1090,8 @@ DK.Map = {
 
   renderVignette(ctx) {
     const T = DK.CONFIG.TILE_SIZE;
-    const W = DK.CONFIG.GAME_WIDTH;
-    const H = DK.CONFIG.GAME_HEIGHT;
+    const W = DK.CONFIG.WORLD_WIDTH || DK.CONFIG.GAME_WIDTH;
+    const H = DK.CONFIG.WORLD_HEIGHT || DK.CONFIG.GAME_HEIGHT;
 
     // 第三層最外圍：T*3 範圍、alpha 0.05
     ctx.fillStyle = 'rgba(10,8,18,0.05)';
@@ -1072,9 +1122,10 @@ DK.Map = {
     const T = DK.CONFIG.TILE_SIZE;
     const time = DK.Game ? DK.Game.time : 0;
     const t = time / 1000;
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
         if (this.layout[r][c] !== 'A') continue;
 
         const x = c * T;
@@ -1135,9 +1186,10 @@ DK.Map = {
     const T = DK.CONFIG.TILE_SIZE;
     const time = DK.Game ? DK.Game.time : 0;
     const t = time / 1000;
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
         if (this.layout[r][c] !== 'P') continue;
 
         const x = c * T;
@@ -1183,9 +1235,10 @@ DK.Map = {
     const T = DK.CONFIG.TILE_SIZE;
     const time = DK.Game ? DK.Game.time : 0;
     const t = time / 1000;
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
         if (this.layout[r][c] !== 'G') continue;
 
         const gs = this.getGrassState(c, r);

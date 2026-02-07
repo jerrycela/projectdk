@@ -29,6 +29,12 @@ DK.UI = {
   tooltipText: '',
   mouseX: 0,
   mouseY: 0,
+  _isDragging: false,
+  _dragStartX: 0,
+  _dragStartY: 0,
+  _lastDragX: 0,
+  _lastDragY: 0,
+  _mouseDown: false,
   showWaveStart: false,
   waveStartTimer: 0,
   showWaveComplete: false,
@@ -121,6 +127,28 @@ DK.UI = {
     });
   },
 
+  handleMouseDown(mx, my) {
+    // Only start drag tracking in game area
+    if (my < DK.CONFIG.UI_TOP) {
+      this._mouseDown = true;
+      this._isDragging = false;
+      this._dragStartX = mx;
+      this._dragStartY = my;
+      this._lastDragX = mx;
+      this._lastDragY = my;
+    }
+  },
+
+  handleMouseUp(mx, my) {
+    const wasDragging = this._isDragging;
+    this._mouseDown = false;
+    this._isDragging = false;
+    if (!wasDragging) {
+      // Not a drag, treat as click
+      this.handleClick(mx, my);
+    }
+  },
+
   handleClick(mx, my) {
     // Check evolve button click (before anything else)
     if (this.selectedPlacedTrap && this._evolveButtonRect) {
@@ -170,15 +198,15 @@ DK.UI = {
       }
     }
 
-    // Check game area clicks
+    // Check game area clicks (apply camera offset)
     if (my < DK.CONFIG.UI_TOP && DK.Game) {
-      const col = Math.floor(mx / DK.CONFIG.DISPLAY_TILE);
-      const row = Math.floor(my / DK.CONFIG.DISPLAY_TILE);
+      const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
+      const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
 
       // Priority 1: Click on existing hero to select it
       if (DK.Heroes) {
-        const pixelX = mx / DK.CONFIG.SCALE;
-        const pixelY = my / DK.CONFIG.SCALE;
+        const pixelX = mx / DK.CONFIG.SCALE + DK.Game.camera.x;
+        const pixelY = my / DK.CONFIG.SCALE + DK.Game.camera.y;
         const clickedHero = DK.Heroes.getHeroNear(pixelX, pixelY);
         if (clickedHero) {
           DK.Heroes.selectedHero = clickedHero;
@@ -226,10 +254,10 @@ DK.UI = {
       }
     }
 
-    // Check game area click (place trap)
+    // Check game area click (place trap) - apply camera offset
     if (my < DK.CONFIG.UI_TOP && this.selectedTrap && DK.Game) {
-      const col = Math.floor(mx / DK.CONFIG.DISPLAY_TILE);
-      const row = Math.floor(my / DK.CONFIG.DISPLAY_TILE);
+      const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
+      const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
 
       if (this.selectedTrap.type === 'wall' && DK.Map.isValidWallTrapSlot(col, row)) {
         if (DK.Game.gold >= this.selectedTrap.cost) {
@@ -259,9 +287,29 @@ DK.UI = {
     this.mouseX = mx;
     this.mouseY = my;
 
+    // Drag detection and camera scrolling (game area only)
+    if (this._mouseDown && my < DK.CONFIG.UI_TOP) {
+      const dx = mx - this._dragStartX;
+      const dy = my - this._dragStartY;
+      if (!this._isDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        this._isDragging = true;
+      }
+      if (this._isDragging) {
+        const moveDx = mx - this._lastDragX;
+        const moveDy = my - this._lastDragY;
+        DK.Game.camera.x -= moveDx / DK.CONFIG.SCALE;
+        DK.Game.camera.y -= moveDy / DK.CONFIG.SCALE;
+        DK.Game.clampCamera();
+        this._lastDragX = mx;
+        this._lastDragY = my;
+        return; // While dragging, skip hover logic
+      }
+    }
+
+    // Hover tile with camera offset
     if (my < DK.CONFIG.UI_TOP) {
-      const col = Math.floor(mx / DK.CONFIG.DISPLAY_TILE);
-      const row = Math.floor(my / DK.CONFIG.DISPLAY_TILE);
+      const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
+      const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
       this.hoveredTile = { col, row };
     } else {
       this.hoveredTile = null;
@@ -285,8 +333,10 @@ DK.UI = {
 
     // Update cursor style based on state
     const uiCanvas = document.getElementById('ui-canvas');
-    uiCanvas.classList.remove('cursor-pointer', 'cursor-crosshair');
-    if (this.hoveredButton) {
+    uiCanvas.classList.remove('cursor-pointer', 'cursor-crosshair', 'cursor-grabbing');
+    if (this._isDragging) {
+      uiCanvas.classList.add('cursor-grabbing');
+    } else if (this.hoveredButton) {
       uiCanvas.classList.add('cursor-pointer');
     } else if (this.selectedTrap || this.selectedHeroType) {
       uiCanvas.classList.add('cursor-crosshair');
@@ -862,8 +912,9 @@ DK.UI = {
 
     const { col, row } = this.hoveredTile;
     const T = DK.CONFIG.DISPLAY_TILE;
-    const x = col * T;
-    const y = row * T;
+    const cam = DK.Game.camera;
+    const x = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE;
+    const y = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE;
 
     // Hero deployment hover
     if (this.selectedHeroType) {
@@ -914,11 +965,12 @@ DK.UI = {
 
     const { col, row } = this.hoveredTile;
     const T = DK.CONFIG.DISPLAY_TILE;
+    const cam = DK.Game.camera;
     const range = this.selectedTrap.range * T;
 
     if (range > 0) {
-      const cx = col * T + T / 2;
-      const cy = row * T + T / 2;
+      const cx = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE + T / 2;
+      const cy = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE + T / 2;
       ctx.strokeStyle = 'rgba(255,255,100,0.2)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -966,8 +1018,9 @@ DK.UI = {
 
     const { col, row } = this.hoveredTile;
     const T = DK.CONFIG.DISPLAY_TILE;
-    const x = col * T;
-    const y = row * T;
+    const cam = DK.Game.camera;
+    const x = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE;
+    const y = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE;
 
     const valid = DK.Map.isPath(col, row) &&
                   DK.Map.layout[row][col] !== 'E' &&
@@ -1359,16 +1412,19 @@ DK.UI = {
 
     const trap = this.selectedPlacedTrap;
     const T = DK.CONFIG.DISPLAY_TILE;
-    const trapCX = trap.col * T + T / 2;
+    const cam = DK.Game.camera;
+    const trapScreenX = (trap.col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE;
+    const trapScreenY = (trap.row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE;
+    const trapCX = trapScreenX + T / 2;
 
     // Draw highlight around selected trap
     ctx.strokeStyle = '#ffcc44';
     ctx.lineWidth = 2;
-    ctx.strokeRect(trap.col * T + 1, trap.row * T + 1, T - 2, T - 2);
+    ctx.strokeRect(trapScreenX + 1, trapScreenY + 1, T - 2, T - 2);
     // Inner glow
     const glowAlpha = Math.sin(Date.now() / 400) * 0.15 + 0.2;
     ctx.fillStyle = `rgba(255,204,68,${glowAlpha})`;
-    ctx.fillRect(trap.col * T, trap.row * T, T, T);
+    ctx.fillRect(trapScreenX, trapScreenY, T, T);
 
     // Determine trap info
     const trapDef = trap.type || {};
@@ -1389,9 +1445,9 @@ DK.UI = {
 
     // Position: above the trap, or below if not enough room
     let panelX = trapCX - panelW / 2;
-    let panelY = trap.row * T - panelH - 8;
+    let panelY = trapScreenY - panelH - 8;
     if (panelY < 42) {
-      panelY = (trap.row + 1) * T + 8;
+      panelY = trapScreenY + T + 8;
     }
     // Clamp horizontal
     if (panelX < 4) panelX = 4;

@@ -37,24 +37,37 @@ window.DK = window.DK || {};
   // Initialize game
   DK.Game.init();
 
-  // Input handling
-  uiCanvas.addEventListener('click', (e) => {
+  // Input handling - mousedown/mouseup for drag-to-scroll camera
+  uiCanvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // Left button only
+    const rect = uiCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    DK.UI.handleMouseDown(mx, my);
+  });
+
+  uiCanvas.addEventListener('mouseup', (e) => {
+    if (e.button !== 0) return;
     const rect = uiCanvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    // 開始畫面：點擊進入遊戲
+    // Start screen and game over: click to proceed
     if (DK.Game.state === 'start') {
       DK.Game.startGame();
+      DK.UI._mouseDown = false;
+      DK.UI._isDragging = false;
       return;
     }
 
     if (DK.Game.gameOver) {
       DK.Game.restart();
+      DK.UI._mouseDown = false;
+      DK.UI._isDragging = false;
       return;
     }
 
-    DK.UI.handleClick(mx, my);
+    DK.UI.handleMouseUp(mx, my);
   });
 
   uiCanvas.addEventListener('mousemove', (e) => {
@@ -91,10 +104,18 @@ window.DK = window.DK || {};
 
     // Render game world (low-res pixel art)
     offCtx.clearRect(0, 0, DK.CONFIG.GAME_WIDTH, DK.CONFIG.GAME_HEIGHT);
+
+    // === Camera offset (world-space rendering) ===
+    const cam = DK.Game.camera || { x: 0, y: 0 };
+    offCtx.save();
+    offCtx.translate(-cam.x, -cam.y);
+
     DK.Map.render(offCtx);
 
     // Render environment particles
     if (DK.Game.particles) {
+      const worldW = DK.CONFIG.WORLD_WIDTH || DK.CONFIG.GAME_WIDTH;
+      const worldH = DK.CONFIG.WORLD_HEIGHT || DK.CONFIG.GAME_HEIGHT;
       for (const p of DK.Game.particles) {
         if (p.life < 0) continue;
         const alpha = Math.min(1, p.life / p.maxLife) * (p.type === 'dust' ? 0.12 : 0.7);
@@ -102,8 +123,8 @@ window.DK = window.DK || {};
           ? `rgba(200,180,160,${alpha})`
           : p.color || `rgba(255,136,68,${alpha})`;
         offCtx.fillRect(
-          Math.round(p.x * DK.CONFIG.GAME_WIDTH),
-          Math.round(p.y * DK.CONFIG.GAME_HEIGHT),
+          Math.round(p.x * worldW),
+          Math.round(p.y * worldH),
           p.size || 1, p.size || 1
         );
       }
@@ -113,6 +134,13 @@ window.DK = window.DK || {};
     DK.Enemies.render(offCtx, DK.Game.time);
     if (DK.Heroes) DK.Heroes.render(offCtx, DK.Game.time);
     renderEffects(offCtx);
+
+    offCtx.restore();
+    // === Camera offset end ===
+
+    // Screen-space rendering (not affected by camera)
+    // Vignette (screen-space, stays at screen edges)
+    DK.Map.renderVignette(offCtx);
 
     // Global warm tone overlay (simulates torch-dominated lighting)
     offCtx.fillStyle = 'rgba(255,180,120,0.03)';
@@ -958,8 +986,9 @@ window.DK = window.DK || {};
       ctx.globalAlpha = alpha;
       ctx.textAlign = 'center';
 
-      const screenX = effect.x * DK.CONFIG.SCALE;
-      const screenY = effect.y * DK.CONFIG.SCALE + offsetY;
+      const uiCam = DK.Game.camera || { x: 0, y: 0 };
+      const screenX = (effect.x - uiCam.x) * DK.CONFIG.SCALE;
+      const screenY = (effect.y - uiCam.y) * DK.CONFIG.SCALE + offsetY;
 
       // Reaction text is bigger and bolder
       const isReaction = effect.type === 'reaction_text';
