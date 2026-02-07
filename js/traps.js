@@ -281,12 +281,14 @@ DK.Traps = {
           barColor = '#aaddff';
         }
 
-        // 深灰底條
-        PA.rect(ctx, barX, barY, barWidth, 1, '#333333');
-        // 亮色進度
+        // === 2L: 深色底框 (1px) ===
+        PA.rect(ctx, barX - 1, barY - 1, barWidth + 2, 4, '#1a1a1a');
+        // 深灰底條 — 2L: 高度 1→2px
+        PA.rect(ctx, barX, barY, barWidth, 2, '#333333');
+        // 亮色進度 — 2L: 高度 1→2px
         const filledWidth = Math.round(progress * barWidth);
         if (filledWidth > 0) {
-          PA.rect(ctx, barX, barY, filledWidth, 1, barColor);
+          PA.rect(ctx, barX, barY, filledWidth, 2, barColor);
         }
       }
 
@@ -354,6 +356,11 @@ DK.Traps = {
       PA.pixel(ctx, x + 2, y + 14, C.TRAP_METAL_LIGHT);
       PA.pixel(ctx, x + 13, y + 14, C.TRAP_METAL_LIGHT);
 
+      // === 2K: 外殼凹陷邊框 — 右下暗色 ===
+      PA.pixel(ctx, x + 12, y + 13, PA.darken('#4a4050', 12));
+      PA.pixel(ctx, x + 11, y + 13, PA.darken('#4a4050', 12));
+      PA.pixel(ctx, x + 12, y + 12, PA.darken('#4a4050', 12));
+
       // Internal mechanism (spring coils)
       PA.rect(ctx, x + 5, y + 3, 6, 3, '#4a4050');
       PA.pixel(ctx, x + 6, y + 3, '#6a6070');
@@ -368,6 +375,8 @@ DK.Traps = {
       if (justFired) {
         // Extended position
         PA.rect(ctx, x + 4, y + 6, 8, 3, C.TRAP_PUSH_PISTON);
+        // === 2K: 活塞頂部金屬高光 ===
+        PA.pixel(ctx, x + 4, y + 6, PA.lighten(C.TRAP_PUSH_PISTON, 15));
         PA.rect(ctx, x + 5, y + 9, 6, 4, C.TRAP_METAL);
         PA.rect(ctx, x + 6, y + 13, 4, 3, C.TRAP_METAL_LIGHT);
         // Ram face
@@ -376,6 +385,8 @@ DK.Traps = {
       } else {
         // Retracted position
         PA.rect(ctx, x + 4, y + 6, 8, 3, C.TRAP_PUSH_PISTON);
+        // === 2K: 活塞頂部金屬高光（縮回狀態） ===
+        PA.pixel(ctx, x + 4, y + 6, PA.lighten(C.TRAP_PUSH_PISTON, 15));
         PA.rect(ctx, x + 5, y + 9, 6, 3, C.TRAP_METAL);
         // Ram face (retracted)
         PA.rect(ctx, x + 4, y + 11, 8, 2, '#aaa0b0');
@@ -428,6 +439,13 @@ DK.Traps = {
 
       // 風扇艙室（圓形區域）
       PA.rect(ctx, x + 4, y + 3, 8, 8, '#1a2030');
+      // === 2K: 風扇艙室內凹邊框 — 左上高光 + 右下陰影 ===
+      PA.pixel(ctx, x + 4, y + 3, '#2a3545');   // 左上高光
+      PA.pixel(ctx, x + 5, y + 3, '#2a3545');
+      PA.pixel(ctx, x + 4, y + 4, '#2a3545');
+      PA.pixel(ctx, x + 11, y + 10, '#0a1020');  // 右下陰影
+      PA.pixel(ctx, x + 10, y + 10, '#0a1020');
+      PA.pixel(ctx, x + 11, y + 9, '#0a1020');
 
       // 風扇葉片（根據 animFrame 旋轉）
       const frame = trap.animFrame;
@@ -462,6 +480,9 @@ DK.Traps = {
       // 出風口（底部開口）
       PA.rect(ctx, x + 5, y + 11, 6, 2, '#1a2030');
       PA.rect(ctx, x + 6, y + 12, 4, 2, '#0a1020');
+      // === 2K: 出風口金屬質感像素 ===
+      PA.pixel(ctx, x + 5, y + 11, '#3a4a5a');
+      PA.pixel(ctx, x + 10, y + 11, '#3a4a5a');
 
       // 充能發光效果
       if (isCharging) {
@@ -525,9 +546,11 @@ DK.Traps = {
       PA.pixel(ctx, x + 8, y + 11, C.TRAP_ELECTRIC);
       PA.pixel(ctx, x + 7, y + 12, C.TRAP_ELECTRIC);
 
-      // Rune glow
+      // Rune glow — 2K: 符文發光點 2→4 個
       PA.pixel(ctx, x + 7, y + 5, C.TRAP_ELECTRIC_LIGHT);
       PA.pixel(ctx, x + 8, y + 9, C.TRAP_ELECTRIC_LIGHT);
+      PA.pixel(ctx, x + 6, y + 6, C.TRAP_ELECTRIC_LIGHT);
+      PA.pixel(ctx, x + 9, y + 7, C.TRAP_ELECTRIC_LIGHT);
 
       // Edge glow lines (etched grooves)
       PA.rect(ctx, x + 2, y + 2, 12, 1, '#3a3a4a');
@@ -535,7 +558,7 @@ DK.Traps = {
       PA.rect(ctx, x + 2, y + 13, 12, 1, '#606070');
       PA.rect(ctx, x + 13, y + 2, 1, 12, '#606070');
 
-      // Active sparking
+      // Active sparking — 2K: 火花增至 6-8 個
       if (firing) {
         const frame = trap.animFrame;
         // Sparks at corners
@@ -543,15 +566,21 @@ DK.Traps = {
           PA.pixel(ctx, x + 3, y + 3, '#ffffff');
           PA.pixel(ctx, x + 12, y + 12, '#ffffff');
           PA.pixel(ctx, x + 4, y + 4, C.TRAP_ELECTRIC_LIGHT);
+          PA.pixel(ctx, x + 5, y + 3, C.TRAP_ELECTRIC_LIGHT);
+          PA.pixel(ctx, x + 11, y + 11, C.TRAP_ELECTRIC_LIGHT);
         }
         if (frame === 1 || frame === 3) {
           PA.pixel(ctx, x + 12, y + 3, '#ffffff');
           PA.pixel(ctx, x + 3, y + 12, '#ffffff');
           PA.pixel(ctx, x + 11, y + 4, C.TRAP_ELECTRIC_LIGHT);
+          PA.pixel(ctx, x + 10, y + 3, C.TRAP_ELECTRIC_LIGHT);
+          PA.pixel(ctx, x + 4, y + 11, C.TRAP_ELECTRIC_LIGHT);
         }
         // Center glow intensified
         PA.pixel(ctx, x + 7, y + 7, '#ffffff');
         PA.pixel(ctx, x + 8, y + 8, '#ffffff');
+        PA.pixel(ctx, x + 7, y + 8, C.TRAP_ELECTRIC_LIGHT);
+        PA.pixel(ctx, x + 8, y + 7, C.TRAP_ELECTRIC_LIGHT);
       }
 
       // 進化態增強視覺：邊角額外電弧像素
@@ -589,7 +618,8 @@ DK.Traps = {
       PA.pixel(ctx, x + 4, y + 10, '#6a3a1a');
       PA.pixel(ctx, x + 11, y + 10, '#6a3a1a');
 
-      // 中央火焰核心
+      // 中央火焰核心 — 2K: 中間漸變層
+      PA.rect(ctx, x + 5, y + 5, 6, 6, '#5a3018');  // 中間色漸變層
       PA.rect(ctx, x + 6, y + 6, 4, 4, C.TRAP_BLAST_CORE);
       PA.rect(ctx, x + 7, y + 7, 2, 2, '#cc5533');
 
@@ -602,14 +632,18 @@ DK.Traps = {
       PA.pixel(ctx, x + 11, y + 3, C.TRAP_BLAST_FUSE);
       PA.pixel(ctx, x + 12, y + 3, C.TRAP_BLAST_FUSE);
 
-      // 引信火花
+      // 引信火花 — 2K: 增至 4 個
       const frame = trap.animFrame;
       if (frame === 0 || frame === 2) {
         PA.pixel(ctx, x + 13, y + 2, '#ffaa33');
         PA.pixel(ctx, x + 12, y + 2, '#ff8822');
+        PA.pixel(ctx, x + 13, y + 1, '#ffdd44');
+        PA.pixel(ctx, x + 11, y + 2, '#ff6611');
       } else {
         PA.pixel(ctx, x + 13, y + 3, '#ff6611');
         PA.pixel(ctx, x + 13, y + 2, '#ffcc44');
+        PA.pixel(ctx, x + 12, y + 1, '#ffaa33');
+        PA.pixel(ctx, x + 13, y + 4, '#ff8822');
       }
 
       // 閒置時微弱脈動光

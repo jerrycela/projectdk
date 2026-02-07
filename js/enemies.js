@@ -400,6 +400,24 @@ DK.Enemies = {
     PA.pixel(ctx, x, y - 3, '#ffffff');
     PA.pixel(ctx, x + 1, y - 3, '#2a5a2a');
 
+    // === 2A: 光源面統一 — 頭部左上高光、右下陰影 ===
+    PA.pixel(ctx, x - 3, y - 6, PA.lighten(skin, 12));  // 頭部左側高光
+    PA.pixel(ctx, x - 2, y - 7, PA.lighten(skin, 12));  // 頭頂左側高光
+    PA.pixel(ctx, x + 3, y - 4, PA.darken(skin, 12));   // 頭部右下陰影
+    PA.pixel(ctx, x + 2, y - 3, PA.darken(skin, 12));   // 下巴右側陰影
+
+    // === 2B: 衣著分明暗面 ===
+    PA.pixel(ctx, x - 2, y - 1, PA.lighten('#6a4a2a', 12));  // 衣著左側高光
+    PA.pixel(ctx, x + 2, y - 1, PA.darken('#6a4a2a', 12));   // 衣著右側陰影
+
+    // === 2B: 耳朵底部陰影 ===
+    PA.pixel(ctx, x - 4, y - 4, PA.darken(skin, 12));  // 左耳底部陰影
+    PA.pixel(ctx, x + 4, y - 4, PA.darken(skin, 12));  // 右耳底部陰影
+
+    // === 2B: 眼睛黑底對比 ===
+    PA.pixel(ctx, x - 2, y - 4, '#1a0a0a');  // 左眼下方黑底
+    PA.pixel(ctx, x + 1, y - 4, '#1a0a0a');  // 右眼下方黑底
+
     // Small rusty dagger (held in right hand)
     PA.pixel(ctx, x + 5, y - 1, '#8a6a4a');
     PA.pixel(ctx, x + 5, y - 2, '#aaaaaa');
@@ -475,9 +493,12 @@ DK.Enemies = {
     // Eye sockets (deep and dark)
     PA.rect(ctx, x - 2, y - 7, 2, 2, '#0a0808');
     PA.rect(ctx, x + 1, y - 7, 2, 2, '#0a0808');
-    // Glowing eyes
-    PA.pixel(ctx, x - 2, y - 6, C.SKELETON_EYE);
-    PA.pixel(ctx, x + 1, y - 6, C.SKELETON_EYE);
+    // === 2C: 眼眶周圍暗色環像素 ===
+    PA.pixel(ctx, x - 3, y - 6, '#0a0808');
+    PA.pixel(ctx, x + 3, y - 6, '#0a0808');
+    // Glowing eyes (2C: 改為黃綠色)
+    PA.pixel(ctx, x - 2, y - 6, '#ccff44');
+    PA.pixel(ctx, x + 1, y - 6, '#ccff44');
 
     // Nasal cavity
     PA.pixel(ctx, x, y - 5, '#2a2018');
@@ -488,12 +509,20 @@ DK.Enemies = {
     PA.pixel(ctx, x - 1, y - 4, bone);
     PA.pixel(ctx, x + 1, y - 4, bone);
 
+    // === 2A: 骷髏光源面統一 — 頭骨左上高光、右下陰影 ===
+    PA.pixel(ctx, x - 3, y - 7, PA.lighten(bone, 12));  // 頭骨左側高光
+    PA.pixel(ctx, x - 1, y - 8, PA.lighten(bone, 12));  // 頭頂左側高光
+    PA.pixel(ctx, x + 3, y - 5, PA.darken(bone, 12));   // 頭骨右下陰影
+    PA.pixel(ctx, x + 2, y - 4, PA.darken(bone, 12));   // 下顎右側陰影
+
     // Rusty sword (left hand)
     PA.pixel(ctx, x - 6, y + 2, '#6a5a4a');
     PA.pixel(ctx, x - 6, y + 1, '#8a7a6a');
     PA.pixel(ctx, x - 6, y, '#aaaaaa');
     PA.pixel(ctx, x - 6, y - 1, '#bbbbbb');
     PA.pixel(ctx, x - 6, y - 2, '#cccccc');
+    // === 2C: 劍尖高光 ===
+    PA.pixel(ctx, x - 6, y - 3, '#dddddd');
   },
 
   renderOrc(ctx, enemy, x, y) {
@@ -588,6 +617,21 @@ DK.Enemies = {
     PA.pixel(ctx, x + 9, y - 6, '#bbbbbb');
     // Axe blade highlight
     PA.pixel(ctx, x + 7, y - 9, '#dddddd');
+    // === 2D: 戰斧刀刃高光 ===
+    PA.pixel(ctx, x + 9, y - 8, '#eeeeee');
+
+    // === 2A: 獸人光源面統一 — 頭部左上高光、右下陰影 ===
+    PA.pixel(ctx, x - 4, y - 9, PA.lighten(skin, 12));  // 頭部左側高光
+    PA.pixel(ctx, x - 3, y - 10, PA.lighten(skin, 12)); // 頭頂左側高光
+    PA.pixel(ctx, x + 4, y - 5, PA.darken(skin, 12));   // 頭部右下陰影
+    PA.pixel(ctx, x + 3, y - 4, PA.darken(skin, 12));   // 下巴右側陰影
+
+    // === 2D: 胸甲左上光源面高光 ===
+    PA.pixel(ctx, x - 3, y - 3, PA.lighten('#606870', 15));  // 胸甲高光
+    PA.pixel(ctx, x - 2, y - 4, PA.lighten('#606870', 15));  // 胸甲高光 2
+
+    // === 2D: 肩甲高光 ===
+    PA.pixel(ctx, x - 5, y - 5, PA.lighten('#505860', 15));  // 左肩甲高光
   },
 
   renderSlime(ctx, enemy, x, y, time) {
@@ -659,6 +703,24 @@ DK.Enemies = {
     PA.pixel(ctx, x + 3, by, 'rgba(136,204,255,0.5)');
     PA.pixel(ctx, x - 3, by + 1, 'rgba(136,204,255,0.5)');
 
+    // === 2E: 身體底部邊緣漸進暗色 ===
+    PA.pixel(ctx, x - 3, by + 1, PA.darken(C.SLIME_BODY, 15));
+    PA.pixel(ctx, x + 3, by + 1, PA.darken(C.SLIME_BODY, 15));
+    PA.pixel(ctx, x - 4, by + 1, PA.darken(C.SLIME_BODY, 15));
+
+    // === 2E: 高光擴展第 2 層 — 淺藍漸進 ===
+    PA.pixel(ctx, x - 3, by - 3, '#aaddff');
+    PA.pixel(ctx, x - 1, by - 3, '#aaddff');
+
+    // === 2E: 中心深藍核心像素 ===
+    PA.pixel(ctx, x, by, '#1155aa');
+
+    // === 2A: 史萊姆光源面統一 — 左上高光、右下陰影 ===
+    PA.pixel(ctx, x - 4, by - 1, PA.lighten(body, 12));  // 左側高光
+    PA.pixel(ctx, x - 3, by - 2, PA.lighten(body, 12));  // 左上高光
+    PA.pixel(ctx, x + 4, by + 1, PA.darken(body, 12));   // 右側陰影
+    PA.pixel(ctx, x + 3, by + 2, PA.darken(body, 12));   // 右下陰影
+
     // Wobble drip (animated)
     if (squish < -0.5) {
       PA.pixel(ctx, x + 3, by + 2, body);
@@ -697,8 +759,9 @@ DK.Enemies = {
         const by = Math.round(y + Math.sin(angle) * dist * 0.5);
 
         if (sinkProgress < 0.6) {
-          // 石子碎裂粒子
-          const stoneColor = rng() > 0.5 ? '#555550' : '#3a3830';
+          // 石子碎裂粒子（2G: 3 種色隨機）
+          const stoneColors = ['#555550', '#3a3830', '#4a4540'];
+          const stoneColor = stoneColors[Math.floor(rng() * 3)];
           PA.pixel(ctx, bx, by, stoneColor);
         }
         if (sinkProgress > 0.2 && sinkProgress < 0.8) {
@@ -783,7 +846,7 @@ DK.Enemies = {
       for (let i = 0; i < 14; i++) {
         const angle = rng() * Math.PI * 2;
         const speed = 0.5 + rng() * 0.8;
-        const dist = progress * 10 * speed;
+        const dist = progress * 12 * speed;
         const px = Math.round(x + Math.cos(angle) * dist);
         const py = Math.round(y + Math.sin(angle) * dist - progress * 4);
         const col = colors[i % 3];
@@ -809,22 +872,25 @@ DK.Enemies = {
     const hpPercent = enemy.hp / enemy.maxHp;
     const barWidth = 12;
     const barX = x - 6;
-    const barY = y - 10;
+    const barY = y - 11;
 
     // Only show when damaged
     if (hpPercent >= 1) return;
 
-    // Background (dark with border)
-    PA.rect(ctx, barX - 1, barY - 1, barWidth + 2, 4, '#0a0a0a');
-    PA.rect(ctx, barX, barY, barWidth, 2, '#2a1a1a');
+    // === 2F: 金屬邊框 (1px) ===
+    PA.rect(ctx, barX - 2, barY - 2, barWidth + 4, 7, '#3a3a3a');
+    // Background (dark with border) — 高度從 4→5
+    PA.rect(ctx, barX - 1, barY - 1, barWidth + 2, 5, '#0a0a0a');
+    PA.rect(ctx, barX, barY, barWidth, 3, '#2a1a1a');
 
-    // HP fill with gradient effect
+    // === 2F: HP 漸進插值顏色 ===
     const fillWidth = Math.ceil(barWidth * hpPercent);
-    const fillColor = hpPercent > 0.6 ? '#44cc44' :
-                      hpPercent > 0.3 ? '#cccc44' : '#cc4444';
-    const fillHighlight = hpPercent > 0.6 ? '#66ee66' :
-                          hpPercent > 0.3 ? '#eeee66' : '#ee6666';
-    PA.rect(ctx, barX, barY + 1, fillWidth, 1, fillColor);
+    const r = Math.round(hpPercent > 0.5 ? (1 - hpPercent) * 2 * 204 + 68 : 204);
+    const g = Math.round(hpPercent > 0.5 ? 204 : hpPercent * 2 * 204);
+    const fillColor = `rgb(${r},${g},68)`;
+    const fillHighlight = `rgb(${Math.min(255, r + 34)},${Math.min(255, g + 34)},102)`;
+    // 填充從 2→3px 高
+    PA.rect(ctx, barX, barY + 1, fillWidth, 2, fillColor);
     PA.rect(ctx, barX, barY, fillWidth, 1, fillHighlight);
   },
 };

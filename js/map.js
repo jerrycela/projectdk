@@ -262,8 +262,8 @@ DK.Map = {
   prerenderTiles() {
     const T = DK.CONFIG.TILE_SIZE;
 
-    // 牆壁地磚變體
-    for (let v = 0; v < 4; v++) {
+    // 牆壁地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
       const canvas = document.createElement('canvas');
       canvas.width = T;
       canvas.height = T;
@@ -272,8 +272,8 @@ DK.Map = {
       this.tileCache[`wall_${v}`] = canvas;
     }
 
-    // 地板地磚變體
-    for (let v = 0; v < 4; v++) {
+    // 地板地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
       const canvas = document.createElement('canvas');
       canvas.width = T;
       canvas.height = T;
@@ -282,8 +282,8 @@ DK.Map = {
       this.tileCache[`floor_${v}`] = canvas;
     }
 
-    // 深淵地磚變體
-    for (let v = 0; v < 4; v++) {
+    // 深淵地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
       const canvas = document.createElement('canvas');
       canvas.width = T;
       canvas.height = T;
@@ -292,8 +292,8 @@ DK.Map = {
       this.tileCache[`abyss_${v}`] = canvas;
     }
 
-    // 水潭地磚變體
-    for (let v = 0; v < 4; v++) {
+    // 水潭地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
       const canvas = document.createElement('canvas');
       canvas.width = T;
       canvas.height = T;
@@ -302,8 +302,8 @@ DK.Map = {
       this.tileCache[`pool_${v}`] = canvas;
     }
 
-    // 草叢地磚變體
-    for (let v = 0; v < 4; v++) {
+    // 草叢地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
       const canvas = document.createElement('canvas');
       canvas.width = T;
       canvas.height = T;
@@ -312,8 +312,8 @@ DK.Map = {
       this.tileCache[`grass_${v}`] = canvas;
     }
 
-    // 焦黑草叢地磚變體
-    for (let v = 0; v < 4; v++) {
+    // 焦黑草叢地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
       const canvas = document.createElement('canvas');
       canvas.width = T;
       canvas.height = T;
@@ -367,8 +367,12 @@ DK.Map = {
           : 16 - row.offsets[i];
         const by = y + row.y;
 
-        // 磚塊本體
-        const brickShade = rng() > 0.5 ? C.WALL_MID : C.WALL_LIGHT;
+        // 磚塊本體（使用新過渡色增加層次）
+        const brickRoll = rng();
+        const brickShade = brickRoll > 0.7 ? C.WALL_LIGHT
+          : brickRoll > 0.4 ? C.WALL_MID
+          : brickRoll > 0.15 ? C.WALL_WARM
+          : C.WALL_DARK_MID;
         PA.rect(ctx, bx, by, bw, row.h, brickShade);
 
         // 左上高光
@@ -384,22 +388,39 @@ DK.Map = {
           PA.rect(ctx, bx + bw, by, 1, row.h, C.WALL_MORTAR);
         }
 
-        // 紋理噪點
-        for (let t = 0; t < 3; t++) {
+        // 紋理噪點（增至 5 個，使用過渡色階）
+        for (let t = 0; t < 5; t++) {
           const tx = bx + 1 + Math.floor(rng() * Math.max(1, bw - 2));
           const ty = by + 1 + Math.floor(rng() * Math.max(1, row.h - 2));
-          PA.pixel(ctx, tx, ty, rng() > 0.5 ? C.WALL_DARK : C.WALL_HIGHLIGHT);
+          const r2 = rng();
+          const noiseColor = r2 > 0.7 ? C.WALL_HIGHLIGHT
+            : r2 > 0.4 ? C.WALL_MID_LIGHT
+            : r2 > 0.2 ? C.WALL_DARK_MID
+            : C.WALL_DARK;
+          PA.pixel(ctx, tx, ty, noiseColor);
         }
       }
     }
 
+    // 灰縫深色裂線（在磚塊之上疊加）
+    const mortarDeep = PA.darken(C.WALL_MORTAR, 8);
+    for (let mx = 0; mx < 16; mx += 3) {
+      PA.pixel(ctx, x + mx, y + 5, mortarDeep);
+      PA.pixel(ctx, x + mx + 1, y + 10, mortarDeep);
+    }
+
     // 苔蘚/裂紋（依變體）
     if (variant === 2) {
+      // 苔蘚區擴大至 4-6px，混合 WALL_DARK_MID / WALL_MID_LIGHT
       PA.pixel(ctx, x + 2, y + 5, C.WALL_MOSS);
       PA.pixel(ctx, x + 3, y + 5, C.WALL_MOSS);
       PA.pixel(ctx, x + 3, y + 4, '#2a5a2a');
+      PA.pixel(ctx, x + 4, y + 5, C.WALL_DARK_MID);
+      PA.pixel(ctx, x + 4, y + 4, C.WALL_MID_LIGHT);
       PA.pixel(ctx, x + 11, y + 10, C.WALL_MOSS);
       PA.pixel(ctx, x + 12, y + 10, '#1e3a1e');
+      PA.pixel(ctx, x + 12, y + 9, C.WALL_DARK_MID);
+      PA.pixel(ctx, x + 13, y + 10, C.WALL_MID_LIGHT);
     }
     if (variant === 3) {
       PA.pixel(ctx, x + 9, y + 2, C.WALL_MORTAR);
@@ -454,15 +475,20 @@ DK.Map = {
       PA.rect(ctx, sx, sy, stone.sw, 1, C.FLOOR_HIGHLIGHT);
       PA.rect(ctx, sx, sy, 1, stone.sh, C.FLOOR_HIGHLIGHT);
 
-      // 右下陰影
-      PA.rect(ctx, sx, sy + stone.sh - 1, stone.sw, 1, C.FLOOR_DARK);
-      PA.rect(ctx, sx + stone.sw - 1, sy, 1, stone.sh, C.FLOOR_DARK);
+      // 右下陰影（用 FLOOR_DARK_MID 增加過渡）
+      PA.rect(ctx, sx, sy + stone.sh - 1, stone.sw, 1, C.FLOOR_DARK_MID);
+      PA.rect(ctx, sx + stone.sw - 1, sy, 1, stone.sh, C.FLOOR_DARK_MID);
 
-      // 內部紋理
+      // 內部紋理（增加色階過渡）
       for (let t = 0; t < 4; t++) {
         const tx = sx + 1 + Math.floor(rng() * Math.max(1, stone.sw - 3));
         const ty = sy + 1 + Math.floor(rng() * Math.max(1, stone.sh - 3));
-        PA.pixel(ctx, tx, ty, rng() > 0.6 ? C.FLOOR_LIGHT : C.FLOOR_DARK);
+        const floorR = rng();
+        const texColor = floorR > 0.7 ? C.FLOOR_MID_LIGHT
+          : floorR > 0.4 ? C.FLOOR_LIGHT
+          : floorR > 0.2 ? C.FLOOR_DARK_MID
+          : C.FLOOR_DARK;
+        PA.pixel(ctx, tx, ty, texColor);
       }
 
       // 暖色反光點
@@ -485,21 +511,25 @@ DK.Map = {
       PA.pixel(ctx, x + gx2, y + i, C.FLOOR_CRACK);
     }
 
-    // 散落的沙塵
+    // 散落的沙塵（增至 4 個 + 更多變體）
     if (variant === 1 || variant === 3) {
       PA.pixel(ctx, x + 3, y + 12, '#8a8070');
       PA.pixel(ctx, x + 12, y + 4, '#7a7060');
+      PA.pixel(ctx, x + 7, y + 13, C.FLOOR_DARK_MID);
+      PA.pixel(ctx, x + 14, y + 9, C.FLOOR_MID_LIGHT);
+    }
+    if (variant === 0 || variant === 2) {
+      PA.pixel(ctx, x + 5, y + 11, '#8a8070');
+      PA.pixel(ctx, x + 10, y + 3, C.FLOOR_DARK_MID);
     }
 
-    // 地板裂痕裝飾（15% 機率，用深一號地板色）
+    // 地板裂痕裝飾（15% 機率，2 色裂痕：中心 FLOOR_CRACK + 旁邊 FLOOR_DARK_MID）
     if (rng() < 0.15) {
-      const crackColor = C.FLOOR_DARK;
       const crackCount = 1 + Math.floor(rng() * 2); // 1-2 條裂痕
       for (let ci = 0; ci < crackCount; ci++) {
         const startX = 2 + Math.floor(rng() * 11);
         const startY = 2 + Math.floor(rng() * 11);
         const length = 2 + Math.floor(rng() * 3); // 2-4px 長
-        // 隨機方向（8 向：水平、垂直、兩條對角）
         const dirIdx = Math.floor(rng() * 4);
         const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
         const [cdx, cdy] = dirs[dirIdx];
@@ -507,7 +537,12 @@ DK.Map = {
           const px = startX + cdx * p;
           const py = startY + cdy * p;
           if (px >= 1 && px < 15 && py >= 1 && py < 15) {
-            PA.pixel(ctx, x + px, y + py, crackColor);
+            // 裂痕中心用 FLOOR_CRACK，邊緣用 FLOOR_DARK_MID
+            PA.pixel(ctx, x + px, y + py, C.FLOOR_CRACK);
+            // 旁邊像素用較淺的 FLOOR_DARK_MID 做過渡
+            if (py + 1 < 15) {
+              PA.pixel(ctx, x + px, y + py + 1, C.FLOOR_DARK_MID);
+            }
           }
         }
       }
@@ -518,9 +553,14 @@ DK.Map = {
     const PA = DK.PixelArt;
     this.drawFloorTile(ctx, x, y, 0);
 
-    // 綠色入口傳送門
+    // 綠色入口傳送門（核心增加 1 層漸變）
     PA.rect(ctx, x + 1, y + 4, 4, 8, '#22662a');
     PA.rect(ctx, x + 2, y + 5, 2, 6, '#44aa44');
+    // 外圈漸變層
+    PA.pixel(ctx, x + 1, y + 6, '#338833');
+    PA.pixel(ctx, x + 1, y + 9, '#338833');
+    PA.pixel(ctx, x + 4, y + 6, '#338833');
+    PA.pixel(ctx, x + 4, y + 9, '#338833');
     PA.pixel(ctx, x + 2, y + 4, '#66cc66');
     PA.pixel(ctx, x + 3, y + 4, '#66cc66');
     PA.pixel(ctx, x + 2, y + 11, '#66cc66');
@@ -536,9 +576,14 @@ DK.Map = {
     const PA = DK.PixelArt;
     this.drawFloorTile(ctx, x, y, 0);
 
-    // 紅色出口傳送門
+    // 紅色出口傳送門（核心增加 1 層漸變）
     PA.rect(ctx, x + 11, y + 4, 4, 8, '#662222');
     PA.rect(ctx, x + 12, y + 5, 2, 6, '#cc4444');
+    // 外圈漸變層
+    PA.pixel(ctx, x + 11, y + 6, '#883333');
+    PA.pixel(ctx, x + 11, y + 9, '#883333');
+    PA.pixel(ctx, x + 14, y + 6, '#883333');
+    PA.pixel(ctx, x + 14, y + 9, '#883333');
     PA.pixel(ctx, x + 12, y + 4, '#ff6666');
     PA.pixel(ctx, x + 13, y + 4, '#ff6666');
     PA.pixel(ctx, x + 12, y + 11, '#ff6666');
@@ -562,33 +607,46 @@ DK.Map = {
     // 純黑深洞底色
     PA.rect(ctx, x, y, 16, 16, C.ABYSS_DARK);
 
-    // 邊緣岩石碎裂紋理
+    // 中心加入 ABYSS_MID 色區域增加深度漸層
+    for (let i = 4; i < 12; i++) {
+      for (let j = 4; j < 12; j++) {
+        if (rng() > 0.6) {
+          PA.pixel(ctx, x + i, y + j, C.ABYSS_MID);
+        }
+      }
+    }
+
+    // 邊緣岩層改為 2 層漸變：外層 ABYSS_EDGE，內層 ABYSS_MID
     // 上邊緣
     for (let i = 0; i < 16; i++) {
       const depth = Math.floor(rng() * 3);
       for (let d = 0; d < depth; d++) {
-        PA.pixel(ctx, x + i, y + d, rng() > 0.5 ? C.ABYSS_EDGE : C.ABYSS_ROCK);
+        const edgeColor = d === 0 ? (rng() > 0.5 ? C.ABYSS_EDGE : C.ABYSS_ROCK) : C.ABYSS_MID;
+        PA.pixel(ctx, x + i, y + d, edgeColor);
       }
     }
     // 下邊緣
     for (let i = 0; i < 16; i++) {
       const depth = Math.floor(rng() * 3);
       for (let d = 0; d < depth; d++) {
-        PA.pixel(ctx, x + i, y + 15 - d, rng() > 0.5 ? C.ABYSS_EDGE : C.ABYSS_ROCK);
+        const edgeColor = d === 0 ? (rng() > 0.5 ? C.ABYSS_EDGE : C.ABYSS_ROCK) : C.ABYSS_MID;
+        PA.pixel(ctx, x + i, y + 15 - d, edgeColor);
       }
     }
     // 左邊緣
     for (let i = 2; i < 14; i++) {
       const depth = Math.floor(rng() * 2);
       for (let d = 0; d < depth; d++) {
-        PA.pixel(ctx, x + d, y + i, rng() > 0.4 ? C.ABYSS_EDGE : C.ABYSS_CRACK);
+        const edgeColor = d === 0 ? (rng() > 0.4 ? C.ABYSS_EDGE : C.ABYSS_CRACK) : C.ABYSS_MID;
+        PA.pixel(ctx, x + d, y + i, edgeColor);
       }
     }
     // 右邊緣
     for (let i = 2; i < 14; i++) {
       const depth = Math.floor(rng() * 2);
       for (let d = 0; d < depth; d++) {
-        PA.pixel(ctx, x + 15 - d, y + i, rng() > 0.4 ? C.ABYSS_EDGE : C.ABYSS_CRACK);
+        const edgeColor = d === 0 ? (rng() > 0.4 ? C.ABYSS_EDGE : C.ABYSS_CRACK) : C.ABYSS_MID;
+        PA.pixel(ctx, x + 15 - d, y + i, edgeColor);
       }
     }
 
@@ -606,14 +664,18 @@ DK.Map = {
       }
     }
 
-    // 碎石散落（邊緣小碎片）
+    // 碎石散落（增至 4 個 + 混合多色）
     if (variant === 1 || variant === 3) {
       PA.pixel(ctx, x + 4, y + 3, C.ABYSS_ROCK);
       PA.pixel(ctx, x + 11, y + 12, C.ABYSS_ROCK);
+      PA.pixel(ctx, x + 6, y + 5, C.ABYSS_MID);
+      PA.pixel(ctx, x + 13, y + 8, C.ABYSS_EDGE);
     }
-    if (variant === 2) {
+    if (variant === 0 || variant === 2) {
       PA.pixel(ctx, x + 7, y + 4, C.ABYSS_EDGE);
       PA.pixel(ctx, x + 12, y + 5, C.ABYSS_ROCK);
+      PA.pixel(ctx, x + 3, y + 11, C.ABYSS_MID);
+      PA.pixel(ctx, x + 9, y + 13, C.ABYSS_EDGE);
     }
   },
 
@@ -647,26 +709,39 @@ DK.Map = {
       }
     }
 
-    // 高光反射點
-    for (let i = 0; i < 3; i++) {
+    // 高光反射點（增至 4 個）
+    for (let i = 0; i < 4; i++) {
       const hx = 2 + Math.floor(rng() * 12);
       const hy = 2 + Math.floor(rng() * 12);
       PA.pixel(ctx, x + hx, y + hy, C.POOL_HIGHLIGHT);
     }
 
-    // 邊緣暗化（石壁邊的水色更深）
+    // 邊緣暗化改為 2 層漸變：外圈 darken 10、內圈 darken 6
     for (let i = 0; i < 16; i++) {
+      // 外圈（最邊緣）
       PA.pixel(ctx, x + i, y, PA.darken(C.POOL_DARK, 10));
       PA.pixel(ctx, x + i, y + 15, PA.darken(C.POOL_DARK, 10));
-      PA.pixel(ctx, x, y + i, PA.darken(C.POOL_DARK, 8));
-      PA.pixel(ctx, x + 15, y + i, PA.darken(C.POOL_DARK, 8));
+      PA.pixel(ctx, x, y + i, PA.darken(C.POOL_DARK, 10));
+      PA.pixel(ctx, x + 15, y + i, PA.darken(C.POOL_DARK, 10));
+      // 內圈（次邊緣）
+      PA.pixel(ctx, x + i, y + 1, PA.darken(C.POOL_DARK, 6));
+      PA.pixel(ctx, x + i, y + 14, PA.darken(C.POOL_DARK, 6));
+      PA.pixel(ctx, x + 1, y + i, PA.darken(C.POOL_DARK, 6));
+      PA.pixel(ctx, x + 14, y + i, PA.darken(C.POOL_DARK, 6));
     }
 
-    // 水底卵石
+    // 水底卵石（增至 4 個 + 多色）
     if (variant === 0 || variant === 2) {
       PA.pixel(ctx, x + 5, y + 10, '#1a2838');
       PA.pixel(ctx, x + 6, y + 10, '#1a2838');
       PA.pixel(ctx, x + 10, y + 6, '#1a2838');
+      PA.pixel(ctx, x + 3, y + 7, '#1a3040');
+    }
+    if (variant === 1 || variant === 3) {
+      PA.pixel(ctx, x + 8, y + 11, '#1a2838');
+      PA.pixel(ctx, x + 4, y + 5, '#1a3040');
+      PA.pixel(ctx, x + 12, y + 9, '#142030');
+      PA.pixel(ctx, x + 7, y + 3, '#1a2838');
     }
   },
 
@@ -688,19 +763,27 @@ DK.Map = {
       PA.rect(ctx, x + rx, y + ry, rw, rh, C.GRASS_MID);
     }
 
-    // 草葉紋理（向上的短線條模擬草叢）
+    // 草葉紋理（方向多樣化：一半向上、一半左傾，4 色混合）
     for (let i = 0; i < 10; i++) {
       const gx = 1 + Math.floor(rng() * 14);
       const gy = 2 + Math.floor(rng() * 12);
       const height = 2 + Math.floor(rng() * 2);
-      const shade = rng() > 0.5 ? C.GRASS_LIGHT : C.GRASS_MID;
+      const leanLeft = rng() > 0.5; // 一半左傾
+      const colorRoll = rng();
+      const shade = colorRoll > 0.75 ? C.GRASS_HIGHLIGHT
+        : colorRoll > 0.5 ? C.GRASS_LIGHT
+        : colorRoll > 0.25 ? C.GRASS_MID
+        : C.GRASS_DARK;
       for (let h = 0; h < height; h++) {
-        PA.pixel(ctx, x + gx, y + gy - h, shade);
+        const lx = leanLeft ? gx - Math.floor(h / 2) : gx;
+        if (lx >= 0 && lx < 16 && gy - h >= 0) {
+          PA.pixel(ctx, x + lx, y + gy - h, shade);
+        }
       }
     }
 
-    // 高光草尖
-    for (let i = 0; i < 4; i++) {
+    // 高光草尖（增至 5 個）
+    for (let i = 0; i < 5; i++) {
       const hx = 2 + Math.floor(rng() * 12);
       const hy = 1 + Math.floor(rng() * 6);
       PA.pixel(ctx, x + hx, y + hy, C.GRASS_HIGHLIGHT);
@@ -770,20 +853,20 @@ DK.Map = {
         const y = r * T;
 
         if (tile === 'W') {
-          const variant = (c * 7 + r * 13) % 4;
+          const variant = (c * 7 + r * 13) % 6;
           ctx.drawImage(this.tileCache[`wall_${variant}`], x, y);
         } else if (tile === 'E') {
           ctx.drawImage(this.tileCache['entrance'], x, y);
         } else if (tile === 'X') {
           ctx.drawImage(this.tileCache['exit'], x, y);
         } else if (tile === 'A') {
-          const variant = (c * 11 + r * 17) % 4;
+          const variant = (c * 11 + r * 17) % 6;
           ctx.drawImage(this.tileCache[`abyss_${variant}`], x, y);
         } else if (tile === 'P') {
-          const variant = (c * 11 + r * 17) % 4;
+          const variant = (c * 11 + r * 17) % 6;
           ctx.drawImage(this.tileCache[`pool_${variant}`], x, y);
         } else if (tile === 'G') {
-          const variant = (c * 11 + r * 17) % 4;
+          const variant = (c * 11 + r * 17) % 6;
           const gs = this.getGrassState(c, r);
           if (gs && gs.state === 'scorched') {
             ctx.drawImage(this.tileCache[`grass_scorched_${variant}`], x, y);
@@ -791,7 +874,7 @@ DK.Map = {
             ctx.drawImage(this.tileCache[`grass_${variant}`], x, y);
           }
         } else {
-          const variant = (c * 11 + r * 17) % 4;
+          const variant = (c * 11 + r * 17) % 6;
           ctx.drawImage(this.tileCache[`floor_${variant}`], x, y);
         }
       }
@@ -899,18 +982,41 @@ DK.Map = {
       // 中層火焰
       PA.pixel(ctx, tx + 7, ty + 1, '#ffcc44');
       PA.pixel(ctx, tx + 8, ty + 1, '#ffaa22');
-      // 外層火焰（閃爍）
+      // 火焰高度 5→6px：加一個額外頂部像素
+      PA.pixel(ctx, tx + 7, ty, '#ffaa22');
+      // 外層火焰（增至 4 個不規則點）
       if (flicker > 0.3) {
         PA.pixel(ctx, tx + 6, ty + 2, '#ff6622');
         PA.pixel(ctx, tx + 9, ty + 2, '#ff6622');
       }
       if (flicker2 > 0.5) {
-        PA.pixel(ctx, tx + 7, ty, '#ff8844');
+        PA.pixel(ctx, tx + 8, ty, '#ff8844');
+      }
+      if (flicker > 0.6) {
+        PA.pixel(ctx, tx + 6, ty + 1, '#ff4400');
+      }
+      if (flicker2 > 0.7) {
+        PA.pixel(ctx, tx + 9, ty + 1, '#ff6622');
       }
 
-      // 周圍格子的環境光暈（暖橘色）
-      const glowRadius = 3;
-      const glowIntensity = 0.08 + flicker * 0.04;
+      // 火把餘燼生成（2% 機率推入 DK.Game.particles）
+      if (DK.Game && DK.Game.particles && DK.Game.particles.length < 40 && Math.random() < 0.02) {
+        DK.Game.particles.push({
+          type: 'ember',
+          x: (tx + 7) / DK.CONFIG.GAME_WIDTH,
+          y: ty / DK.CONFIG.GAME_HEIGHT,
+          vx: (Math.random() - 0.5) * 0.004,
+          vy: -0.02,
+          life: 0,
+          maxLife: 600,
+          color: Math.random() > 0.5 ? '#ff8844' : '#ffaa44',
+          size: 1,
+        });
+      }
+
+      // 周圍格子的環境光暈（暖橘色）- 升級光暈參數
+      const glowRadius = 2.8 + flicker * 0.5;
+      const glowIntensity = 0.12 + flicker * 0.08;
       for (let gr = -glowRadius; gr <= glowRadius; gr++) {
         for (let gc = -glowRadius; gc <= glowRadius; gc++) {
           const dist = Math.sqrt(gr * gr + gc * gc);
@@ -920,7 +1026,7 @@ DK.Map = {
           if (nr < 0 || nr >= this.layout.length || nc < 0 || nc >= this.layout[0].length) continue;
 
           const falloff = 1 - dist / glowRadius;
-          const alpha = glowIntensity * falloff * falloff;
+          const alpha = glowIntensity * falloff * falloff * falloff;
           if (alpha < 0.01) continue;
 
           const gx = nc * T;
@@ -937,15 +1043,22 @@ DK.Map = {
     const W = DK.CONFIG.GAME_WIDTH;
     const H = DK.CONFIG.GAME_HEIGHT;
 
-    // 邊緣暗化營造氛圍
-    ctx.fillStyle = 'rgba(10,8,18,0.15)';
+    // 第三層最外圍：T*3 範圍、alpha 0.05
+    ctx.fillStyle = 'rgba(10,8,18,0.05)';
+    ctx.fillRect(0, 0, W, T * 3);
+    ctx.fillRect(0, H - T * 3, W, T * 3);
+    ctx.fillRect(0, 0, T * 3, H);
+    ctx.fillRect(W - T * 3, 0, T * 3, H);
+
+    // 邊緣暗化營造氛圍（alpha 0.15 → 0.22）
+    ctx.fillStyle = 'rgba(10,8,18,0.22)';
     ctx.fillRect(0, 0, W, T);
     ctx.fillRect(0, H - T, W, T);
     ctx.fillRect(0, 0, T, H);
     ctx.fillRect(W - T, 0, T, H);
 
-    // 角落更深的暗化
-    ctx.fillStyle = 'rgba(10,8,18,0.1)';
+    // 角落更深的暗化（alpha 0.1 → 0.2）
+    ctx.fillStyle = 'rgba(10,8,18,0.2)';
     ctx.fillRect(0, 0, T * 2, T * 2);
     ctx.fillRect(W - T * 2, 0, T * 2, T * 2);
     ctx.fillRect(0, H - T * 2, T * 2, T * 2);
@@ -989,7 +1102,7 @@ DK.Map = {
         if (seed2 > 0.7) {
           const fallProgress2 = (t * 1.5 + c * 2.3 + r * 1.1) % 5;
           if (fallProgress2 < 2.5) {
-            const px2 = x + 8 + Math.round(((c * 3 + r * 11) % 6));
+            const px2 = x + 8 + Math.round(((c * 3 + r * 11) % 4));
             const py2 = y + 1 + Math.round(fallProgress2 * 5);
             if (py2 < y + 14) {
               const fadeAlpha2 = 1 - fallProgress2 / 2.5;
@@ -1121,7 +1234,7 @@ DK.Map = {
           }
 
           // 煙霧粒子（灰色，向上飄）
-          const smokeY = Math.round((t * 4 + c * 2) % 6);
+          const smokeY = Math.round((t * 4 + c * 2) % 4);
           if (smokeY < 4) {
             const smokeX = 7 + Math.round(Math.sin(t * 2 + r) * 2);
             const smokeAlpha = (1 - smokeY / 4) * 0.3 * (1 - burnProgress * 0.5);

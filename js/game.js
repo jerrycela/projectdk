@@ -13,6 +13,7 @@ DK.Game = {
   gameOver: false,
   enemiesKilled: 0,
   effects: [],
+  particles: [],
   spawnQueue: [],
   spawnTimer: 0,
   time: 0,
@@ -26,12 +27,14 @@ DK.Game = {
     this.gameOver = false;
     this.enemiesKilled = 0;
     this.effects = [];
+    this.particles = [];
     this.spawnQueue = [];
     this.spawnTimer = 0;
     this.time = 0;
     this.screenShake = { intensity: 0, timer: 0 };
 
     DK.Map.init();
+    this.initParticles();
     DK.Traps.init();
     DK.Enemies.init();
     if (DK.Elements) DK.Elements.init();
@@ -124,6 +127,9 @@ DK.Game = {
     // Update effects
     this.updateEffects(dt);
 
+    // Update particles
+    this.updateParticles(dt);
+
     // Update screen shake
     if (this.screenShake.timer > 0) {
       this.screenShake.timer -= dt;
@@ -157,6 +163,54 @@ DK.Game = {
         }
       }
     }
+  },
+
+  /** 初始化浮塵粒子（12-15 個） */
+  initParticles() {
+    this.particles = [];
+    const count = 12 + Math.floor(Math.random() * 4); // 12-15
+    for (let i = 0; i < count; i++) {
+      this.particles.push(this.createDustParticle());
+    }
+  },
+
+  /** 建立一個浮塵粒子 */
+  createDustParticle() {
+    const alpha = 0.08 + Math.random() * 0.07; // 0.08-0.15
+    return {
+      type: 'dust',
+      x: Math.random(),
+      y: Math.random(),
+      vx: 0.001 + Math.random() * 0.002,
+      vy: -0.001 + Math.random() * 0.002,
+      life: 0,
+      maxLife: 3000 + Math.random() * 3000,
+      color: `rgba(200,180,160,${alpha})`,
+      size: 1,
+    };
+  },
+
+  /** 更新所有粒子位置、生命、回收重生 */
+  updateParticles(dt) {
+    const newParticles = [];
+    for (const p of this.particles) {
+      const newLife = p.life + dt;
+      if (newLife >= p.maxLife) {
+        // 死亡重生
+        if (p.type === 'dust') {
+          newParticles.push(this.createDustParticle());
+        }
+        // ember 不重生，直接移除
+      } else {
+        newParticles.push({
+          ...p,
+          x: p.x + p.vx * dt / 1000,
+          y: p.y + p.vy * dt / 1000,
+          life: newLife,
+        });
+      }
+    }
+    this.particles = newParticles;
   },
 
   updateEffects(dt) {

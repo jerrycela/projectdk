@@ -36,12 +36,15 @@ DK.CONFIG = {
 // Color Palette - Dungeon Theme
 DK.COLORS = {
   // Walls
-  WALL_DARK: '#1e1633',
-  WALL_MID: '#2d2447',
-  WALL_LIGHT: '#3f345e',
-  WALL_HIGHLIGHT: '#574b78',
+  WALL_DARK: '#1a1828',
+  WALL_MID: '#2d2d44',
+  WALL_LIGHT: '#3e3e5a',
+  WALL_HIGHLIGHT: '#565470',
   WALL_MORTAR: '#140e24',
   WALL_MOSS: '#2a4a2a',
+  WALL_DARK_MID: '#242236',
+  WALL_MID_LIGHT: '#484660',
+  WALL_WARM: '#3a3248',
 
   // Floors
   FLOOR_DARK: '#4a4236',
@@ -49,6 +52,8 @@ DK.COLORS = {
   FLOOR_LIGHT: '#72695a',
   FLOOR_HIGHLIGHT: '#8a806e',
   FLOOR_CRACK: '#3a3428',
+  FLOOR_DARK_MID: '#524a3e',
+  FLOOR_MID_LIGHT: '#685e50',
 
   // Path markers
   PATH_ARROW: '#6e6655',
@@ -133,6 +138,7 @@ DK.COLORS = {
   ABYSS_EDGE: '#1a1a2a',
   ABYSS_CRACK: '#0a0a14',
   ABYSS_ROCK: '#2a2838',
+  ABYSS_MID: '#0e0e18',
 
   // Water pool
   POOL_DARK: '#1a2a4a',

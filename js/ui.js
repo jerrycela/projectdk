@@ -852,8 +852,8 @@ DK.UI = {
 
     // Game title
     ctx.textAlign = 'right';
-    ctx.font = DK.FONTS.heavy(16);
-    this.drawTextWithOutline(ctx, '地層塔防', DK.CONFIG.DISPLAY_WIDTH - 15, 20, C.UI_TEXT_DIM);
+    ctx.font = DK.FONTS.pixel(12);
+    this.drawTextWithOutline(ctx, 'PROJECT DK', DK.CONFIG.DISPLAY_WIDTH - 15, 20, C.UI_TEXT_DIM);
   },
 
   renderHoverIndicator(ctx) {
@@ -1539,145 +1539,430 @@ DK.UI = {
     const W = DK.CONFIG.DISPLAY_WIDTH;
     const H = DK.CONFIG.DISPLAY_HEIGHT;
     const cx = W / 2;
+    const cy = H / 2;
 
     // === 背景層 (gameCtx) ===
 
     // 深色地牢背景
-    gameCtx.fillStyle = '#08080e';
+    gameCtx.fillStyle = '#06060c';
     gameCtx.fillRect(0, 0, W, H);
 
-    // 裝飾性磚牆紋理（像素風）
-    gameCtx.fillStyle = '#0e0e16';
-    for (let row = 0; row < H; row += 48) {
-      for (let col = 0; col < W; col += 48) {
-        const offset = (Math.floor(row / 48) % 2) * 24;
-        gameCtx.fillRect(col + offset, row, 46, 46);
+    // 裝飾性磚牆紋理 — 整除磚塊大小避免切割
+    const brickW = 48;
+    const brickH = 32;
+    for (let row = 0; row < H; row += brickH) {
+      const rowIdx = Math.floor(row / brickH);
+      const offset = (rowIdx % 2) * (brickW / 2);
+      for (let col = -brickW; col < W + brickW; col += brickW) {
+        const bx = col + offset;
+        const seed = ((rowIdx * 31 + Math.floor(col / brickW) * 17) & 7);
+        const shades = ['#0c0c14', '#0a0a12', '#0e0e18', '#0b0b15', '#0d0d16', '#0c0c16', '#0b0b14', '#0d0d18'];
+        gameCtx.fillStyle = shades[seed];
+        gameCtx.fillRect(bx + 1, row + 1, brickW - 2, brickH - 2);
+        // 磚縫
+        gameCtx.fillStyle = '#040408';
+        gameCtx.fillRect(bx, row, brickW, 1);
+        gameCtx.fillRect(bx, row, 1, brickH);
+        // 左上高光
+        gameCtx.fillStyle = '#141420';
+        gameCtx.fillRect(bx + 1, row + 1, brickW - 2, 1);
+        gameCtx.fillRect(bx + 1, row + 1, 1, brickH - 2);
+        // 右下陰影
+        gameCtx.fillStyle = '#050509';
+        gameCtx.fillRect(bx + brickW - 2, row + 1, 1, brickH - 2);
+        gameCtx.fillRect(bx + 1, row + brickH - 2, brickW - 2, 1);
+        // 裂痕 / 苔蘚
+        if (seed === 2 || seed === 5) {
+          gameCtx.fillStyle = '#080810';
+          gameCtx.fillRect(bx + 12 + seed * 2, row + 6, 1, brickH - 12);
+        }
+        if (seed === 1 || seed === 6) {
+          gameCtx.fillStyle = '#182418';
+          gameCtx.fillRect(bx + 6 + seed, row + brickH - 5, 4, 2);
+        }
+        // 偶爾加紋理點
+        if (seed === 3) {
+          gameCtx.fillStyle = '#101018';
+          gameCtx.fillRect(bx + 20, row + 10, 2, 1);
+          gameCtx.fillRect(bx + 30, row + 18, 1, 2);
+        }
       }
     }
 
-    // 磚縫高光
-    gameCtx.fillStyle = '#14141e';
-    for (let row = 0; row < H; row += 48) {
-      for (let col = 0; col < W; col += 48) {
-        const offset = (Math.floor(row / 48) % 2) * 24;
-        gameCtx.fillRect(col + offset, row, 46, 1);
-        gameCtx.fillRect(col + offset, row, 1, 46);
-      }
+    // 石拱門框架
+    const archTop = H * 0.10;
+    const archBottom = H * 0.52;
+    const archLeft = cx - 220;
+    const archRight = cx + 220;
+
+    // 拱門柱子（帶磚紋理）
+    const pillarW = 10;
+    for (let py = archTop + 20; py < archBottom; py += 6) {
+      const fade = 1 - (py - archTop) / (archBottom - archTop) * 0.4;
+      const brickInPillar = Math.floor((py - archTop) / 12) % 2;
+      const base = brickInPillar === 0 ? 38 : 34;
+      const r = Math.round(base * fade);
+      const g = Math.round((base - 5) * fade);
+      const b = Math.round((base + 12) * fade);
+      gameCtx.fillStyle = `rgb(${r},${g},${b})`;
+      gameCtx.fillRect(archLeft - pillarW, py, pillarW - 1, 5);
+      gameCtx.fillRect(archRight + 1, py, pillarW - 1, 5);
+      // 高光面
+      gameCtx.fillStyle = `rgba(255,255,255,${0.03 * fade})`;
+      gameCtx.fillRect(archLeft - pillarW, py, 1, 5);
+      gameCtx.fillRect(archRight + 1, py, 1, 5);
     }
 
-    // 中央聚光效果（徑向漸層）
-    const spotGrad = gameCtx.createRadialGradient(cx, H * 0.38, 0, cx, H * 0.38, 320);
-    spotGrad.addColorStop(0, 'rgba(80,60,30,0.15)');
-    spotGrad.addColorStop(0.5, 'rgba(40,30,15,0.08)');
+    // 柱頭（寬於柱身）
+    gameCtx.fillStyle = '#2e2c40';
+    gameCtx.fillRect(archLeft - pillarW - 4, archTop + 14, pillarW + 8, 8);
+    gameCtx.fillRect(archRight - 3, archTop + 14, pillarW + 8, 8);
+    gameCtx.fillStyle = '#3e3a55';
+    gameCtx.fillRect(archLeft - pillarW - 2, archTop + 16, pillarW + 4, 2);
+    gameCtx.fillRect(archRight - 1, archTop + 16, pillarW + 4, 2);
+    // 柱腳
+    gameCtx.fillStyle = '#2e2c40';
+    gameCtx.fillRect(archLeft - pillarW - 2, archBottom - 2, pillarW + 4, 6);
+    gameCtx.fillRect(archRight - 1, archBottom - 2, pillarW + 4, 6);
+
+    // 拱頂弧形（雙層）
+    const archCy = archTop + 10;
+    for (let a = -Math.PI; a < 0; a += 0.04) {
+      const ax = cx + Math.cos(a) * 225;
+      const ay = archCy + Math.sin(a) * 30 + 30;
+      // 外層
+      gameCtx.fillStyle = '#22203a';
+      gameCtx.fillRect(Math.round(ax) - 3, Math.round(ay) - 3, 7, 6);
+      // 內層
+      gameCtx.fillStyle = '#2e2c44';
+      gameCtx.fillRect(Math.round(ax) - 2, Math.round(ay) - 2, 5, 4);
+      // 高光
+      gameCtx.fillStyle = '#3a3855';
+      gameCtx.fillRect(Math.round(ax) - 1, Math.round(ay) - 2, 3, 1);
+    }
+    // 拱頂頂部裝飾石
+    gameCtx.fillStyle = '#3e3a55';
+    gameCtx.fillRect(cx - 6, archCy - 4, 12, 8);
+    gameCtx.fillStyle = '#4a4665';
+    gameCtx.fillRect(cx - 4, archCy - 2, 8, 4);
+
+    // 鎖鏈（從拱頂垂掛，鏈環形狀更清晰）
+    const chainDraw = (chainX, startCY, links) => {
+      for (let i = 0; i < links; i++) {
+        const linkY = startCY + i * 14;
+        const sway = Math.sin(time * 0.0015 + i * 0.9 + chainX * 0.01) * 1.5;
+        const sx = Math.round(chainX + sway);
+        // 鏈環外框
+        gameCtx.fillStyle = '#36344a';
+        gameCtx.fillRect(sx - 2, linkY, 5, 10);
+        // 鏈環內空
+        gameCtx.fillStyle = i % 2 === 0 ? '#0e0e18' : '#101020';
+        gameCtx.fillRect(sx - 1, linkY + 2, 3, 6);
+        // 高光
+        gameCtx.fillStyle = '#4a4860';
+        gameCtx.fillRect(sx - 2, linkY, 1, 3);
+      }
+    };
+    chainDraw(archLeft + 40, archTop + 22, 5);
+    chainDraw(archRight - 40, archTop + 22, 5);
+    chainDraw(archLeft + 80, archTop + 28, 3);
+    chainDraw(archRight - 80, archTop + 28, 3);
+
+    // 中央聚光（雙重暖光）
+    const breathe = Math.sin(time * 0.0015) * 0.03;
+    const spotGrad = gameCtx.createRadialGradient(cx, H * 0.34, 20, cx, H * 0.34, 360);
+    spotGrad.addColorStop(0, `rgba(110,80,35,${0.22 + breathe})`);
+    spotGrad.addColorStop(0.25, `rgba(70,50,20,${0.14 + breathe})`);
+    spotGrad.addColorStop(0.6, `rgba(30,20,8,${0.06})`);
     spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
     gameCtx.fillStyle = spotGrad;
     gameCtx.fillRect(0, 0, W, H);
 
-    // 飄浮粒子（灰塵微粒）
-    const particleCount = 20;
-    for (let i = 0; i < particleCount; i++) {
-      const seed = i * 137.5;
-      const px = (seed * 7.3 + time * 0.01 * (0.5 + (i % 3) * 0.3)) % W;
-      const py = (seed * 3.7 + Math.sin(time * 0.001 + i) * 30 + time * 0.005) % H;
-      const alpha = 0.1 + Math.sin(time * 0.002 + i * 0.5) * 0.05;
-      gameCtx.fillStyle = `rgba(200,180,140,${alpha})`;
-      gameCtx.fillRect(Math.round(px), Math.round(py), 1, 1);
-    }
-
-    // 左右火把光暈（裝飾）
-    const torchY = H * 0.35;
-    const torchGlow = (side) => {
-      const tx = side === 'left' ? cx - 260 : cx + 260;
-      const flicker = Math.sin(time * 0.008 + side.length) * 8 + 50;
-      const tGrad = gameCtx.createRadialGradient(tx, torchY, 0, tx, torchY, flicker);
-      tGrad.addColorStop(0, 'rgba(255,140,40,0.12)');
-      tGrad.addColorStop(0.5, 'rgba(255,100,20,0.05)');
+    // 火把渲染（4 個）
+    const drawTorch = (tx, ty, phase) => {
+      const fl = Math.sin(time * 0.009 + phase) * 0.3 + 0.7;
+      const fl2 = Math.sin(time * 0.013 + phase + 2) * 0.2 + 0.8;
+      // 光暈
+      const gR = 65 + fl * 25;
+      const tGrad = gameCtx.createRadialGradient(tx, ty - 8, 2, tx, ty - 8, gR);
+      tGrad.addColorStop(0, `rgba(255,140,40,${0.20 * fl})`);
+      tGrad.addColorStop(0.35, `rgba(255,100,20,${0.10 * fl})`);
       tGrad.addColorStop(1, 'rgba(0,0,0,0)');
       gameCtx.fillStyle = tGrad;
-      gameCtx.fillRect(tx - flicker, torchY - flicker, flicker * 2, flicker * 2);
-      // 火把本體
+      gameCtx.fillRect(tx - gR, ty - 8 - gR, gR * 2, gR * 2);
+      // 壁掛托架
+      gameCtx.fillStyle = '#1e1408';
+      gameCtx.fillRect(tx - 3, ty + 2, 7, 3);
+      // 火把桿
+      gameCtx.fillStyle = '#2a1808';
+      gameCtx.fillRect(tx - 1, ty - 2, 3, 18);
       gameCtx.fillStyle = '#3a2810';
-      gameCtx.fillRect(tx - 2, torchY - 5, 4, 20);
-      // 火焰
-      const fh = 6 + Math.sin(time * 0.01) * 2;
-      gameCtx.fillStyle = '#ffaa33';
-      gameCtx.fillRect(tx - 2, torchY - 5 - fh, 4, fh);
+      gameCtx.fillRect(tx - 2, ty + 14, 5, 3);
+      // 火焰分層
+      const fh = Math.round(9 + fl * 5);
+      // 外焰（最大最暗）
+      gameCtx.fillStyle = '#cc3300';
+      gameCtx.fillRect(tx - 4, ty - fh + 8, 9, fh - 8);
+      // 中焰
       gameCtx.fillStyle = '#ff6611';
-      gameCtx.fillRect(tx - 1, torchY - 5 - fh - 2, 2, 3);
+      gameCtx.fillRect(tx - 3, ty - fh + 6, 7, fh - 6);
+      // 內焰
+      gameCtx.fillStyle = '#ffaa33';
+      gameCtx.fillRect(tx - 2, ty - fh + 4, 5, fh - 4);
+      // 核心
       gameCtx.fillStyle = '#ffdd66';
-      gameCtx.fillRect(tx, torchY - 5 - fh + 1, 1, 2);
+      gameCtx.fillRect(tx - 1, ty - fh + 2, 3, fh - 4);
+      // 白色尖端
+      gameCtx.fillStyle = '#ffffcc';
+      gameCtx.fillRect(tx, ty - fh + 1, 1, 3);
+      // 外焰飄動
+      const swL = Math.round(Math.sin(time * 0.014 + phase) * 2);
+      const swR = Math.round(Math.cos(time * 0.011 + phase) * 2);
+      gameCtx.fillStyle = `rgba(255,80,10,${0.5 * fl2})`;
+      gameCtx.fillRect(tx - 4 + swL, ty - fh + 7, 2, 4);
+      gameCtx.fillRect(tx + 3 + swR, ty - fh + 6, 2, 5);
+      // 火星上升
+      for (let s = 0; s < 4; s++) {
+        const sT = ((time * 0.0025 + phase * 0.7 + s * 0.9) % 1.5);
+        if (sT < 1) {
+          const sparkX = tx + Math.sin(sT * 5 + s * 2.5) * 10;
+          const sparkY = ty - fh - sT * 25 - 3;
+          const sparkA = (1 - sT) * 0.7;
+          const sparkColors = ['rgba(255,200,80,', 'rgba(255,160,40,', 'rgba(255,120,30,', 'rgba(255,100,20,'];
+          gameCtx.fillStyle = `${sparkColors[s]}${sparkA})`;
+          gameCtx.fillRect(Math.round(sparkX), Math.round(sparkY), 1, 1);
+        }
+      }
     };
-    torchGlow('left');
-    torchGlow('right');
+    drawTorch(cx - 195, H * 0.27, 0);
+    drawTorch(cx + 195, H * 0.27, 1.5);
+    drawTorch(cx - 155, H * 0.60, 3.0);
+    drawTorch(cx + 155, H * 0.60, 4.5);
+
+    // 中間區域像素裝飾：交叉劍圖示（gameCtx）
+    const iconY = H * 0.52;
+    const drawCrossedSwords = (ix, iy) => {
+      // 左劍（\方向）
+      gameCtx.fillStyle = '#3a3850';
+      for (let d = -8; d <= 8; d++) {
+        gameCtx.fillRect(ix + d, iy + d, 2, 2);
+      }
+      // 右劍（/方向）
+      for (let d = -8; d <= 8; d++) {
+        gameCtx.fillRect(ix - d, iy + d, 2, 2);
+      }
+      // 劍刃高光
+      gameCtx.fillStyle = '#5a5870';
+      for (let d = -6; d <= -2; d++) {
+        gameCtx.fillRect(ix + d, iy + d, 1, 1);
+        gameCtx.fillRect(ix - d, iy + d, 1, 1);
+      }
+      // 護手
+      gameCtx.fillStyle = '#665530';
+      gameCtx.fillRect(ix - 4, iy + 4, 8, 2);
+      // 劍柄
+      gameCtx.fillStyle = '#4a3820';
+      gameCtx.fillRect(ix - 1, iy + 6, 2, 5);
+      gameCtx.fillRect(ix - 1, iy - 7, 2, 2);
+    };
+    drawCrossedSwords(cx, iconY);
+
+    // 水平裝飾線（連接劍圖示兩側）
+    gameCtx.fillStyle = '#1e1c30';
+    gameCtx.fillRect(cx - 120, iconY, 95, 1);
+    gameCtx.fillRect(cx + 25, iconY, 95, 1);
+    // 線端鑽石
+    for (const dx of [-120, 120]) {
+      gameCtx.fillStyle = '#2e2c44';
+      gameCtx.fillRect(cx + dx - 2, iconY - 2, 4, 4);
+      gameCtx.fillStyle = '#3a3855';
+      gameCtx.fillRect(cx + dx - 1, iconY - 1, 2, 2);
+    }
+
+    // 飄浮粒子
+    for (let i = 0; i < 28; i++) {
+      const seed = i * 137.5;
+      const px = (seed * 7.3 + time * 0.007 * (0.4 + (i % 4) * 0.2)) % W;
+      const py = (seed * 3.7 + Math.sin(time * 0.0008 + i) * 25 + time * 0.003) % H;
+      const alpha = 0.06 + Math.sin(time * 0.0018 + i * 0.5) * 0.04;
+      if (i < 20) {
+        gameCtx.fillStyle = `rgba(180,160,130,${alpha})`;
+        gameCtx.fillRect(Math.round(px), Math.round(py), 1, 1);
+      } else {
+        // 火星
+        gameCtx.fillStyle = `rgba(255,150,50,${alpha + 0.1})`;
+        gameCtx.fillRect(Math.round(px), Math.round(py), 1, 1);
+      }
+    }
+
+    // 底部石板地面
+    const groundY = H * 0.86;
+    // 地面漸層過渡
+    for (let gy = 0; gy < 8; gy++) {
+      const ga = gy / 8 * 0.4;
+      gameCtx.fillStyle = `rgba(10,10,16,${ga})`;
+      gameCtx.fillRect(0, groundY - 8 + gy, W, 1);
+    }
+    gameCtx.fillStyle = '#0e0e16';
+    gameCtx.fillRect(0, groundY, W, H - groundY);
+    // 石板縫
+    for (let gx = 0; gx < W; gx += 60) {
+      gameCtx.fillStyle = '#080810';
+      gameCtx.fillRect(gx, groundY, 1, H - groundY);
+      gameCtx.fillStyle = '#141420';
+      gameCtx.fillRect(gx + 1, groundY, 1, H - groundY);
+    }
+    // 碎石散落
+    for (let i = 0; i < 20; i++) {
+      const rx = (i * 47.3 + 20) % W;
+      const ry = groundY + 3 + (i * 5.7 % (H - groundY - 10));
+      const sc = ['#1a1a26', '#161620', '#1e1e2a', '#141420'];
+      gameCtx.fillStyle = sc[i & 3];
+      gameCtx.fillRect(Math.round(rx), Math.round(ry), 2 + (i & 1), 1 + (i >> 1 & 1));
+    }
+
+    // 暗角
+    const vigGrad = gameCtx.createRadialGradient(cx, H * 0.38, H * 0.25, cx, H * 0.38, H * 0.95);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(0.5, 'rgba(0,0,0,0.12)');
+    vigGrad.addColorStop(0.8, 'rgba(0,0,0,0.35)');
+    vigGrad.addColorStop(1, 'rgba(0,0,0,0.6)');
+    gameCtx.fillStyle = vigGrad;
+    gameCtx.fillRect(0, 0, W, H);
+
+    // 邊框（雙層 + 角落裝飾）
+    gameCtx.strokeStyle = '#2a2844';
+    gameCtx.lineWidth = 2;
+    gameCtx.strokeRect(6, 6, W - 12, H - 12);
+    gameCtx.strokeStyle = '#1a1834';
+    gameCtx.lineWidth = 1;
+    gameCtx.strokeRect(10, 10, W - 20, H - 20);
+    // 角落 L 形裝飾
+    const cS = 20;
+    const cPairs = [[10, 10, 1, 1], [W - 10 - cS, 10, -1, 1], [10, H - 10 - cS, 1, -1], [W - 10 - cS, H - 10 - cS, -1, -1]];
+    for (const [cornX, cornY] of cPairs) {
+      gameCtx.fillStyle = '#3a3858';
+      gameCtx.fillRect(cornX, cornY, cS, 2);
+      gameCtx.fillRect(cornX, cornY, 2, cS);
+      gameCtx.fillStyle = '#2a2840';
+      gameCtx.fillRect(cornX + cS - 2, cornY, 2, cS);
+      gameCtx.fillRect(cornX, cornY + cS - 2, cS, 2);
+      // 角落鑽石
+      gameCtx.fillStyle = '#4a4868';
+      gameCtx.fillRect(cornX + 2, cornY + 2, 3, 3);
+    }
 
     // === 文字層 (uiCtx) ===
-
-    // 遊戲標題：PROJECT DK
-    const titleY = H * 0.30;
-    const titlePulse = Math.sin(time * 0.002) * 0.08 + 1;
-
     uiCtx.save();
     uiCtx.textAlign = 'center';
     uiCtx.textBaseline = 'middle';
 
-    // 標題陰影
-    uiCtx.font = DK.FONTS.pixel(48);
-    uiCtx.fillStyle = 'rgba(0,0,0,0.6)';
-    uiCtx.fillText('PROJECT DK', cx + 3, titleY + 3);
+    // 標題：PROJECT DK
+    const titleY = H * 0.27;
 
-    // 標題主體（金色漸層）
-    const titleGrad = uiCtx.createLinearGradient(cx - 200, titleY - 30, cx + 200, titleY + 30);
-    titleGrad.addColorStop(0, '#ffcc44');
-    titleGrad.addColorStop(0.3, '#ffd700');
-    titleGrad.addColorStop(0.5, '#fff0a0');
-    titleGrad.addColorStop(0.7, '#ffd700');
-    titleGrad.addColorStop(1, '#cc9922');
+    // 陰影（先畫，無 glow）
+    uiCtx.font = DK.FONTS.pixel(48);
+    uiCtx.fillStyle = 'rgba(0,0,0,0.8)';
+    uiCtx.fillText('PROJECT DK', cx + 3, titleY + 4);
+
+    // 標題主體（金色漸層 + 光暈）
+    const titleGrad = uiCtx.createLinearGradient(cx - 200, titleY - 25, cx + 200, titleY + 25);
+    titleGrad.addColorStop(0, '#b8882a');
+    titleGrad.addColorStop(0.15, '#ddaa44');
+    titleGrad.addColorStop(0.35, '#ffd700');
+    titleGrad.addColorStop(0.5, '#fff4b0');
+    titleGrad.addColorStop(0.65, '#ffd700');
+    titleGrad.addColorStop(0.85, '#ddaa44');
+    titleGrad.addColorStop(1, '#b8882a');
     uiCtx.fillStyle = titleGrad;
-    uiCtx.font = DK.FONTS.pixel(48);
+    uiCtx.shadowColor = 'rgba(255,200,80,0.5)';
+    uiCtx.shadowBlur = 18;
     uiCtx.fillText('PROJECT DK', cx, titleY);
+    uiCtx.shadowBlur = 0;
 
-    // 標題上方裝飾線
-    const lineW = 280;
-    uiCtx.fillStyle = '#665522';
-    uiCtx.fillRect(cx - lineW / 2, titleY - 38, lineW, 2);
-    uiCtx.fillRect(cx - lineW / 2, titleY + 32, lineW, 2);
-    // 端點裝飾
-    uiCtx.fillStyle = '#998844';
-    uiCtx.fillRect(cx - lineW / 2, titleY - 40, 4, 6);
-    uiCtx.fillRect(cx + lineW / 2 - 4, titleY - 40, 4, 6);
-    uiCtx.fillRect(cx - lineW / 2, titleY + 30, 4, 6);
-    uiCtx.fillRect(cx + lineW / 2 - 4, titleY + 30, 4, 6);
+    // 裝飾框 — 上下對稱
+    const ornW = 310;
+    const ornGap = 36;
+    const drawOrnament = (ly, dir) => {
+      // 主線
+      uiCtx.fillStyle = '#665528';
+      uiCtx.fillRect(cx - ornW / 2, ly, ornW, 1);
+      // 副線
+      uiCtx.fillStyle = '#4a3a18';
+      uiCtx.fillRect(cx - ornW / 2 + 25, ly + dir * 4, ornW - 50, 1);
+      // 端點
+      uiCtx.fillStyle = '#aa8840';
+      uiCtx.fillRect(cx - ornW / 2, ly - 2, 3, 5);
+      uiCtx.fillRect(cx + ornW / 2 - 3, ly - 2, 3, 5);
+      // 中央鑽石
+      uiCtx.fillStyle = '#ccaa44';
+      uiCtx.fillRect(cx, ly - 3, 1, 7);
+      uiCtx.fillRect(cx - 1, ly - 2, 3, 5);
+      uiCtx.fillRect(cx - 2, ly - 1, 5, 3);
+      // 1/4 和 3/4 位置小點
+      uiCtx.fillStyle = '#887730';
+      uiCtx.fillRect(cx - ornW / 4, ly - 1, 2, 3);
+      uiCtx.fillRect(cx + ornW / 4 - 2, ly - 1, 2, 3);
+    };
+    drawOrnament(titleY - ornGap, -1);
+    drawOrnament(titleY + ornGap, 1);
 
-    // 副標題：地層塔防
-    const subY = titleY + 60;
-    uiCtx.font = DK.FONTS.bold(22);
+    // 副標題
+    const subY = titleY + ornGap + 22;
+    uiCtx.font = DK.FONTS.pixel(11);
     uiCtx.fillStyle = 'rgba(0,0,0,0.5)';
-    uiCtx.fillText('地 層 塔 防', cx + 1, subY + 1);
-    uiCtx.fillStyle = '#aa9966';
-    uiCtx.fillText('地 層 塔 防', cx, subY);
+    uiCtx.fillText('DUNGEON  DEFENSE', cx + 1, subY + 1);
+    uiCtx.fillStyle = '#887755';
+    uiCtx.fillText('DUNGEON  DEFENSE', cx, subY);
 
-    // 開發者：Jerry Lee
-    const devY = H * 0.60;
-    uiCtx.font = DK.FONTS.body(14);
-    uiCtx.fillStyle = '#665544';
-    uiCtx.fillText('Developer', cx, devY);
-    uiCtx.font = DK.FONTS.bold(18);
-    uiCtx.fillStyle = '#998877';
-    uiCtx.fillText('Jerry Lee', cx, devY + 24);
+    // PROTOTYPE 標籤
+    const protoY = subY + 24;
+    const protoW = 100;
+    const protoH = 16;
+    // 標籤背景
+    uiCtx.fillStyle = 'rgba(180,60,30,0.15)';
+    uiCtx.fillRect(cx - protoW / 2, protoY - protoH / 2, protoW, protoH);
+    uiCtx.strokeStyle = 'rgba(200,80,40,0.3)';
+    uiCtx.lineWidth = 1;
+    uiCtx.strokeRect(cx - protoW / 2, protoY - protoH / 2, protoW, protoH);
+    // 標籤文字
+    uiCtx.font = DK.FONTS.pixel(8);
+    uiCtx.fillStyle = '#cc6644';
+    uiCtx.fillText('PROTOTYPE', cx, protoY + 1);
 
-    // 點擊開始（脈動閃爍）
+    // 開發者
+    const devY = H * 0.62;
+    uiCtx.font = DK.FONTS.pixel(8);
+    uiCtx.fillStyle = '#44403a';
+    uiCtx.fillText('DEVELOPED  BY', cx, devY);
+    uiCtx.font = DK.FONTS.bold(15);
+    uiCtx.fillStyle = '#887766';
+    uiCtx.fillText('Jerry Lee', cx, devY + 20);
+
+    // 點擊開始
     const startY = H * 0.78;
     const blinkAlpha = Math.sin(time * 0.004) * 0.3 + 0.7;
-    uiCtx.font = DK.FONTS.bold(18);
-    uiCtx.fillStyle = `rgba(0,0,0,${blinkAlpha * 0.5})`;
-    uiCtx.fillText('— 點擊開始 —', cx + 1, startY + 1);
+    const pulseScale = 1 + Math.sin(time * 0.003) * 0.02;
+    // 陰影
+    uiCtx.font = DK.FONTS.pixel(14);
+    uiCtx.fillStyle = `rgba(0,0,0,${blinkAlpha * 0.6})`;
+    uiCtx.fillText('CLICK  TO  START', cx + 1, startY + 2);
+    // 主文字 + 光暈
     uiCtx.fillStyle = `rgba(255,220,150,${blinkAlpha})`;
-    uiCtx.fillText('— 點擊開始 —', cx, startY);
+    uiCtx.shadowColor = `rgba(255,200,100,${blinkAlpha * 0.4})`;
+    uiCtx.shadowBlur = 15;
+    uiCtx.fillText('CLICK  TO  START', cx, startY);
+    uiCtx.shadowBlur = 0;
+    // 脈動側線
+    const sideLen = 35 + Math.sin(time * 0.003) * 15;
+    uiCtx.fillStyle = `rgba(140,120,70,${blinkAlpha * 0.35})`;
+    uiCtx.fillRect(cx - sideLen - 110, startY - 1, sideLen, 1);
+    uiCtx.fillRect(cx + 110, startY - 1, sideLen, 1);
 
-    // 底部版本資訊
-    uiCtx.font = DK.FONTS.body(10);
-    uiCtx.fillStyle = '#333328';
-    uiCtx.fillText('v1.0 — HTML5 Canvas', cx, H - 15);
+    // 底部版本
+    uiCtx.font = DK.FONTS.pixel(8);
+    uiCtx.fillStyle = '#222224';
+    uiCtx.fillText('v0.1  //  HTML5 CANVAS', cx, H - 16);
 
     uiCtx.restore();
   },

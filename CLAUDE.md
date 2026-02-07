@@ -26,3 +26,11 @@
 - 善用 `run_in_background` 處理耗時任務
 - 透過 `TaskOutput` 追蹤進度
 - 不要一個人硬撐，該分工就分工
+
+## 完成通知
+
+工作完成後，**主動推送結果摘要到 Slack n8n-測試頻道**（ID: `C08D74G1ZG8`）：
+
+- 使用 `mcp__claude_ai_Slack__slack_send_message` 工具
+- 訊息格式包含：類型、摘要、修改範圍、注意事項
+- 讓用戶在 Slack 即時收到進度通知

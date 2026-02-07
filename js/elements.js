@@ -252,9 +252,9 @@ DK.Elements = {
    */
   triggerReaction(enemy, reactionId, source) {
     if (reactionId === 'electrocuted') {
-      // Base screen shake
+      // Base screen shake (subtle feedback)
       if (DK.Game) {
-        DK.Game.screenShake = { intensity: 3, timer: 300 };
+        DK.Game.screenShake = { intensity: 1, timer: 150 };
       }
 
       // Reaction text
@@ -270,13 +270,13 @@ DK.Elements = {
         });
       }
 
-      // Lightning burst effect
+      // Lightning burst effect (subtle)
       if (DK.Game && DK.Game.effects) {
         DK.Game.effects.push({
           type: 'electrocute_burst',
           x: enemy.x,
           y: enemy.y,
-          duration: 400,
+          duration: 250,
           timer: 0,
           enemyRef: enemy,
         });
@@ -285,11 +285,11 @@ DK.Elements = {
       // White flash on enemy
       enemy.flashTimer = 200;
 
-      // Store reaction effect
+      // Store reaction effect (subtle glow)
       this.reactionEffects.push({
         x: enemy.x,
         y: enemy.y,
-        timer: 800,
+        timer: 500,
         enemyRef: enemy,
       });
 
@@ -307,11 +307,11 @@ DK.Elements = {
       }
       const chainCount = this.spreadElectrocution(enemy, new Set([enemy]), evolutionParams);
 
-      // Amplify screen shake based on chain count
+      // Slight amplification for chain (capped)
       if (chainCount > 0 && DK.Game) {
         DK.Game.screenShake = {
-          intensity: 3 + chainCount * 2,
-          timer: 300 + chainCount * 100,
+          intensity: Math.min(1.5 + chainCount * 0.5, 3),
+          timer: Math.min(150 + chainCount * 30, 250),
         };
       }
     }
@@ -408,7 +408,7 @@ DK.Elements = {
     if (!DK.Enemies || !DK.Enemies.active || !DK.Game) return 0;
 
     const T = DK.CONFIG.TILE_SIZE;
-    const baseChainRange = T * 3;
+    const baseChainRange = T * 1;
     const chainRangeBonus = (evolutionParams && evolutionParams.chainRangeBonus) ? evolutionParams.chainRangeBonus * T : 0;
     const chainRange = baseChainRange + chainRangeBonus;
     let chainCount = 0;
@@ -430,7 +430,7 @@ DK.Elements = {
           y: sourceEnemy.y,
           targetX: other.x,
           targetY: other.y,
-          duration: 600,
+          duration: 350,
           timer: 0,
         });
 
@@ -453,7 +453,7 @@ DK.Elements = {
           type: 'electrocute_burst',
           x: other.x,
           y: other.y,
-          duration: 400,
+          duration: 250,
           timer: 0,
           enemyRef: other,
         });
@@ -461,7 +461,7 @@ DK.Elements = {
         this.reactionEffects.push({
           x: other.x,
           y: other.y,
-          timer: 800,
+          timer: 500,
           enemyRef: other,
         });
 

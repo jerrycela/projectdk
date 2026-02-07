@@ -518,6 +518,9 @@ DK.Heroes = {
     // Robe center line (belt area)
     PA.rect(ctx, x - 1, y - 1, 3, 1, '#c8a050');
     PA.pixel(ctx, x, y - 1, '#e0b860');
+    // === 2H: 長袍褶皺陰影 ===
+    PA.pixel(ctx, x - 1, y + 0, PA.darken('#2244aa', 12));
+    PA.pixel(ctx, x + 1, y + 0, PA.darken('#2244aa', 12));
 
     // Shoulders
     PA.rect(ctx, x - 4, y - 3, 2, 2, '#1a3388');
@@ -544,6 +547,9 @@ DK.Heroes = {
     // Eyes (blue, magical)
     PA.pixel(ctx, x - 1, y - 5, '#4488ff');
     PA.pixel(ctx, x + 1, y - 5, '#4488ff');
+    // === 2H: 眼窩陰影 ===
+    PA.pixel(ctx, x - 2, y - 5, '#c0a888');
+    PA.pixel(ctx, x + 2, y - 5, '#c0a888');
 
     // Mouth
     PA.pixel(ctx, x, y - 4, '#c8a890');
@@ -565,11 +571,11 @@ DK.Heroes = {
     // Staff (right side)
     PA.rect(ctx, x + 5, y - 8, 1, 10, '#6b5010');
     PA.pixel(ctx, x + 5, y - 9, '#5a4010');
-    // Staff crystal (water crystal top)
-    PA.pixel(ctx, x + 5, y - 10, '#44aaff');
+    // Staff crystal (water crystal top) — 2H: 改善內部色層
+    PA.pixel(ctx, x + 5, y - 10, '#55bbff');
     PA.pixel(ctx, x + 4, y - 10, '#2288dd');
     PA.pixel(ctx, x + 6, y - 10, '#2288dd');
-    PA.pixel(ctx, x + 5, y - 11, '#88ccff');
+    PA.pixel(ctx, x + 5, y - 11, '#99ddff');
     // Crystal glow
     PA.pixel(ctx, x + 5, y - 12, '#aaddff');
     if (attacking) {
@@ -578,11 +584,11 @@ DK.Heroes = {
       PA.pixel(ctx, x + 5, y - 13, '#ffffff');
     }
 
-    // Water aura when attacking
+    // Water aura when attacking — 2H: 光環點數 3→5
     if (attacking) {
       const t = (time || 0) / 150;
-      for (let i = 0; i < 3; i++) {
-        const angle = t + (i * Math.PI * 2) / 3;
+      for (let i = 0; i < 5; i++) {
+        const angle = t + (i * Math.PI * 2) / 5;
         const r = 6;
         const px = Math.round(x + Math.cos(angle) * r);
         const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
@@ -629,6 +635,9 @@ DK.Heroes = {
     // 腰帶區域
     PA.rect(ctx, x - 1, y - 1, 3, 1, '#c8a050');
     PA.pixel(ctx, x, y - 1, '#e0b860');
+    // === 2H: 長袍褶皺陰影 ===
+    PA.pixel(ctx, x - 1, y + 0, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, x + 1, y + 0, C.HERO_FIRE_ROBE_DARK);
 
     // 肩膀
     PA.rect(ctx, x - 4, y - 3, 2, 2, C.HERO_FIRE_ROBE);
@@ -654,6 +663,9 @@ DK.Heroes = {
     // 眼睛（火紅色）
     PA.pixel(ctx, x - 1, y - 5, '#ff6622');
     PA.pixel(ctx, x + 1, y - 5, '#ff6622');
+    // === 2H: 眼窩陰影 ===
+    PA.pixel(ctx, x - 2, y - 5, '#c0a888');
+    PA.pixel(ctx, x + 2, y - 5, '#c0a888');
 
     // 嘴
     PA.pixel(ctx, x, y - 4, '#c8a890');
@@ -665,21 +677,22 @@ DK.Heroes = {
     PA.rect(ctx, x - 1, y - 9, 3, 1, C.HERO_FIRE_ROBE_LIGHT);
     PA.pixel(ctx, x, y - 10, C.HERO_FIRE_ROBE_LIGHT);
     PA.pixel(ctx, x, y - 11, '#ff6622');
-    // 帽尖火焰閃爍
+    // 帽尖火焰閃爍 — 2H: 加黃色像素
     const sparkle = Math.sin((time || 0) / 150) > 0.3;
     if (sparkle) {
       PA.pixel(ctx, x, y - 12, '#ffaa44');
       PA.pixel(ctx, x + 1, y - 11, '#ff6622');
+      PA.pixel(ctx, x - 1, y - 12, '#ffdd44');
     }
 
     // 法杖（右側）
     PA.rect(ctx, x + 5, y - 8, 1, 10, '#6b5010');
     PA.pixel(ctx, x + 5, y - 9, '#5a4010');
-    // 法杖頂端：火焰水晶
-    PA.pixel(ctx, x + 5, y - 10, '#ff6622');
+    // 法杖頂端：火焰水晶 — 2H: 改善色層
+    PA.pixel(ctx, x + 5, y - 10, '#ff8833');
     PA.pixel(ctx, x + 4, y - 10, '#ffaa44');
     PA.pixel(ctx, x + 6, y - 10, '#ffaa44');
-    PA.pixel(ctx, x + 5, y - 11, '#ff8833');
+    PA.pixel(ctx, x + 5, y - 11, '#ffcc66');
     // 水晶光暈
     PA.pixel(ctx, x + 5, y - 12, '#ffcc66');
     if (attacking) {
@@ -695,9 +708,9 @@ DK.Heroes = {
       PA.pixel(ctx, x - 4, y - 4, '#ff6622');
       PA.pixel(ctx, x - 5, y - 4, '#ffaa44');
       PA.pixel(ctx, x - 4, y - 5, '#ffcc66');
-      // 火焰光環
-      for (let i = 0; i < 3; i++) {
-        const angle = t + (i * Math.PI * 2) / 3;
+      // 火焰光環 — 2H: 光環點數 3→5
+      for (let i = 0; i < 5; i++) {
+        const angle = t + (i * Math.PI * 2) / 5;
         const r = 5;
         const px = Math.round(x + Math.cos(angle) * r);
         const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
@@ -743,6 +756,9 @@ DK.Heroes = {
     // 腰帶
     PA.rect(ctx, x - 1, y - 1, 3, 1, '#8090a0');
     PA.pixel(ctx, x, y - 1, '#a0b0c0');
+    // === 2H: 長袍褶皺陰影 ===
+    PA.pixel(ctx, x - 1, y + 0, C.HERO_ICE_ROBE_DARK);
+    PA.pixel(ctx, x + 1, y + 0, C.HERO_ICE_ROBE_DARK);
 
     // 肩膀
     PA.rect(ctx, x - 4, y - 3, 2, 2, C.HERO_ICE_ROBE);
@@ -765,6 +781,9 @@ DK.Heroes = {
     // 眼睛（冰藍色）
     PA.pixel(ctx, x - 1, y - 5, '#88ccff');
     PA.pixel(ctx, x + 1, y - 5, '#88ccff');
+    // === 2H: 眼窩陰影 ===
+    PA.pixel(ctx, x - 2, y - 5, '#c0a888');
+    PA.pixel(ctx, x + 2, y - 5, '#c0a888');
 
     // 嘴
     PA.pixel(ctx, x, y - 4, '#c8a890');
@@ -791,8 +810,8 @@ DK.Heroes = {
     PA.pixel(ctx, x + 4, y - 10, '#aaddff');
     PA.pixel(ctx, x + 6, y - 10, '#aaddff');
     PA.pixel(ctx, x + 5, y - 11, '#bbddff');
-    // 冰晶光暈
-    PA.pixel(ctx, x + 5, y - 12, '#ddeeff');
+    // 冰晶光暈 — 2H: 加白色高光
+    PA.pixel(ctx, x + 5, y - 12, '#ffffff');
     if (attacking) {
       PA.pixel(ctx, x + 4, y - 11, '#88ccff');
       PA.pixel(ctx, x + 6, y - 11, '#88ccff');
@@ -806,9 +825,9 @@ DK.Heroes = {
       PA.pixel(ctx, x - 4, y - 4, '#88ccff');
       PA.pixel(ctx, x - 5, y - 4, '#aaddff');
       PA.pixel(ctx, x - 4, y - 5, '#ddeeff');
-      // 冰晶光環
-      for (let i = 0; i < 3; i++) {
-        const angle = t + (i * Math.PI * 2) / 3;
+      // 冰晶光環 — 2H: 光環點數 3→5
+      for (let i = 0; i < 5; i++) {
+        const angle = t + (i * Math.PI * 2) / 5;
         const r = 5;
         const px = Math.round(x + Math.cos(angle) * r);
         const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
@@ -820,9 +839,10 @@ DK.Heroes = {
   renderSelectionRing(ctx, x, y, time, colorPrefix) {
     const PA = DK.PixelArt;
     const t = (time || 0) / 300;
-    const pulse = Math.sin(t) * 0.3 + 0.7;
+    // === 2I: 脈動幅度 30%→50% ===
+    const pulse = Math.sin(t) * 0.5 + 0.5;
 
-    // Pulsing selection ring (diamond shape at feet)
+    // Pulsing selection ring (diamond shape at feet) — 2I: 5→6 點
     const prefix = colorPrefix || 'rgba(68,255,68,';
     const color = `${prefix}${pulse})`;
     PA.pixel(ctx, x, y + 5, color);
@@ -832,6 +852,7 @@ DK.Heroes = {
     PA.pixel(ctx, x + 4, y + 1, color);
     PA.pixel(ctx, x - 3, y - 1, color);
     PA.pixel(ctx, x + 3, y - 1, color);
+    PA.pixel(ctx, x, y - 3, color); // 第 6 點
   },
 
   renderRange(ctx, hero) {
@@ -885,13 +906,14 @@ DK.Heroes = {
     const T = DK.CONFIG.TILE_SIZE;
     const radius = auraRange * T;
     const t = (time || 0) / 1000;
-    const pulse = 0.6 + Math.sin(t * 2) * 0.15;
+    // === 2J: 脈動範圍 0.5-0.85 ===
+    const pulse = 0.5 + Math.sin(t * 2) * 0.35;
 
-    // 根據英雄元素選擇光環顏色
+    // 根據英雄元素選擇光環顏色 — 2J: 透明度 8%→15%
     const auraColors = {
-      water: `rgba(68,136,255,${0.08 * pulse})`,
-      fire: `rgba(255,102,34,${0.08 * pulse})`,
-      ice: `rgba(136,204,255,${0.08 * pulse})`,
+      water: `rgba(68,136,255,${0.15 * pulse})`,
+      fire: `rgba(255,102,34,${0.15 * pulse})`,
+      ice: `rgba(136,204,255,${0.15 * pulse})`,
     };
     const borderColors = {
       water: `rgba(68,136,255,${0.2 * pulse})`,
@@ -908,9 +930,9 @@ DK.Heroes = {
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // 邊緣虛線圓
+    // 邊緣虛線圓 — 2J: 線寬 0.5→1.5px
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 1.5;
     ctx.setLineDash([2, 3]);
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
