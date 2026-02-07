@@ -5,7 +5,7 @@
 window.DK = window.DK || {};
 
 DK.Traps = {
-  placed: [], // { type, col, row, facing, cooldownTimer, animFrame }
+  placed: [], // { type, col, row, facing, cooldownTimer, animFrame, flashTimer }
 
   init() {
     this.placed = [];
@@ -29,6 +29,7 @@ DK.Traps = {
       active: false,
       evolved: false,
       evolutionType: null,
+      flashTimer: 0,
     };
 
     this.placed.push(trap);
@@ -45,6 +46,11 @@ DK.Traps = {
         trap.animTimer = 0;
       }
 
+      // 啟動閃光計時器遞減
+      if (trap.flashTimer > 0) {
+        trap.flashTimer = Math.max(0, trap.flashTimer - dt);
+      }
+
       // Push trap: auto-fire on timer (independent of enemies)
       if (trap.type.id === 'push_trap') {
         if (trap.cooldownTimer > 0) {
@@ -54,6 +60,7 @@ DK.Traps = {
         if (trap.cooldownTimer <= 0) {
           trap.cooldownTimer = trap.type.cooldown;
           trap.active = true;
+          trap.flashTimer = 150;
           this.firePushTrap(trap, enemies, T);
         }
         continue;
@@ -68,6 +75,7 @@ DK.Traps = {
         if (trap.cooldownTimer <= 0) {
           trap.cooldownTimer = trap.type.cooldown;
           trap.active = true;
+          trap.flashTimer = 150;
           this.fireWindTrap(trap, enemies, T);
         }
         continue;
@@ -101,6 +109,7 @@ DK.Traps = {
         if (target) {
           trap.active = true;
           trap.cooldownTimer = trap.type.cooldown;
+          trap.flashTimer = 150;
 
           // Deal damage
           target.hp -= trap.type.damage;
@@ -133,6 +142,7 @@ DK.Traps = {
           if (ex === trap.col && ey === trap.row) {
             trap.active = true;
             trap.cooldownTimer = trap.type.cooldown;
+            trap.flashTimer = 150;
 
             if (trap.type.damage > 0) {
               enemy.hp -= trap.type.damage;
@@ -245,6 +255,39 @@ DK.Traps = {
         this.renderWallTrap(ctx, trap, x, y);
       } else {
         this.renderFloorTrap(ctx, trap, x, y);
+      }
+
+      // 啟動閃光覆蓋層（觸發攻擊時短暫白色閃爍）
+      if (trap.flashTimer > 0) {
+        const flashAlpha = (trap.flashTimer / 150) * 0.3;
+        ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
+        ctx.fillRect(x, y, T, T);
+      }
+
+      // 冷卻進度條（冷卻中時顯示）
+      if (trap.cooldownTimer > 0 && trap.type.cooldown > 0) {
+        const progress = 1 - (trap.cooldownTimer / trap.type.cooldown);
+        const barWidth = 12;
+        const barX = x + (T - barWidth) / 2;
+        const barY = y - 1;
+
+        // 依元素類型決定進度條顏色
+        let barColor = '#ffffff';
+        if (trap.type.element === 'electric') {
+          barColor = '#ffdd44';
+        } else if (trap.type.element === 'fire') {
+          barColor = '#ff8844';
+        } else if (trap.type.element === 'ice') {
+          barColor = '#aaddff';
+        }
+
+        // 深灰底條
+        PA.rect(ctx, barX, barY, barWidth, 1, '#333333');
+        // 亮色進度
+        const filledWidth = Math.round(progress * barWidth);
+        if (filledWidth > 0) {
+          PA.rect(ctx, barX, barY, filledWidth, 1, barColor);
+        }
       }
 
       // 可進化金色閃爍邊框 / 已進化淡金色邊框

@@ -489,6 +489,28 @@ DK.Map = {
       PA.pixel(ctx, x + 3, y + 12, '#8a8070');
       PA.pixel(ctx, x + 12, y + 4, '#7a7060');
     }
+
+    // 地板裂痕裝飾（15% 機率，用深一號地板色）
+    if (rng() < 0.15) {
+      const crackColor = C.FLOOR_DARK;
+      const crackCount = 1 + Math.floor(rng() * 2); // 1-2 條裂痕
+      for (let ci = 0; ci < crackCount; ci++) {
+        const startX = 2 + Math.floor(rng() * 11);
+        const startY = 2 + Math.floor(rng() * 11);
+        const length = 2 + Math.floor(rng() * 3); // 2-4px 長
+        // 隨機方向（8 向：水平、垂直、兩條對角）
+        const dirIdx = Math.floor(rng() * 4);
+        const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        const [cdx, cdy] = dirs[dirIdx];
+        for (let p = 0; p < length; p++) {
+          const px = startX + cdx * p;
+          const py = startY + cdy * p;
+          if (px >= 1 && px < 15 && py >= 1 && py < 15) {
+            PA.pixel(ctx, x + px, y + py, crackColor);
+          }
+        }
+      }
+    }
   },
 
   drawEntranceTile(ctx, x, y) {

@@ -97,9 +97,23 @@ DK.Heroes = {
       // Attack
       target: null,
       attacking: false,
+      attackLine: null, // 攻擊連線特效 { targetX, targetY, timer, duration }
     };
 
     this.active.push(hero);
+
+    // 英雄部署特效
+    if (DK.Game && DK.Game.effects) {
+      DK.Game.effects.push({
+        type: 'hero_deploy',
+        x: hero.x,
+        y: hero.y,
+        timer: 0,
+        duration: 500,
+        element: typeDef.element,
+      });
+    }
+
     return true;
   },
 
@@ -207,6 +221,14 @@ DK.Heroes = {
         hero.attackTimer -= dt;
       }
 
+      // 攻擊連線特效遞減
+      if (hero.attackLine) {
+        hero.attackLine.timer -= dt;
+        if (hero.attackLine.timer <= 0) {
+          hero.attackLine = null;
+        }
+      }
+
       // Find and attack nearest enemy in range
       if (hero.attackTimer <= 0) {
         const range = hero.type.range * T;
@@ -228,6 +250,14 @@ DK.Heroes = {
           hero.attacking = true;
           hero.target = bestTarget;
           hero.attackTimer = hero.type.attackCooldown;
+
+          // 設定攻擊連線特效
+          hero.attackLine = {
+            targetX: bestTarget.x,
+            targetY: bestTarget.y,
+            timer: 200,
+            duration: 200,
+          };
 
           // 根據英雄元素決定傷害文字顏色
           const dmgColorMap = { water: '#4488ff', fire: '#ff6622', ice: '#88ccff' };
@@ -407,7 +437,13 @@ DK.Heroes = {
   render(ctx, time) {
     for (const hero of this.active) {
       const x = Math.round(hero.x);
-      const y = Math.round(hero.y);
+      let y = Math.round(hero.y);
+
+      // 待機呼吸動畫：英雄不攻擊且不移動時，輕微上下浮動
+      if (!hero.attackLine && hero.movePath.length === 0) {
+        const breathOffset = Math.sin((time || 0) * 0.003) * 0.5;
+        y += Math.round(breathOffset);
+      }
 
       // 光環渲染
       this.renderAura(ctx, hero, x, y, time);
@@ -419,6 +455,11 @@ DK.Heroes = {
         this.renderIceMage(ctx, hero, x, y, time);
       } else {
         this.renderWaterMage(ctx, hero, x, y, time);
+      }
+
+      // 攻擊連線特效渲染
+      if (hero.attackLine) {
+        this.renderAttackLine(ctx, hero, x, y);
       }
 
       // Selection indicator
@@ -807,6 +848,34 @@ DK.Heroes = {
     ctx.beginPath();
     ctx.arc(hero.x, hero.y, range, 0, Math.PI * 2);
     ctx.stroke();
+  },
+
+  /**
+   * 渲染英雄攻擊到目標的元素色虛線連線
+   */
+  renderAttackLine(ctx, hero, x, y) {
+    const line = hero.attackLine;
+    if (!line) return;
+
+    // 根據英雄元素決定連線顏色
+    const elementColors = {
+      water: [68, 136, 255],
+      fire: [255, 102, 34],
+      ice: [136, 204, 255],
+    };
+    const rgb = elementColors[hero.type.element] || elementColors.water;
+    const alpha = (line.timer / line.duration) * 0.6;
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, y - 4); // 從英雄身體中心偏上
+    ctx.lineTo(line.targetX, line.targetY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
   },
 
   renderAura(ctx, hero, x, y, time) {

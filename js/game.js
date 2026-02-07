@@ -130,6 +130,16 @@ DK.Game = {
       const aliveEnemies = DK.Enemies.active.filter(e => e.alive);
       if (aliveEnemies.length === 0) {
         this.waveActive = false;
+
+        // 計算波次獎勵金幣（基礎 50 + 波次 * 10）
+        const waveBonus = 50 + this.currentWave * 10;
+        this.gold += waveBonus;
+
+        // 觸發波次完成慶祝特效
+        DK.UI.showWaveComplete = true;
+        DK.UI.waveCompleteTimer = 2000;
+        DK.UI.waveCompleteBonus = waveBonus;
+
         this.currentWave++;
 
         if (this.currentWave >= DK.WAVES.length) {

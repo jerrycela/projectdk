@@ -736,6 +736,86 @@ window.DK = window.DK || {};
           break;
         }
 
+        case 'gold_sparkle': {
+          // 金幣獲取閃光粒子 — 3-5 個金色小方塊向外擴散並上漂
+          const sparkleProgress = progress;
+          const sparkleFade = 1 - sparkleProgress;
+
+          if (sparkleFade > 0.05) {
+            const particleCount = 4;
+            for (let i = 0; i < particleCount; i++) {
+              const angle = (i / particleCount) * Math.PI * 2 + effect.timer * 0.008;
+              const dist = sparkleProgress * 8;
+              const px = Math.round(effect.x + Math.cos(angle) * dist);
+              const py = Math.round(effect.y + Math.sin(angle) * dist - sparkleProgress * 6);
+              const size = sparkleProgress < 0.5 ? 2 : 1;
+
+              // 金色小方塊
+              const color = i % 2 === 0 ? '#ffd700' : '#ffaa00';
+              PA.rect(ctx, px, py, size, size, color);
+            }
+            // 中心亮點（早期閃光）
+            if (sparkleProgress < 0.3) {
+              PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y), '#ffffff');
+            }
+          }
+          break;
+        }
+
+        case 'hero_deploy': {
+          // 英雄部署出場特效 — 圓環擴張 + 向外飛散粒子
+          const deployProgress = progress;
+          const deployFade = 1 - deployProgress;
+
+          // 根據 element 決定顏色
+          const elementColorMap = {
+            water: { r: 68, g: 136, b: 255 },
+            fire:  { r: 255, g: 102, b: 34 },
+            ice:   { r: 136, g: 204, b: 255 },
+          };
+          const ec = elementColorMap[effect.element] || elementColorMap.water;
+          const ringColor = `rgba(${ec.r},${ec.g},${ec.b},${deployFade})`;
+
+          // 圓環半徑隨時間擴張到 24px
+          const ringR = deployProgress * 24;
+          // 線寬從 2px 過渡到 1px
+          const lineW = deployProgress < 0.5 ? 2 : 1;
+
+          if (deployFade > 0.05) {
+            // 畫圓環（像素點模擬）
+            const steps = Math.max(16, Math.round(ringR * 2));
+            for (let i = 0; i < steps; i++) {
+              const angle = (i / steps) * Math.PI * 2;
+              const rpx = Math.round(effect.x + Math.cos(angle) * ringR);
+              const rpy = Math.round(effect.y + Math.sin(angle) * ringR);
+              PA.pixel(ctx, rpx, rpy, ringColor);
+              // 線寬 2 時多畫一層
+              if (lineW === 2) {
+                const rpx2 = Math.round(effect.x + Math.cos(angle) * (ringR - 1));
+                const rpy2 = Math.round(effect.y + Math.sin(angle) * (ringR - 1));
+                PA.pixel(ctx, rpx2, rpy2, ringColor);
+              }
+            }
+
+            // 4 個向外飛散的小粒子
+            for (let i = 0; i < 4; i++) {
+              const pAngle = (i / 4) * Math.PI * 2 + deployProgress * 2;
+              const pDist = ringR * 1.3;
+              const ppx = Math.round(effect.x + Math.cos(pAngle) * pDist);
+              const ppy = Math.round(effect.y + Math.sin(pAngle) * pDist);
+              const brightColor = `rgba(${Math.min(255, ec.r + 80)},${Math.min(255, ec.g + 80)},${Math.min(255, ec.b + 80)},${deployFade})`;
+              PA.pixel(ctx, ppx, ppy, brightColor);
+            }
+
+            // 中心白色閃光（早期）
+            if (deployProgress < 0.2) {
+              PA.circle(ctx, Math.round(effect.x), Math.round(effect.y),
+                        Math.round(2 - deployProgress * 8), '#ffffff');
+            }
+          }
+          break;
+        }
+
         case 'damage':
         case 'gold':
         case 'reaction_text': {

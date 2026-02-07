@@ -37,6 +37,7 @@ DK.Enemies = {
       paralyzed: false,
       pushed: null,
       pushResistTimer: 0,
+      spawnTimer: 300, // 生成淡入動畫 (300ms)
     };
 
     this.active.push(enemy);
@@ -51,6 +52,11 @@ DK.Enemies = {
       if (!enemy.alive) {
         enemy.deathTimer += dt;
         continue;
+      }
+
+      // 生成淡入動畫遞減
+      if (enemy.spawnTimer > 0) {
+        enemy.spawnTimer -= dt;
       }
 
       if (enemy.hp <= 0) {
@@ -68,6 +74,14 @@ DK.Enemies = {
             color: DK.COLORS.GOLD_TEXT,
             duration: 1000,
             timer: 0,
+          });
+          // 金幣閃光粒子特效
+          DK.Game.effects.push({
+            type: 'gold_sparkle',
+            x: enemy.x,
+            y: enemy.y,
+            timer: 0,
+            duration: 400,
           });
         }
         continue;
@@ -120,6 +134,14 @@ DK.Enemies = {
                 color: DK.COLORS.GOLD_TEXT,
                 duration: 1000,
                 timer: 0,
+              });
+              // 金幣閃光粒子特效
+              DK.Game.effects.push({
+                type: 'gold_sparkle',
+                x: enemy.x,
+                y: enemy.y,
+                timer: 0,
+                duration: 400,
               });
               DK.Game.effects.push({
                 type: 'abyss_fall',
@@ -230,6 +252,13 @@ DK.Enemies = {
 
       if (enemy.reachedEnd) continue;
 
+      // 生成淡入效果：透明度漸變 + 從上方飄入
+      if (enemy.spawnTimer > 0) {
+        const spawnProgress = enemy.spawnTimer / 300;
+        ctx.globalAlpha = 1 - spawnProgress;
+        y -= Math.round(spawnProgress * 4);
+      }
+
       // Push resist shake effect
       if (enemy.pushResistTimer > 0) {
         const shake = Math.sin(enemy.pushResistTimer / 15) * 2;
@@ -281,6 +310,11 @@ DK.Enemies = {
       // Elemental status indicators
       if (DK.Elements) {
         DK.Elements.renderStatusIndicators(ctx, enemy, x, y, time);
+      }
+
+      // 恢復生成淡入效果的透明度
+      if (enemy.spawnTimer > 0) {
+        ctx.globalAlpha = 1;
       }
     }
   },

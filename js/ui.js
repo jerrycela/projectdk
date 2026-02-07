@@ -31,6 +31,9 @@ DK.UI = {
   mouseY: 0,
   showWaveStart: false,
   waveStartTimer: 0,
+  showWaveComplete: false,
+  waveCompleteTimer: 0,
+  waveCompleteBonus: 0,
   messageQueue: [],
   fontsReady: false,
   _evolveButtonRect: null, // Cached evolve button hit area
@@ -311,6 +314,14 @@ DK.UI = {
         this.showWaveStart = false;
       }
     }
+
+    // 波次完成慶祝顯示
+    if (this.showWaveComplete) {
+      this.waveCompleteTimer -= dt;
+      if (this.waveCompleteTimer <= 0) {
+        this.showWaveComplete = false;
+      }
+    }
   },
 
   render(ctx) {
@@ -377,6 +388,11 @@ DK.UI = {
     // Wave announcement
     if (this.showWaveStart) {
       this.renderWaveAnnouncement(ctx);
+    }
+
+    // 波次完成慶祝特效
+    if (this.showWaveComplete) {
+      this.renderWaveComplete(ctx);
     }
 
     // Game over / Victory
@@ -741,6 +757,36 @@ DK.UI = {
     if (btn === this.hoveredButton) {
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+    }
+
+    // 已放置陷阱數量徽章（僅限陷阱按鈕，數量 > 0 時顯示）
+    if (btn.trap && DK.Traps && DK.Traps.placed) {
+      const placedCount = DK.Traps.placed.filter(t => t.type && t.type.name === btn.trap.name).length;
+      if (placedCount > 0) {
+        const badgeR = 9;
+        const badgeCX = btn.x + btn.width - 3 - badgeR;
+        const badgeCY = btn.y + 3 + badgeR;
+
+        // 深色圓底
+        ctx.fillStyle = 'rgba(10,8,20,0.85)';
+        ctx.beginPath();
+        ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 邊框
+        ctx.strokeStyle = 'rgba(138,128,112,0.6)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 白色數字
+        ctx.font = DK.FONTS.bold(11);
+        ctx.fillStyle = '#e8e0d0';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${placedCount}`, badgeCX, badgeCY);
+      }
     }
   },
 
@@ -1130,6 +1176,66 @@ DK.UI = {
       ctx.font = DK.FONTS.body(12);
       ctx.fillStyle = C.UI_TEXT_DIM;
       ctx.fillText(enemyNames, DK.CONFIG.DISPLAY_WIDTH / 2, 328);
+    }
+
+    ctx.restore();
+  },
+
+  /**
+   * 波次完成慶祝特效 — 金色文字 + 放大縮小動畫 + 淡出
+   */
+  renderWaveComplete(ctx) {
+    const game = DK.Game;
+    if (!game) return;
+
+    const totalDuration = 2000;
+    const elapsed = totalDuration - this.waveCompleteTimer;
+    const progress = elapsed / totalDuration;
+
+    // 計算 alpha：最後 500ms 淡出
+    const fadeStart = 1500; // 開始淡出的時間點
+    let alpha = 1;
+    if (elapsed > fadeStart) {
+      alpha = 1 - (elapsed - fadeStart) / 500;
+    }
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    // 放大→縮小動畫：前 200ms 放大到 1.2，之後回到 1.0
+    let scale = 1;
+    if (elapsed < 200) {
+      scale = 1 + 0.2 * (elapsed / 200);
+    } else if (elapsed < 400) {
+      scale = 1.2 - 0.2 * ((elapsed - 200) / 200);
+    }
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const cx = DK.CONFIG.DISPLAY_WIDTH / 2;
+    const cy = 180;
+
+    // 半透明背景條
+    ctx.fillStyle = 'rgba(18,16,30,0.75)';
+    ctx.fillRect(0, cy - 40, DK.CONFIG.DISPLAY_WIDTH, 80);
+
+    // 上下裝飾邊線
+    const C = DK.COLORS;
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(0, cy - 40, DK.CONFIG.DISPLAY_WIDTH, 2);
+    ctx.fillRect(0, cy + 38, DK.CONFIG.DISPLAY_WIDTH, 2);
+
+    // 主標題文字：「波次完成！」
+    const fontSize = Math.round(30 * scale);
+    ctx.font = DK.FONTS.heavy(fontSize);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    this.drawTextWithOutline(ctx, '波次完成！', cx, cy - 8, '#ffd700', 'rgba(0,0,0,0.8)');
+
+    // 金幣獎勵文字
+    if (this.waveCompleteBonus > 0) {
+      ctx.font = DK.FONTS.bold(16);
+      ctx.fillStyle = '#ffe880';
+      ctx.fillText(`獎勵金幣 +${this.waveCompleteBonus}`, cx, cy + 22);
     }
 
     ctx.restore();
