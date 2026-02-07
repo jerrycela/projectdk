@@ -936,6 +936,44 @@ window.DK = window.DK || {};
     }
   }
 
+  function renderHeroRecall(ctx, PA, effect, progress) {
+    // 回收特效：向內收縮的圓環 + 向上飛散粒子
+    const fade = 1 - progress;
+
+    const elementColorMap = {
+      water: { r: 68, g: 136, b: 255 },
+      fire:  { r: 255, g: 102, b: 34 },
+      ice:   { r: 136, g: 204, b: 255 },
+    };
+    const ec = elementColorMap[effect.element] || elementColorMap.water;
+    const ringColor = `rgba(${ec.r},${ec.g},${ec.b},${fade})`;
+
+    // 圓環從大到小收縮
+    const ringR = (1 - progress) * 20;
+
+    if (fade > 0.05) {
+      const ringSteps = Math.max(12, Math.round(ringR * 2));
+      for (let i = 0; i < ringSteps; i++) {
+        const angle = (i / ringSteps) * Math.PI * 2;
+        const rpx = Math.round(effect.x + Math.cos(angle) * ringR);
+        const rpy = Math.round(effect.y + Math.sin(angle) * ringR);
+        PA.pixel(ctx, rpx, rpy, ringColor);
+      }
+    }
+
+    // 向上飛散粒子
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 + progress * 3;
+      const dist = progress * 12;
+      const px = Math.round(effect.x + Math.cos(angle) * dist * 0.5);
+      const py = Math.round(effect.y - progress * 16 + Math.sin(angle) * dist * 0.3);
+      const pAlpha = fade * 0.8;
+      if (pAlpha > 0.05) {
+        PA.pixel(ctx, px, py, `rgba(${ec.r},${ec.g},${ec.b},${pAlpha})`);
+      }
+    }
+  }
+
   // === Minecart Renderer ===
 
   function renderMinecarts(ctx) {
@@ -1030,6 +1068,7 @@ window.DK = window.DK || {};
         case 'stun_wave': renderStunWave(ctx, PA, effect, progress); break;
         case 'gold_sparkle': renderGoldSparkle(ctx, PA, effect, progress); break;
         case 'hero_deploy': renderHeroDeploy(ctx, PA, effect, progress); break;
+        case 'hero_recall': renderHeroRecall(ctx, PA, effect, progress); break;
         case 'minecart_hit': renderMinecartHit(ctx, PA, effect, progress); break;
         case 'damage':
         case 'gold':

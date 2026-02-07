@@ -43,12 +43,14 @@ DK.UI = {
   messageQueue: [],
   fontsReady: false,
   _evolveButtonRect: null, // Cached evolve button hit area
+  _recallButtonRect: null, // { x, y, w, h } 回收按鈕區域
 
   init() {
     this.selectedTrap = null;
     this.selectedHeroType = null;
     this.selectedPlacedTrap = null;
     this._evolveButtonRect = null;
+    this._recallButtonRect = null;
     this.hoveredTile = null;
     this.buildButtons();
     this.checkFonts();
@@ -169,6 +171,16 @@ DK.UI = {
       }
     }
 
+    // Check recall button click
+    if (DK.Heroes && DK.Heroes.selectedHero && this._recallButtonRect) {
+      const rb = this._recallButtonRect;
+      if (mx >= rb.x && mx <= rb.x + rb.w && my >= rb.y && my <= rb.y + rb.h) {
+        DK.Heroes.recall(DK.Heroes.selectedHero);
+        this._recallButtonRect = null;
+        return true;
+      }
+    }
+
     // Check UI buttons
     for (const btn of this.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.width &&
@@ -230,15 +242,7 @@ DK.UI = {
         }
       }
 
-      // Priority 2: Move selected hero
-      if (DK.Heroes && DK.Heroes.selectedHero) {
-        if (DK.Map.isPath(col, row) && DK.Map.layout[row][col] !== 'E' && DK.Map.layout[row][col] !== 'X') {
-          DK.Heroes.commandMove(DK.Heroes.selectedHero, col, row);
-          return true;
-        }
-      }
-
-      // Priority 3: Deploy hero
+      // Priority 2: Deploy hero (was Priority 3, hero movement removed for patrol AI)
       if (this.selectedHeroType) {
         if (DK.Map.isPath(col, row) && DK.Map.layout[row][col] !== 'E' && DK.Map.layout[row][col] !== 'X') {
           if (DK.Game.gold >= this.selectedHeroType.cost) {
@@ -410,9 +414,9 @@ DK.UI = {
     // Top HUD bar
     this.renderHUD(ctx);
 
-    // Hero move target indicator
-    if (DK.Heroes && DK.Heroes.selectedHero && this.hoveredTile) {
-      this.renderHeroMoveIndicator(ctx);
+    // Hero recall button (when hero is selected)
+    if (DK.Heroes && DK.Heroes.selectedHero) {
+      this.renderHeroRecallButton(ctx);
     }
 
     // Hover indicator on game area
@@ -1013,26 +1017,53 @@ DK.UI = {
     }
   },
 
-  renderHeroMoveIndicator(ctx) {
-    if (!DK.Heroes || !DK.Heroes.selectedHero || !this.hoveredTile) return;
-
-    const { col, row } = this.hoveredTile;
-    const T = DK.CONFIG.DISPLAY_TILE;
-    const cam = DK.Game.camera;
-    const x = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE;
-    const y = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE;
-
-    const valid = DK.Map.isPath(col, row) &&
-                  DK.Map.layout[row][col] !== 'E' &&
-                  DK.Map.layout[row][col] !== 'X';
-
-    if (valid) {
-      ctx.strokeStyle = 'rgba(68,255,68,0.5)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
-      ctx.fillStyle = 'rgba(68,255,68,0.1)';
-      ctx.fillRect(x, y, T, T);
+  renderHeroRecallButton(ctx) {
+    if (!DK.Heroes || !DK.Heroes.selectedHero) {
+      this._recallButtonRect = null;
+      return;
     }
+
+    const hero = DK.Heroes.selectedHero;
+    const cam = DK.Game.camera;
+    const screenX = (hero.x - cam.x) * DK.CONFIG.SCALE;
+    const screenY = (hero.y - cam.y) * DK.CONFIG.SCALE;
+
+    // 按鈕位置：英雄上方
+    const btnW = 60;
+    const btnH = 24;
+    const btnX = screenX - btnW / 2;
+    const btnY = screenY - 60; // 英雄上方
+
+    // 邊界檢查：確保按鈕不超出畫面
+    const clampedX = Math.max(4, Math.min(DK.CONFIG.DISPLAY_WIDTH - btnW - 4, btnX));
+    const clampedY = Math.max(44, btnY); // 不蓋住 HUD bar
+
+    // 儲存點擊區域
+    this._recallButtonRect = { x: clampedX, y: clampedY, w: btnW, h: btnH };
+
+    // 背景
+    ctx.fillStyle = 'rgba(18,16,30,0.9)';
+    ctx.beginPath();
+    ctx.roundRect(clampedX, clampedY, btnW, btnH, 4);
+    ctx.fill();
+
+    // 邊框
+    ctx.strokeStyle = '#ff8844';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(clampedX, clampedY, btnW, btnH, 4);
+    ctx.stroke();
+
+    // 文字
+    ctx.font = DK.FONTS.bold(13);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    this.drawTextWithOutline(ctx, '回收', clampedX + btnW / 2, clampedY + btnH / 2, '#ffaa44');
+
+    // 金幣退還提示
+    ctx.font = DK.FONTS.body(10);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(`+${hero.type.cost}金`, clampedX + btnW / 2, clampedY + btnH + 10);
   },
 
   /**
@@ -1081,9 +1112,9 @@ DK.UI = {
       return;
     }
 
-    // Show hint for hero movement
+    // Show hint for selected hero
     if (DK.Heroes && DK.Heroes.selectedHero && !DK.Game.gameOver) {
-      this.drawHintBox(ctx, '點擊地板移動英雄  |  右鍵取消選擇', '#66cc66');
+      this.drawHintBox(ctx, '點擊回收按鈕收回英雄  |  右鍵取消選擇', '#ffaa44');
       return;
     }
 
@@ -1399,6 +1430,7 @@ DK.UI = {
     this.selectedHeroType = null;
     this.selectedPlacedTrap = null;
     this._evolveButtonRect = null;
+    this._recallButtonRect = null;
     this.tooltipText = '';
     if (DK.Heroes) DK.Heroes.selectedHero = null;
   },

@@ -56,10 +56,12 @@ DK.HERO_TYPES = {
 DK.Heroes = {
   active: [],
   selectedHero: null, // Reference to a deployed hero that is selected
+  _nextId: 1,
 
   init() {
     this.active = [];
     this.selectedHero = null;
+    this._nextId = 1;
   },
 
   /**
@@ -80,6 +82,7 @@ DK.Heroes = {
 
     const T = DK.CONFIG.TILE_SIZE;
     const hero = {
+      id: this._nextId++,
       type: typeDef,
       col,
       row,
@@ -90,6 +93,9 @@ DK.Heroes = {
       attackTimer: 0,
       animFrame: 0,
       animTimer: 0,
+      deployCol: col,           // 記住部署位置（巡邏中心）
+      deployRow: row,
+      alive: true,
       // Movement
       moving: false,
       movePath: [],
@@ -98,6 +104,13 @@ DK.Heroes = {
       target: null,
       attacking: false,
       attackLine: null, // 攻擊連線特效 { targetX, targetY, timer, duration }
+      // AI 狀態機
+      aiState: 'idle',          // 'idle' | 'patrol' | 'chase'
+      patrolTarget: null,       // { col, row } 巡邏目標
+      patrolWaitTimer: 0,       // 抵達巡邏點後等待計時
+      idleTimer: 2000 + Math.random() * 1000, // 初始閒置等待
+      chaseTarget: null,        // 追擊中的敵人引用
+      _chaseRefreshTimer: 0,    // 追擊路徑刷新計時
     };
 
     this.active.push(hero);
@@ -111,6 +124,41 @@ DK.Heroes = {
         timer: 0,
         duration: 500,
         element: typeDef.element,
+      });
+    }
+
+    return true;
+  },
+
+  /**
+   * Recall a deployed hero — remove from active, refund gold, play effect
+   */
+  recall(hero) {
+    const idx = this.active.indexOf(hero);
+    if (idx === -1) return false;
+
+    // 從 active 移除
+    this.active.splice(idx, 1);
+
+    // 退還全部金幣
+    if (DK.Game) {
+      DK.Game.gold += hero.type.cost;
+    }
+
+    // 清除選擇
+    if (this.selectedHero === hero) {
+      this.selectedHero = null;
+    }
+
+    // 回收特效
+    if (DK.Game && DK.Game.effects) {
+      DK.Game.effects.push({
+        type: 'hero_recall',
+        x: hero.x,
+        y: hero.y,
+        timer: 0,
+        duration: 400,
+        element: hero.type.element,
       });
     }
 
@@ -176,16 +224,154 @@ DK.Heroes = {
     return null; // No path found
   },
 
+  /**
+   * AI 狀態機 — 英雄自主巡邏 / 追擊
+   * 狀態流程：IDLE → PATROL → 到達等待 → IDLE
+   *           任何狀態偵測敵人 → CHASE → 射程內停下攻擊
+   *           CHASE 目標死亡 → IDLE
+   */
+  updateAI(hero, dt, enemies) {
+    const T = DK.CONFIG.TILE_SIZE;
+    const detectRange = (hero.type.range + 2) * T;
+
+    // --- 偵測最近敵人（任何 AI 狀態都要做） ---
+    let nearestEnemy = null;
+    let nearestDist = detectRange;
+    for (const enemy of enemies) {
+      if (!enemy.alive || enemy.hp <= 0) continue;
+      const dx = enemy.x - hero.x;
+      const dy = enemy.y - hero.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestEnemy = enemy;
+      }
+    }
+
+    // 偵測到敵人 → 進入 CHASE（不管目前什麼狀態）
+    if (nearestEnemy && hero.aiState !== 'chase') {
+      hero.aiState = 'chase';
+      hero.chaseTarget = nearestEnemy;
+      hero._chaseRefreshTimer = 0;
+      hero.patrolTarget = null;
+      hero.patrolWaitTimer = 0;
+    }
+
+    // --- 狀態處理 ---
+    switch (hero.aiState) {
+      case 'idle': {
+        hero.idleTimer -= dt;
+        if (hero.idleTimer <= 0) {
+          hero.aiState = 'patrol';
+          hero.idleTimer = 0;
+        }
+        break;
+      }
+
+      case 'patrol': {
+        // 還沒設定巡邏目標且沒在移動 → 選一個
+        if (!hero.moving && !hero.patrolTarget) {
+          this.pickPatrolTarget(hero);
+        }
+        // 移動完畢且有 patrolTarget → 到達巡邏點
+        // （到達判定在 update 的移動完成區塊處理）
+        // patrolWaitTimer 倒數
+        if (hero.patrolWaitTimer > 0) {
+          hero.patrolWaitTimer -= dt;
+          if (hero.patrolWaitTimer <= 0) {
+            hero.patrolWaitTimer = 0;
+            hero.aiState = 'idle';
+            hero.idleTimer = 2000 + Math.random() * 1000;
+          }
+        }
+        break;
+      }
+
+      case 'chase': {
+        // 追擊目標已死亡或消失 → 回 IDLE
+        if (!hero.chaseTarget || !hero.chaseTarget.alive || hero.chaseTarget.hp <= 0) {
+          hero.aiState = 'idle';
+          hero.chaseTarget = null;
+          hero.moving = false;
+          hero.movePath = [];
+          hero.idleTimer = 1000 + Math.random() * 500;
+          break;
+        }
+
+        const attackRange = hero.type.range * T;
+        const dx = hero.chaseTarget.x - hero.x;
+        const dy = hero.chaseTarget.y - hero.y;
+        const distToTarget = Math.sqrt(dx * dx + dy * dy);
+
+        if (distToTarget <= attackRange) {
+          // 在射程內 → 停止移動，讓攻擊邏輯接手
+          hero.moving = false;
+          hero.movePath = [];
+        } else {
+          // 不在射程內 → 每 500ms 刷新追擊路徑
+          hero._chaseRefreshTimer -= dt;
+          if (hero._chaseRefreshTimer <= 0) {
+            hero._chaseRefreshTimer = 500;
+            // 計算敵人所在格子
+            const enemyCol = Math.floor(hero.chaseTarget.x / T);
+            const enemyRow = Math.floor(hero.chaseTarget.y / T);
+            this.commandMove(hero, enemyCol, enemyRow);
+          }
+        }
+        break;
+      }
+    }
+  },
+
+  /**
+   * 為英雄選擇巡邏目標 — 部署點附近 5 格隨機可走格
+   */
+  pickPatrolTarget(hero) {
+    const maxAttempts = 20;
+    const patrolRadius = 5;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      const offsetCol = Math.floor(Math.random() * (patrolRadius * 2 + 1)) - patrolRadius;
+      const offsetRow = Math.floor(Math.random() * (patrolRadius * 2 + 1)) - patrolRadius;
+      const targetCol = hero.deployCol + offsetCol;
+      const targetRow = hero.deployRow + offsetRow;
+
+      // 跳過自己目前所在的格子
+      if (targetCol === hero.col && targetRow === hero.row) continue;
+
+      // 檢查是否為可走的地板格
+      if (!DK.Map.isPath(targetCol, targetRow)) continue;
+      const tile = DK.Map.layout[targetRow] && DK.Map.layout[targetRow][targetCol];
+      if (tile === 'E' || tile === 'X') continue;
+
+      // 嘗試設定路徑
+      if (this.commandMove(hero, targetCol, targetRow)) {
+        hero.patrolTarget = { col: targetCol, row: targetRow };
+        return;
+      }
+    }
+
+    // 找不到有效巡邏點 → 回 IDLE
+    hero.aiState = 'idle';
+    hero.idleTimer = 1500 + Math.random() * 1000;
+  },
+
   update(dt, enemies) {
     const T = DK.CONFIG.TILE_SIZE;
 
     for (const hero of this.active) {
+      // 跳過死亡英雄
+      if (!hero.alive) continue;
+
       // Animation
       hero.animTimer += dt;
       if (hero.animTimer > 300) {
         hero.animFrame = (hero.animFrame + 1) % 4;
         hero.animTimer = 0;
       }
+
+      // AI 狀態機更新（在移動邏輯之前）
+      this.updateAI(hero, dt, enemies);
 
       // Movement
       if (hero.moving && hero.movePath.length > 0) {
@@ -208,6 +394,11 @@ DK.Heroes = {
           if (hero.moveIndex >= hero.movePath.length) {
             hero.moving = false;
             hero.movePath = [];
+            // 巡邏到達：清除 patrolTarget，開始等待
+            if (hero.aiState === 'patrol' && hero.patrolTarget) {
+              hero.patrolTarget = null;
+              hero.patrolWaitTimer = 1000 + Math.random() * 1000;
+            }
           }
         } else {
           const speed = hero.type.moveSpeed * (dt / 16);
@@ -436,11 +627,14 @@ DK.Heroes = {
 
   render(ctx, time) {
     for (const hero of this.active) {
+      // 跳過死亡英雄
+      if (!hero.alive) continue;
+
       const x = Math.round(hero.x);
       let y = Math.round(hero.y);
 
       // 待機呼吸動畫：英雄不攻擊且不移動時，輕微上下浮動
-      if (!hero.attackLine && hero.movePath.length === 0) {
+      if (!hero.attackLine && !hero.moving) {
         const breathOffset = Math.sin((time || 0) * 0.003) * 0.5;
         y += Math.round(breathOffset);
       }

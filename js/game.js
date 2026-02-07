@@ -299,7 +299,7 @@ DK.Game = {
 
       // 同理檢測英雄碰撞
       if (DK.Heroes) {
-        for (const hero of DK.Heroes.placed) {
+        for (const hero of DK.Heroes.active) {
           if (!hero.alive) continue;
           if (cart.hitCooldowns.has('hero_' + hero.id)) continue;
 
