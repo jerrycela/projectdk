@@ -31,9 +31,11 @@ DK.CONFIG = {
 
   // Game settings
   STARTING_GOLD: 350,
-  STARTING_LIVES: 20,
+  DUNGEON_HEART_HP: 100,
   WAVE_DELAY: 5000,
+  WAVE_AUTO_DELAY: 3000,
   ENEMY_SPAWN_INTERVAL: 500,
+  OUTER_PATROL_SPEED: 0.5,
 
   // FPS
   TARGET_FPS: 60,
@@ -289,6 +291,7 @@ DK.ENEMY_TYPES = {
     reward: 10,
     size: 0.7,
     mass: 1,
+    heartDamage: 10,
   },
   SKELETON: {
     id: 'skeleton',
@@ -298,6 +301,7 @@ DK.ENEMY_TYPES = {
     reward: 15,
     size: 0.85,
     mass: 2,
+    heartDamage: 15,
   },
   ORC: {
     id: 'orc',
@@ -307,6 +311,7 @@ DK.ENEMY_TYPES = {
     reward: 25,
     size: 1.0,
     mass: 3,
+    heartDamage: 25,
   },
   SLIME: {
     id: 'slime',
@@ -317,6 +322,7 @@ DK.ENEMY_TYPES = {
     size: 0.65,
     mass: 1,
     splits: true,
+    heartDamage: 5,
   },
 };
 

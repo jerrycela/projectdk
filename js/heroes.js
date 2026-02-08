@@ -71,10 +71,13 @@ DK.Heroes = {
     const typeDef = Object.values(DK.HERO_TYPES).find(t => t.id === heroTypeId);
     if (!typeDef) return false;
 
-    // Check valid floor tile
+    // Check valid floor tile (exclude outer, breakable walls, heart)
     if (!DK.Map.isPath(col, row)) return false;
     const tile = DK.Map.layout[row][col];
     if (tile === 'E' || tile === 'X') return false;
+    if (tile === 'O' || tile === 'B' || tile === 'H') return false;
+    if (DK.Map.isOuter && DK.Map.isOuter(col, row)) return false;
+    if (DK.Map.isHeart && DK.Map.isHeart(col, row)) return false;
 
     // Check not occupied by trap or another hero
     if (DK.Traps.placed.some(t => t.col === col && t.row === row)) return false;
@@ -339,10 +342,13 @@ DK.Heroes = {
       // 跳過自己目前所在的格子
       if (targetCol === hero.col && targetRow === hero.row) continue;
 
-      // 檢查是否為可走的地板格
+      // 檢查是否為可走的地板格（排除外圍、牆壁、地心）
       if (!DK.Map.isPath(targetCol, targetRow)) continue;
       const tile = DK.Map.layout[targetRow] && DK.Map.layout[targetRow][targetCol];
       if (tile === 'E' || tile === 'X') continue;
+      if (tile === 'O' || tile === 'B' || tile === 'H') continue;
+      if (DK.Map.isOuter && DK.Map.isOuter(targetCol, targetRow)) continue;
+      if (DK.Map.isHeart && DK.Map.isHeart(targetCol, targetRow)) continue;
 
       // 嘗試設定路徑
       if (this.commandMove(hero, targetCol, targetRow)) {

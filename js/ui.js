@@ -186,8 +186,12 @@ DK.UI = {
       if (mx >= btn.x && mx <= btn.x + btn.width &&
           my >= btn.y && my <= btn.y + btn.height) {
         if (btn.action === 'start_wave') {
-          if (DK.Game && !DK.Game.waveActive) {
-            DK.Game.startWave();
+          if (DK.Game) {
+            if (DK.Game.state === 'planning') {
+              DK.Game.startBreach();
+            } else if (DK.Game.state === 'breach' && DK.Map.breachHoles && DK.Map.breachHoles.length > 0) {
+              DK.Game.startInvasion();
+            }
           }
           return true;
         }
@@ -214,6 +218,22 @@ DK.UI = {
     if (my < DK.CONFIG.UI_TOP && DK.Game) {
       const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
       const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
+
+      // Priority 0: Breach phase wall-breaking
+      if (DK.Game.state === 'breach') {
+        if (DK.Map.isBreakable && DK.Map.isBreakable(col, row)) {
+          DK.Map.breakWall(col, row);
+          if (DK.Game.effects) {
+            DK.Game.effects.push({
+              type: 'wall_break',
+              x: col * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
+              y: row * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
+              timer: 0, duration: 500,
+            });
+          }
+          return true;
+        }
+      }
 
       // Priority 1: Click on existing hero to select it
       if (DK.Heroes) {
@@ -244,7 +264,13 @@ DK.UI = {
 
       // Priority 2: Deploy hero (was Priority 3, hero movement removed for patrol AI)
       if (this.selectedHeroType) {
-        if (DK.Map.isPath(col, row) && DK.Map.layout[row][col] !== 'E' && DK.Map.layout[row][col] !== 'X') {
+        const heroTile = DK.Map.layout[row] && DK.Map.layout[row][col];
+        const heroTileValid = DK.Map.isPath(col, row) &&
+          heroTile !== 'E' && heroTile !== 'X' &&
+          heroTile !== 'O' && heroTile !== 'B' && heroTile !== 'H' &&
+          !(DK.Map.isOuter && DK.Map.isOuter(col, row)) &&
+          !(DK.Map.isHeart && DK.Map.isHeart(col, row));
+        if (heroTileValid) {
           if (DK.Game.gold >= this.selectedHeroType.cost) {
             if (DK.Heroes && DK.Heroes.deploy(this.selectedHeroType.id, col, row)) {
               DK.Game.gold -= this.selectedHeroType.cost;
@@ -259,9 +285,17 @@ DK.UI = {
     }
 
     // Check game area click (place trap) - apply camera offset
-    if (my < DK.CONFIG.UI_TOP && this.selectedTrap && DK.Game) {
+    // Only allow trap placement in planning or invasion phases
+    if (my < DK.CONFIG.UI_TOP && this.selectedTrap && DK.Game &&
+        (DK.Game.state === 'planning' || DK.Game.state === 'invasion')) {
       const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
       const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
+
+      // Exclude outer walls and heart tiles from trap placement
+      if ((DK.Map.isOuter && DK.Map.isOuter(col, row)) ||
+          (DK.Map.isHeart && DK.Map.isHeart(col, row))) {
+        return false;
+      }
 
       if (this.selectedTrap.type === 'wall' && DK.Map.isValidWallTrapSlot(col, row)) {
         if (DK.Game.gold >= this.selectedTrap.cost) {
@@ -449,10 +483,62 @@ DK.UI = {
       this.renderWaveComplete(ctx);
     }
 
+    // Phase hints
+    this.renderPhaseHint(ctx);
+
     // Game over / Victory
     if (game && game.gameOver) {
       this.renderGameOver(ctx);
     }
+  },
+
+  renderPhaseHint(ctx) {
+    const game = DK.Game;
+    if (!game || game.gameOver) return;
+
+    let hintText = '';
+    let hintColor = '#aaa090';
+
+    if (game.state === 'planning') {
+      hintText = '部署陷阱和英雄 → 點擊右側按鈕開始破牆';
+      hintColor = '#88ddff';
+    } else if (game.state === 'breach') {
+      const holeCount = DK.Map.breachHoles ? DK.Map.breachHoles.length : 0;
+      hintText = `點擊外牆開洞 → 已開 ${holeCount} 個洞 → 點擊右側開始入侵`;
+      hintColor = '#ffaa44';
+    } else if (game.state === 'invasion' && game.waveAutoTimer > 0) {
+      hintText = `下一波倒數 ${Math.ceil(game.waveAutoTimer / 1000)} 秒`;
+      hintColor = '#88ddff';
+    }
+
+    if (!hintText) return;
+
+    const panelY = 46;
+    const panelH = 24;
+
+    ctx.save();
+    ctx.font = DK.FONTS.body(13);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const metrics = ctx.measureText(hintText);
+    const panelW = metrics.width + 28;
+    const panelX = DK.CONFIG.DISPLAY_WIDTH / 2 - panelW / 2;
+
+    ctx.fillStyle = 'rgba(18,16,30,0.85)';
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, panelH, 4);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(74,62,110,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, panelH, 4);
+    ctx.stroke();
+
+    ctx.fillStyle = hintColor;
+    ctx.fillText(hintText, DK.CONFIG.DISPLAY_WIDTH / 2, panelY + panelH / 2);
+
+    ctx.restore();
   },
 
   drawPixelBorder(ctx, x, y, w, h) {
@@ -591,38 +677,60 @@ DK.UI = {
     ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, 1);
 
     if (btn.action === 'start_wave') {
-      // Wave start button
-      const isActive = game && game.waveActive;
+      // Phase-dependent wave/breach button
+      let buttonText = '';
+      let buttonColor = '#88ddff';
+      let isEnabled = true;
+      let subText = '';
 
-      // Pulsing border when available
-      if (!isActive && game && !game.gameOver) {
+      if (game && game.state === 'planning') {
+        buttonText = '開始破牆';
+        buttonColor = '#ffaa44';
+        subText = '部署完成後點擊';
+      } else if (game && game.state === 'breach') {
+        const holeCount = DK.Map.breachHoles ? DK.Map.breachHoles.length : 0;
+        buttonText = '開始入侵';
+        buttonColor = holeCount > 0 ? '#ff6644' : C.UI_TEXT_DIM;
+        isEnabled = holeCount > 0;
+        subText = `已開 ${holeCount} 個洞`;
+      } else if (game && game.state === 'invasion') {
+        if (game.waveAutoTimer > 0) {
+          buttonText = `下一波 ${Math.ceil(game.waveAutoTimer / 1000)}秒`;
+          buttonColor = '#88ddff';
+        } else if (game.waveActive) {
+          buttonText = '戰鬥中...';
+          buttonColor = C.UI_TEXT_DIM;
+        } else {
+          buttonText = '等待中...';
+          buttonColor = C.UI_TEXT_DIM;
+        }
+        isEnabled = false;
+        subText = `第 ${game.currentWave + 1} / ${DK.WAVES.length} 波`;
+      }
+
+      // Pulsing border when actionable
+      if (isEnabled && game && !game.gameOver) {
         const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7;
         ctx.strokeStyle = `rgba(68,170,255,${pulse})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
       }
 
-      // Icon (sword or hourglass)
-      ctx.fillStyle = isActive ? C.UI_TEXT_DIM : '#66bbff';
-      ctx.font = DK.FONTS.bold(18);
+      ctx.font = DK.FONTS.bold(16);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       this.drawTextWithOutline(ctx,
-        isActive ? '進行中...' : btn.label,
+        buttonText,
         btn.x + btn.width / 2,
         btn.y + btn.height / 2 - 10,
-        isActive ? C.UI_TEXT_DIM : '#88ddff'
+        buttonColor
       );
 
-      // Wave counter
-      if (game) {
-        ctx.font = DK.FONTS.body(12);
+      // Sub text
+      if (subText) {
+        ctx.font = DK.FONTS.body(11);
         ctx.fillStyle = C.UI_TEXT_DIM;
-        ctx.fillText(
-          `第 ${game.currentWave + 1} / ${DK.WAVES.length} 波`,
-          btn.x + btn.width / 2,
-          btn.y + btn.height / 2 + 10
-        );
+        ctx.fillText(subText, btn.x + btn.width / 2, btn.y + btn.height / 2 + 10);
       }
 
       // Hover highlight overlay
@@ -885,11 +993,12 @@ DK.UI = {
     ctx.font = DK.FONTS.heavy(20);
     this.drawTextWithOutline(ctx, `${game.gold}`, 70, 20, '#ffe040');
 
-    // Lives icon + text
+    // Dungeon Heart HP
     ctx.font = DK.FONTS.bold(18);
-    this.drawTextWithOutline(ctx, '生命', 160, 20, C.UI_HP);
+    this.drawTextWithOutline(ctx, '地心', 160, 20, '#ff6666');
     ctx.font = DK.FONTS.heavy(20);
-    this.drawTextWithOutline(ctx, `${game.lives}`, 215, 20, '#ff6666');
+    const heartPct = Math.ceil((game.dungeonHeartHP / game.dungeonHeartMaxHP) * 100);
+    this.drawTextWithOutline(ctx, `${heartPct}%`, 215, 20, '#ff6666');
 
     // Wave info
     ctx.font = DK.FONTS.bold(18);
@@ -919,6 +1028,16 @@ DK.UI = {
     const cam = DK.Game.camera;
     const x = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE;
     const y = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE;
+
+    // Breach phase: highlight breakable walls
+    if (DK.Game && DK.Game.state === 'breach' && DK.Map.isBreakable && DK.Map.isBreakable(col, row)) {
+      ctx.strokeStyle = 'rgba(255,200,100,0.8)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
+      ctx.fillStyle = 'rgba(255,200,100,0.2)';
+      ctx.fillRect(x, y, T, T);
+      return;
+    }
 
     // Hero deployment hover
     if (this.selectedHeroType) {
@@ -1159,6 +1278,7 @@ DK.UI = {
   renderWavePreview(ctx) {
     const game = DK.Game;
     if (!game || game.gameOver) return;
+    if (game.state !== 'invasion') return;
     if (game.waveActive) return;
     if (game.currentWave >= DK.WAVES.length) return;
 
@@ -1333,7 +1453,7 @@ DK.UI = {
     ctx.fillStyle = 'rgba(10,10,18,0.9)';
     ctx.fillRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
 
-    const isVictory = game.lives > 0;
+    const isVictory = game.dungeonHeartHP > 0;
     const cx = DK.CONFIG.DISPLAY_WIDTH / 2;
     const cy = DK.CONFIG.DISPLAY_HEIGHT / 2 - 30;
     const C = DK.COLORS;
@@ -1353,7 +1473,7 @@ DK.UI = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = DK.FONTS.heavy(36);
-    const titleText = isVictory ? '地城守衛成功！' : '地城陷落...';
+    const titleText = isVictory ? '防守成功！' : '地心毀滅...';
     const titleColor = isVictory ? '#44ff44' : '#ff4444';
     this.drawTextWithOutline(ctx, titleText, cx, panelY + 42, titleColor, 'rgba(0,0,0,0.8)');
 
@@ -1361,8 +1481,8 @@ DK.UI = {
     ctx.font = DK.FONTS.body(14);
     ctx.fillStyle = isVictory ? '#88cc88' : '#cc8888';
     const subtitle = isVictory
-      ? '所有入侵者已被擊退！地城安全了！'
-      : '入侵者突破了防線...地城失守了。';
+      ? '所有入侵者已被擊退！地心安全了！'
+      : '地心被入侵者摧毀了...防守失敗。';
     ctx.fillText(subtitle, cx, panelY + 70);
 
     // Divider line
@@ -1406,11 +1526,12 @@ DK.UI = {
     ctx.font = DK.FONTS.body(14);
     ctx.fillStyle = C.UI_TEXT_DIM;
     ctx.fillText('剩餘金幣', leftCol, rowY);
-    ctx.fillText('剩餘生命', rightCol, rowY);
+    ctx.fillText('地心 HP', rightCol, rowY);
 
     ctx.font = DK.FONTS.heavy(20);
     this.drawTextWithOutline(ctx, `${game.gold}`, leftCol, rowY + 20, C.UI_GOLD);
-    this.drawTextWithOutline(ctx, `${game.lives}`, rightCol, rowY + 20, game.lives > 0 ? '#ff6666' : '#882222');
+    const endPct = Math.ceil((game.dungeonHeartHP / game.dungeonHeartMaxHP) * 100);
+    this.drawTextWithOutline(ctx, `${endPct}%`, rightCol, rowY + 20, game.dungeonHeartHP > 0 ? '#ff6666' : '#882222');
 
     // Bottom divider
     ctx.fillStyle = C.UI_BORDER;

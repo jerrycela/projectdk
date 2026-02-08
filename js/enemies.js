@@ -13,20 +13,21 @@ DK.Enemies = {
     this._nextId = 1;
   },
 
-  spawn(typeName, pathIndex) {
+  spawnAt(typeName, col, row) {
     const typeDef = DK.ENEMY_TYPES[typeName];
-    if (!typeDef || DK.Map.path.length === 0) return null;
+    if (!typeDef) return null;
 
-    const startPos = DK.Map.path[pathIndex || 0];
+    const T = DK.CONFIG.TILE_SIZE;
     const enemy = {
       id: this._nextId++,
       type: typeDef,
-      x: startPos.x,
-      y: startPos.y,
+      x: col * T + T / 2,
+      y: row * T + T / 2,
+      col: col,
+      row: row,
       hp: typeDef.hp,
       maxHp: typeDef.hp,
       speed: typeDef.speed,
-      pathIndex: pathIndex || 0,
       slowFactor: 1,
       slowTimer: 0,
       animFrame: 0,
@@ -40,16 +41,25 @@ DK.Enemies = {
       paralyzed: false,
       pushed: null,
       pushResistTimer: 0,
-      spawnTimer: 300, // 生成淡入動畫 (300ms)
+      spawnTimer: 300,
     };
 
     this.active.push(enemy);
     return enemy;
   },
 
+  spawn(typeName, pathIndex) {
+    // 向後相容：如果有 breachHoles 就用第一個洞口
+    if (DK.Map.breachHoles && DK.Map.breachHoles.length > 0) {
+      const hole = DK.Map.breachHoles[0];
+      return this.spawnAt(typeName, hole.col, hole.row);
+    }
+    // 否則 fallback（不應觸發）
+    return null;
+  },
+
   update(dt) {
     const T = DK.CONFIG.TILE_SIZE;
-    const path = DK.Map.path;
 
     for (const enemy of this.active) {
       if (!enemy.alive) {
@@ -138,7 +148,6 @@ DK.Enemies = {
                 duration: 1000,
                 timer: 0,
               });
-              // 金幣閃光粒子特效
               DK.Game.effects.push({
                 type: 'gold_sparkle',
                 x: enemy.x,
@@ -155,24 +164,9 @@ DK.Enemies = {
               });
             }
           } else {
-            // Pushed onto path - update position
+            // Pushed onto walkable tile - update position
             enemy.x = enemy.pushed.targetX;
             enemy.y = enemy.pushed.targetY;
-
-            // Find nearest pathIndex for new position
-            const path = DK.Map.path;
-            let bestIdx = enemy.pathIndex;
-            let bestDist = Infinity;
-            for (let i = 0; i < path.length; i++) {
-              const pdx = path[i].x - enemy.x;
-              const pdy = path[i].y - enemy.y;
-              const dist = pdx * pdx + pdy * pdy;
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestIdx = i;
-              }
-            }
-            enemy.pathIndex = bestIdx;
           }
           enemy.pushed = null;
         }
@@ -214,20 +208,40 @@ DK.Enemies = {
       // Skip movement if paralyzed
       if (enemy.paralyzed) continue;
 
-      // Movement along path
-      if (enemy.pathIndex >= path.length - 1) {
-        enemy.reachedEnd = true;
-        enemy.alive = false;
-        continue;
+      // === 距離場移動（取代原本的路徑跟隨） ===
+      const curCol = Math.floor(enemy.x / T);
+      const curRow = Math.floor(enemy.y / T);
+
+      // 檢查是否已到達地心相鄰格（distanceField === 1）
+      if (DK.Map.isHeart && DK.Map.heartPos) {
+        const isNextToHeart = DK.Map.distanceField &&
+          DK.Map.distanceField[curRow] &&
+          DK.Map.distanceField[curRow][curCol] === 1;
+
+        if (isNextToHeart) {
+          // 攻擊地心
+          const damage = enemy.type.heartDamage || 10;
+          DK.Game.damageHeart(damage);
+          enemy.alive = false;
+          enemy.reachedEnd = true;
+          continue;
+        }
       }
 
-      const target = path[enemy.pathIndex + 1];
-      const dx = target.x - enemy.x;
-      const dy = target.y - enemy.y;
+      // 用距離場找下一步
+      const nextStep = DK.Map.getNextStep ? DK.Map.getNextStep(curCol, curRow) : null;
+      if (!nextStep) continue; // 無路可走
+
+      const targetX = nextStep.col * T + T / 2;
+      const targetY = nextStep.row * T + T / 2;
+      const dx = targetX - enemy.x;
+      const dy = targetY - enemy.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 1) {
-        enemy.pathIndex++;
+        // 已到達目標格，更新格座標
+        enemy.x = targetX;
+        enemy.y = targetY;
       } else {
         const moveSpeed = enemy.speed * enemy.slowFactor * (dt / 16);
         enemy.x += (dx / dist) * moveSpeed;

@@ -1,73 +1,87 @@
 /**
  * Dungeon Keep - 地圖系統
  * 管理地城佈局、地磚渲染、尋路與地形狀態
+ * 以 Dungeon Heart（地心）為核心的開放式地城設計
  */
 window.DK = window.DK || {};
 
 DK.Map = {
-  // 火把位置（牆壁格上的環境光源）- 24 個均勻分布在 40×26 地圖
+  // 火把位置（牆壁格上的環境光源）- 24 個均勻分布在 40x26 地圖的 W 格上
   torches: [
-    { col: 13, row: 0 },
-    { col: 30, row: 0 },
-    { col: 38, row: 2 },
-    { col: 20, row: 4 },
-    { col: 20, row: 5 },
-    { col: 10, row: 6 },
-    { col: 32, row: 6 },
-    { col: 3, row: 8 },
-    { col: 13, row: 8 },
-    { col: 4, row: 10 },
-    { col: 17, row: 10 },
-    { col: 16, row: 12 },
-    { col: 35, row: 12 },
-    { col: 3, row: 14 },
-    { col: 29, row: 14 },
-    { col: 20, row: 16 },
-    { col: 20, row: 17 },
-    { col: 10, row: 18 },
-    { col: 32, row: 18 },
-    { col: 3, row: 20 },
-    { col: 13, row: 20 },
-    { col: 17, row: 22 },
-    { col: 30, row: 22 },
-    { col: 37, row: 24 },
+    // 外牆角落 W 格
+    { col: 2, row: 2 },
+    { col: 37, row: 2 },
+    { col: 2, row: 23 },
+    { col: 37, row: 23 },
+    // 左側內牆 W 格
+    { col: 7, row: 3 },
+    { col: 5, row: 9 },
+    { col: 5, row: 16 },
+    { col: 7, row: 22 },
+    // 右側內牆 W 格
+    { col: 28, row: 3 },
+    { col: 22, row: 9 },
+    { col: 22, row: 16 },
+    { col: 28, row: 22 },
+    // 左上角落房間牆壁
+    { col: 4, row: 4 },
+    { col: 8, row: 4 },
+    // 右上角落房間牆壁
+    { col: 27, row: 4 },
+    { col: 31, row: 4 },
+    // 中央心臟房牆壁
+    { col: 12, row: 11 },
+    { col: 23, row: 10 },
+    { col: 16, row: 15 },
+    { col: 23, row: 15 },
+    // 左下角落房間牆壁
+    { col: 4, row: 21 },
+    { col: 8, row: 21 },
+    // 右下角落房間牆壁
+    { col: 27, row: 21 },
+    { col: 31, row: 21 },
   ],
 
-  // 地圖佈局: W=牆壁, .=路徑, E=入口, X=出口, A=深淵, P=水潭, G=草叢
-  // 40×26 格（每行精確 40 字元）
+  // 地圖佈局: W=牆壁, .=路徑, O=外圍, B=可破壞牆, H=地心, A=深淵, P=水潭, G=草叢, R=軌道
+  // 40x26 格（每行精確 40 字元）
   layout: [
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWW', // row 0
-    'E.PP..GGG......PP...GGG.......PP..GG..WW', // row 1
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 2
-    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 3
-    'WWWWWAWWWWWWAWWWWWWWW.WWWWWWAWWWWWWAWWWW', // row 4
-    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 5
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 6
-    'WW....PP..GGG..PP...GGG..PP...GGG.....WW', // row 7
-    'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 8
-    'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 9
-    'WWWWWAWWWWWWAWWWWW.WWWWWWWAWWWWWWAWWWWWW', // row 10
-    'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 11
-    'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 12
-    'WW....GGG.PP...GGG..PPRRRRRRRRRR.PP...WW', // row 13
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 14
-    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 15
-    'WWWWWAWWWWWWAWWWWWWWW.WWWWWWAWWWWWWAWWWW', // row 16
-    'WWWWWWWWWWWWWWWWWWWWW....PP.GGG..PP...WW', // row 17
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWW.WW', // row 18
-    'WW....PP..GGG..PP...GGG..PP...GGG.....WW', // row 19
-    'WW.WWAWWWWWWAWWWWWWWWWWWWWAWWWWWWAWWWWWW', // row 20
-    'WW....PP..GGG..PP..WWWWWWWWWWWWWWWWWWWWW', // row 21
-    'WWWWWAWWWWWWAWWWWW.WWWWWWWAWWWWWWAWWWWWW', // row 22
-    'WWWWWWWWWWWWWWWWWW....PP..GGG....PP....W', // row 23
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWWW.X', // row 24
-    'WWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWWAWWWWWW', // row 25
+    // row 0-1: 全外圍
+    'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO', // row 0
+    'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO', // row 1
+    // row 2: 外牆上邊 (cols 0-1=O, 2=W角, 3-36=B, 37=W角, 38-39=O)
+    'OOWBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBWOO', // row 2
+    // rows 3-22: 左右 cols 0-1=O, col 2=B, col 37=B, cols 38-39=O, 內部 cols 3-36
+    'OOB....W....A..........A....W......G.BOO', // row 3
+    'OOB.WPPPW..............W...WPPPW..G..BOO', // row 4
+    'OOB.WGGGW..............W...WGGGW.....BOO', // row 5
+    'OOB.WPPPW..........A.......WPPPW.....BOO', // row 6
+    'OOB.WWWWW..................WWWWW.....BOO', // row 7
+    'OOB........A.........................BOO', // row 8
+    'OOB..W..........W.....W..............BOO', // row 9
+    'OOB..W.....WWWWW...WWWWWW............BOO', // row 10
+    'OOB.........W.GGGGGGGG.W..A..........BOO', // row 11
+    'OOB...A.....W.GG.HH.GG.W.............BOO', // row 12
+    'OOB.........W.GG.HH.GG.W.............BOO', // row 13
+    'OOB.........W.GGGGGGGG.W....A........BOO', // row 14
+    'OOB.........WWWWW...WWWWWW...........BOO', // row 15
+    'OOB..W..........W.....W..............BOO', // row 16
+    'OOB........A.........................BOO', // row 17
+    'OOB.WWWWW..................WWWWW.....BOO', // row 18
+    'OOB.WPPPW..........A.......WPPPW.....BOO', // row 19
+    'OOB.WGGGW..............W...WGGGW.....BOO', // row 20
+    'OOB.WPPPW..............W...WPPPW..G..BOO', // row 21
+    'OOB....W....A..........A....W......G.BOO', // row 22
+    // row 23: 外牆下邊
+    'OOWBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBWOO', // row 23
+    // row 24-25: 全外圍
+    'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO', // row 24
+    'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO', // row 25
   ],
 
   // 地磚快取（預渲染提升效能）
   tileCache: {},
 
-  // 路徑航點（由佈局計算）
+  // 路徑航點（已棄用，改用 distanceField）
   path: [],
 
   // 可放牆壁陷阱的格子
@@ -82,12 +96,36 @@ DK.Map = {
   // 軌道定義（由 init 從 LAYOUT 自動建構）
   tracks: [],
 
+  // === Dungeon Heart 新增屬性 ===
+
+  // 地心左上角格座標
+  heartPos: null,
+
+  // 已開洞口列表
+  breachHoles: [],
+
+  // 距離場：distanceField[row][col] = 到地心距離 (-1 = 不可達)
+  distanceField: null,
+
   init() {
     this.initGrassState();
-    this.computePath();
+    this.findHeartPos();
+    this.computeDistanceField();
     this.computeTrapSlots();
     this.computeTracks();
     this.prerenderTiles();
+  },
+
+  /** 找到地心 H 的位置（左上角格座標） */
+  findHeartPos() {
+    for (let r = 0; r < this.layout.length; r++) {
+      for (let c = 0; c < this.layout[r].length; c++) {
+        if (this.layout[r][c] === 'H') {
+          this.heartPos = { col: c, row: r };
+          return;
+        }
+      }
+    }
   },
 
   /** 初始化所有草叢格為 normal 狀態 */
@@ -175,12 +213,13 @@ DK.Map = {
   },
 
   isWall(col, row) {
-    return this.getTile(col, row) === 'W';
+    const t = this.getTile(col, row);
+    return t === 'W' || t === 'B';
   },
 
   isPath(col, row) {
     const t = this.getTile(col, row);
-    return t === '.' || t === 'E' || t === 'X' || t === 'P' || t === 'G' || t === 'R';
+    return t === '.' || t === 'E' || t === 'X' || t === 'P' || t === 'G' || t === 'R' || t === 'H';
   },
 
   isAbyss(col, row) {
@@ -195,8 +234,146 @@ DK.Map = {
     return this.getTile(col, row) === 'G';
   },
 
+  // === Dungeon Heart 新增查詢函式 ===
+
+  /** 回傳 tile 是否為外圍 O */
+  isOuter(col, row) {
+    return this.getTile(col, row) === 'O';
+  },
+
+  /** 回傳 tile 是否為可破壞牆 B */
+  isBreakable(col, row) {
+    return this.getTile(col, row) === 'B';
+  },
+
+  /** 回傳 tile 是否為地心 H */
+  isHeart(col, row) {
+    return this.getTile(col, row) === 'H';
+  },
+
+  /** 可放置陷阱的內部地板格（.PGR，排除外圍與牆壁） */
+  isInteriorFloor(col, row) {
+    const t = this.getTile(col, row);
+    if (t === '.' || t === 'P' || t === 'G' || t === 'R') {
+      // 確保不在外圍區域
+      return !this.isOuter(col, row);
+    }
+    return false;
+  },
+
+  // === Dungeon Heart 核心函式 ===
+
+  /** 破壞牆壁：B -> '.'，加入 breachHoles，重新計算 distanceField */
+  breakWall(col, row) {
+    if (!this.isBreakable(col, row)) return;
+
+    // 修改 layout（字串轉陣列再轉回）
+    const rowStr = this.layout[row];
+    const chars = rowStr.split('');
+    chars[col] = '.';
+    this.layout[row] = chars.join('');
+
+    // 加入 breachHoles
+    this.breachHoles = [...this.breachHoles, { col, row }];
+
+    // 重新計算距離場
+    this.computeDistanceField();
+
+    // 需要重新預渲染被破壞格的地磚（改為地板）
+    // 由呼叫端負責觸發重繪
+  },
+
+  /** BFS 從地心出發，建立距離場 */
+  computeDistanceField() {
+    const rows = this.layout.length;
+    const cols = this.layout[0].length;
+
+    // 初始化所有格為 -1（不可達）
+    const field = [];
+    for (let r = 0; r < rows; r++) {
+      field[r] = [];
+      for (let c = 0; c < cols; c++) {
+        field[r][c] = -1;
+      }
+    }
+
+    if (!this.heartPos) {
+      this.distanceField = field;
+      return;
+    }
+
+    // 從地心（2x2 的所有 4 格）開始 BFS
+    const queue = [];
+    const hp = this.heartPos;
+
+    // 地心的 4 格：hp, hp+1col, hp+1row, hp+1col+1row
+    const heartCells = [
+      { col: hp.col, row: hp.row },
+      { col: hp.col + 1, row: hp.row },
+      { col: hp.col, row: hp.row + 1 },
+      { col: hp.col + 1, row: hp.row + 1 },
+    ];
+
+    for (const cell of heartCells) {
+      if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols) {
+        field[cell.row][cell.col] = 0;
+        queue.push(cell);
+      }
+    }
+
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let head = 0;
+
+    while (head < queue.length) {
+      const cur = queue[head];
+      head++;
+      const curDist = field[cur.row][cur.col];
+
+      for (const [dc, dr] of dirs) {
+        const nc = cur.col + dc;
+        const nr = cur.row + dr;
+
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+        if (field[nr][nc] !== -1) continue;
+        if (!this.isPath(nc, nr)) continue;
+
+        field[nr][nc] = curDist + 1;
+        queue.push({ col: nc, row: nr });
+      }
+    }
+
+    this.distanceField = field;
+  },
+
+  /** 回傳鄰格中 distanceField 值最小且 >= 0 的 {col, row}，找不到則回傳 null */
+  getNextStep(col, row) {
+    if (!this.distanceField) return null;
+
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let bestCol = -1;
+    let bestRow = -1;
+    let bestDist = Infinity;
+
+    for (const [dc, dr] of dirs) {
+      const nc = col + dc;
+      const nr = row + dr;
+
+      if (nr < 0 || nr >= this.layout.length || nc < 0 || nc >= this.layout[0].length) continue;
+
+      const dist = this.distanceField[nr][nc];
+      if (dist >= 0 && dist < bestDist) {
+        bestDist = dist;
+        bestCol = nc;
+        bestRow = nr;
+      }
+    }
+
+    if (bestCol === -1) return null;
+    return { col: bestCol, row: bestRow };
+  },
+
   /**
-   * 取得推力方向：牆壁 → 路徑 → 深淵
+   * 取得推力方向：牆壁 -> 路徑 -> 深淵
    */
   getPushDirection(col, row) {
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -275,61 +452,18 @@ DK.Map = {
     }
   },
 
-  computePath() {
-    // BFS 尋找從 E 到 X 的路徑
-    let start = null;
-    let end = null;
-
-    for (let r = 0; r < this.layout.length; r++) {
-      for (let c = 0; c < this.layout[r].length; c++) {
-        if (this.layout[r][c] === 'E') start = { col: c, row: r };
-        if (this.layout[r][c] === 'X') end = { col: c, row: r };
-      }
-    }
-
-    if (!start || !end) return;
-
-    const visited = new Set();
-    const queue = [[start]];
-    visited.add(`${start.col},${start.row}`);
-
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-
-    while (queue.length > 0) {
-      const path = queue.shift();
-      const current = path[path.length - 1];
-
-      if (current.col === end.col && current.row === end.row) {
-        // 轉換為像素座標（格子中心）
-        this.path = path.map(p => ({
-          x: p.col * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
-          y: p.row * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
-          col: p.col,
-          row: p.row,
-        }));
-        return;
-      }
-
-      for (const [dc, dr] of dirs) {
-        const nc = current.col + dc;
-        const nr = current.row + dr;
-        const key = `${nc},${nr}`;
-
-        if (!visited.has(key) && this.isPath(nc, nr)) {
-          visited.add(key);
-          queue.push([...path, { col: nc, row: nr }]);
-        }
-      }
-    }
-  },
-
   computeTrapSlots() {
     this.wallTrapSlots = [];
     this.floorTrapSlots = [];
 
     for (let r = 0; r < this.layout.length; r++) {
       for (let c = 0; c < this.layout[r].length; c++) {
-        if (this.isWall(c, r)) {
+        // 跳過外圍區域
+        if (this.isOuter(c, r)) continue;
+
+        const tile = this.getTile(c, r);
+
+        if (tile === 'W') {
           // 檢查是否鄰接路徑（牆壁陷阱位）
           const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
           let adjacentToPath = false;
@@ -346,8 +480,8 @@ DK.Map = {
           if (adjacentToPath) {
             this.wallTrapSlots.push({ col: c, row: r, facing });
           }
-        } else if (this.isPath(c, r) && this.layout[r][c] !== 'E' && this.layout[r][c] !== 'X') {
-          // 地板陷阱位（包含 .、P、G）
+        } else if (this.isInteriorFloor(c, r) && tile !== 'H') {
+          // 地板陷阱位（排除地心格）
           this.floorTrapSlots.push({ col: c, row: r });
         }
       }
@@ -427,6 +561,36 @@ DK.Map = {
       this.tileCache[`track_${v}`] = canvas;
     }
 
+    // 外圍地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = T;
+      canvas.height = T;
+      const ctx = canvas.getContext('2d');
+      this.drawOuterTile(ctx, 0, 0, v);
+      this.tileCache[`outer_${v}`] = canvas;
+    }
+
+    // 可破壞牆地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = T;
+      canvas.height = T;
+      const ctx = canvas.getContext('2d');
+      this.drawBreakableWallTile(ctx, 0, 0, v);
+      this.tileCache[`breakable_${v}`] = canvas;
+    }
+
+    // 地心地磚變體（6 個變體）
+    for (let v = 0; v < 6; v++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = T;
+      canvas.height = T;
+      const ctx = canvas.getContext('2d');
+      this.drawHeartTile(ctx, 0, 0, v);
+      this.tileCache[`heart_${v}`] = canvas;
+    }
+
     // 入口地磚
     const entranceCanvas = document.createElement('canvas');
     entranceCanvas.width = T;
@@ -442,6 +606,185 @@ DK.Map = {
     const xctx = exitCanvas.getContext('2d');
     this.drawExitTile(xctx, 0, 0);
     this.tileCache['exit'] = exitCanvas;
+  },
+
+  // === 新增地磚繪製函式 ===
+
+  /** 外圍地磚：野外/荒野風格（深綠+棕色泥土） */
+  drawOuterTile(ctx, x, y, variant) {
+    const PA = DK.PixelArt;
+    const C = DK.COLORS;
+    const rng = PA.seededRandom(variant * 179 + 31);
+
+    // 棕色泥土底色
+    PA.rect(ctx, x, y, 16, 16, '#2a2218');
+
+    // 泥土色調變化
+    for (let i = 0; i < 10; i++) {
+      const rx = Math.floor(rng() * 14);
+      const ry = Math.floor(rng() * 14);
+      const rw = 2 + Math.floor(rng() * 4);
+      const rh = 1 + Math.floor(rng() * 3);
+      const roll = rng();
+      const shade = roll > 0.6 ? '#342a1e' : roll > 0.3 ? '#2e2618' : '#1e1a12';
+      PA.rect(ctx, x + rx, y + ry, rw, rh, shade);
+    }
+
+    // 深綠色野草
+    for (let i = 0; i < 6; i++) {
+      const gx = 1 + Math.floor(rng() * 14);
+      const gy = 2 + Math.floor(rng() * 12);
+      const height = 1 + Math.floor(rng() * 2);
+      const shade = rng() > 0.5 ? '#1a3018' : '#243820';
+      for (let h = 0; h < height; h++) {
+        if (gy - h >= 0) {
+          PA.pixel(ctx, x + gx, y + gy - h, shade);
+        }
+      }
+    }
+
+    // 碎石
+    for (let i = 0; i < 3; i++) {
+      const sx = 1 + Math.floor(rng() * 14);
+      const sy = 1 + Math.floor(rng() * 14);
+      PA.pixel(ctx, x + sx, y + sy, rng() > 0.5 ? '#3a3428' : '#2a2620');
+    }
+
+    // 偶爾較亮的泥土斑點
+    if (variant === 1 || variant === 4) {
+      PA.pixel(ctx, x + 5, y + 8, '#3a3020');
+      PA.pixel(ctx, x + 11, y + 4, '#3a3020');
+    }
+  },
+
+  /** 可破壞牆地磚：裂紋磚塊，比普通牆亮 */
+  drawBreakableWallTile(ctx, x, y, variant) {
+    const PA = DK.PixelArt;
+    const C = DK.COLORS;
+    const rng = PA.seededRandom(variant * 163 + 53);
+
+    // 稍亮的石磚底色（比普通牆亮）
+    PA.rect(ctx, x, y, 16, 16, '#3a3850');
+
+    // 磚塊排列：2 排交錯
+    const brickRows = [
+      { y: 0, h: 7, offsets: variant % 2 === 0 ? [0, 7] : [0, 5, 11] },
+      { y: 8, h: 8, offsets: variant % 2 === 0 ? [0, 5, 11] : [0, 8] },
+    ];
+
+    // 灰縫線
+    PA.rect(ctx, x, y + 7, 16, 1, '#282638');
+
+    for (const row of brickRows) {
+      for (let i = 0; i < row.offsets.length; i++) {
+        const bx = x + row.offsets[i];
+        const bw = (i < row.offsets.length - 1)
+          ? row.offsets[i + 1] - row.offsets[i] - 1
+          : 16 - row.offsets[i];
+        const by = y + row.y;
+
+        const brickRoll = rng();
+        const shade = brickRoll > 0.6 ? '#4a4868' : brickRoll > 0.3 ? '#3e3c58' : '#343248';
+        PA.rect(ctx, bx, by, bw, row.h, shade);
+
+        // 高光
+        PA.rect(ctx, bx, by, bw, 1, '#5a5878');
+        PA.rect(ctx, bx, by, 1, row.h, '#4e4c68');
+
+        // 陰影
+        PA.rect(ctx, bx, by + row.h - 1, bw, 1, '#2a2840');
+        PA.rect(ctx, bx + bw - 1, by, 1, row.h, '#2a2840');
+
+        // 灰縫
+        if (i < row.offsets.length - 1) {
+          PA.rect(ctx, bx + bw, by, 1, row.h, '#282638');
+        }
+      }
+    }
+
+    // 裂紋（每個變體 2-3 條裂縫）
+    const crackCount = 2 + Math.floor(rng() * 2);
+    for (let ci = 0; ci < crackCount; ci++) {
+      const startX = 2 + Math.floor(rng() * 10);
+      const startY = 2 + Math.floor(rng() * 10);
+      const length = 3 + Math.floor(rng() * 4);
+      const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+      const dirIdx = Math.floor(rng() * 4);
+      const [cdx, cdy] = dirs[dirIdx];
+
+      for (let p = 0; p < length; p++) {
+        const px = startX + cdx * p;
+        const py = startY + cdy * p;
+        if (px >= 0 && px < 16 && py >= 0 && py < 16) {
+          PA.pixel(ctx, x + px, y + py, '#1a1828');
+          // 裂紋旁高光
+          if (px + 1 < 16) {
+            PA.pixel(ctx, x + px + 1, y + py, '#5a5878');
+          }
+        }
+      }
+    }
+
+    // 苔蘚點綴
+    if (variant === 2 || variant === 4) {
+      PA.pixel(ctx, x + 3, y + 7, C.WALL_MOSS);
+      PA.pixel(ctx, x + 4, y + 7, C.WALL_MOSS);
+      PA.pixel(ctx, x + 12, y + 7, '#1e3a1e');
+    }
+  },
+
+  /** 地心地磚：特殊發光石板 */
+  drawHeartTile(ctx, x, y, variant) {
+    const PA = DK.PixelArt;
+    const C = DK.COLORS;
+    const rng = PA.seededRandom(variant * 199 + 67);
+
+    // 深紫色基底
+    PA.rect(ctx, x, y, 16, 16, '#2a1a3a');
+
+    // 發光石板圖案
+    const innerShade = rng() > 0.5 ? '#3a2a4e' : '#342448';
+    PA.rect(ctx, x + 1, y + 1, 14, 14, innerShade);
+
+    // 核心發光
+    PA.rect(ctx, x + 4, y + 4, 8, 8, '#4a2a5e');
+    PA.rect(ctx, x + 5, y + 5, 6, 6, '#5a3a6e');
+    PA.rect(ctx, x + 6, y + 6, 4, 4, '#6a4a80');
+
+    // 中心最亮點
+    PA.pixel(ctx, x + 7, y + 7, '#8a6aa0');
+    PA.pixel(ctx, x + 8, y + 8, '#8a6aa0');
+    PA.pixel(ctx, x + 7, y + 8, '#7a5a90');
+    PA.pixel(ctx, x + 8, y + 7, '#7a5a90');
+
+    // 邊緣發光紋路
+    for (let i = 2; i < 14; i++) {
+      if (rng() > 0.4) {
+        PA.pixel(ctx, x + i, y + 1, '#4a3a5e');
+      }
+      if (rng() > 0.4) {
+        PA.pixel(ctx, x + i, y + 14, '#4a3a5e');
+      }
+      if (rng() > 0.4) {
+        PA.pixel(ctx, x + 1, y + i, '#4a3a5e');
+      }
+      if (rng() > 0.4) {
+        PA.pixel(ctx, x + 14, y + i, '#4a3a5e');
+      }
+    }
+
+    // 角落暗化
+    PA.pixel(ctx, x, y, '#1a0e28');
+    PA.pixel(ctx, x + 15, y, '#1a0e28');
+    PA.pixel(ctx, x, y + 15, '#1a0e28');
+    PA.pixel(ctx, x + 15, y + 15, '#1a0e28');
+
+    // 散落的能量粒子
+    for (let i = 0; i < 4; i++) {
+      const px = 3 + Math.floor(rng() * 10);
+      const py = 3 + Math.floor(rng() * 10);
+      PA.pixel(ctx, x + px, y + py, '#9a7ab0');
+    }
   },
 
   drawWallTile(ctx, x, y, variant) {
@@ -1040,6 +1383,15 @@ DK.Map = {
         if (tile === 'W') {
           const variant = (c * 7 + r * 13) % 6;
           ctx.drawImage(this.tileCache[`wall_${variant}`], x, y);
+        } else if (tile === 'O') {
+          const variant = (c * 7 + r * 13) % 6;
+          ctx.drawImage(this.tileCache[`outer_${variant}`], x, y);
+        } else if (tile === 'B') {
+          const variant = (c * 7 + r * 13) % 6;
+          ctx.drawImage(this.tileCache[`breakable_${variant}`], x, y);
+        } else if (tile === 'H') {
+          const variant = (c * 7 + r * 13) % 6;
+          ctx.drawImage(this.tileCache[`heart_${variant}`], x, y);
         } else if (tile === 'E') {
           ctx.drawImage(this.tileCache['entrance'], x, y);
         } else if (tile === 'X') {
@@ -1106,43 +1458,39 @@ DK.Map = {
     this.renderPoolAnimation(ctx);
     this.renderGrassAnimation(ctx);
 
-    // 第六通道：入口與出口傳送門脈動光暈
-    this.renderPortalGlow(ctx);
+    // 第六通道：地心脈動光暈
+    this.renderHeartGlow(ctx);
 
     // 注意：renderVignette 已移至 main.js restore 之後（螢幕空間，不受 camera 影響）
   },
 
-  /** 入口與出口傳送門脈動光暈動畫 */
-  renderPortalGlow(ctx) {
+  /** 地心脈動光暈動畫 */
+  renderHeartGlow(ctx) {
     const T = DK.CONFIG.TILE_SIZE;
     const timestamp = DK.Game ? DK.Game.time : 0;
-    const alpha = 0.1 + 0.08 * Math.sin(timestamp * 0.003);
+    const alpha = 0.12 + 0.08 * Math.sin(timestamp * 0.002);
     const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
     for (let r = startRow; r <= endRow; r++) {
       for (let c = startCol; c <= endCol; c++) {
         const tile = this.layout[r][c];
-        if (tile !== 'E' && tile !== 'X') continue;
+        if (tile !== 'H') continue;
 
         const x = c * T;
         const y = r * T;
-        const isEntrance = tile === 'E';
-        const baseR = isEntrance ? 68 : 255;
-        const baseG = isEntrance ? 255 : 68;
-        const baseB = isEntrance ? 68 : 68;
 
         // 3 層同心半透明矩形模擬光暈擴散（由外到內漸亮）
-        // 第 3 層（最外層）
-        ctx.fillStyle = `rgba(${baseR},${baseG},${baseB},${alpha * 0.4})`;
-        ctx.fillRect(x - 3, y - 3, T + 6, T + 6);
+        // 第 3 層（最外層）— 紫色光暈
+        ctx.fillStyle = `rgba(120,80,180,${alpha * 0.3})`;
+        ctx.fillRect(x - 4, y - 4, T + 8, T + 8);
 
         // 第 2 層（中層）
-        ctx.fillStyle = `rgba(${baseR},${baseG},${baseB},${alpha * 0.7})`;
-        ctx.fillRect(x - 1, y - 1, T + 2, T + 2);
+        ctx.fillStyle = `rgba(140,100,200,${alpha * 0.5})`;
+        ctx.fillRect(x - 2, y - 2, T + 4, T + 4);
 
         // 第 1 層（內層，最亮）
-        ctx.fillStyle = `rgba(${baseR},${baseG},${baseB},${alpha})`;
-        ctx.fillRect(x + 1, y + 1, T - 2, T - 2);
+        ctx.fillStyle = `rgba(160,120,220,${alpha})`;
+        ctx.fillRect(x, y, T, T);
       }
     }
   },
@@ -1174,7 +1522,7 @@ DK.Map = {
       // 中層火焰
       PA.pixel(ctx, tx + 7, ty + 1, '#ffcc44');
       PA.pixel(ctx, tx + 8, ty + 1, '#ffaa22');
-      // 火焰高度 5→6px：加一個額外頂部像素
+      // 火焰高度 5->6px：加一個額外頂部像素
       PA.pixel(ctx, tx + 7, ty, '#ffaa22');
       // 外層火焰（增至 4 個不規則點）
       if (flicker > 0.3) {
@@ -1242,14 +1590,14 @@ DK.Map = {
     ctx.fillRect(0, 0, T * 3, H);
     ctx.fillRect(W - T * 3, 0, T * 3, H);
 
-    // 邊緣暗化營造氛圍（alpha 0.15 → 0.22）
+    // 邊緣暗化營造氛圍（alpha 0.15 -> 0.22）
     ctx.fillStyle = 'rgba(10,8,18,0.22)';
     ctx.fillRect(0, 0, W, T);
     ctx.fillRect(0, H - T, W, T);
     ctx.fillRect(0, 0, T, H);
     ctx.fillRect(W - T, 0, T, H);
 
-    // 角落更深的暗化（alpha 0.1 → 0.2）
+    // 角落更深的暗化（alpha 0.1 -> 0.2）
     ctx.fillStyle = 'rgba(10,8,18,0.2)';
     ctx.fillRect(0, 0, T * 2, T * 2);
     ctx.fillRect(W - T * 2, 0, T * 2, T * 2);

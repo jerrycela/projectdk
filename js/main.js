@@ -112,6 +112,19 @@ window.DK = window.DK || {};
 
     DK.Map.render(offCtx);
 
+    // Breach phase: highlight all breakable walls
+    if (DK.Game.state === 'breach') {
+      renderBreakableWallHighlight(offCtx, DK.Game.time);
+    }
+
+    // Render Dungeon Heart (2x2 pulsating crystal)
+    renderDungeonHeart(offCtx, DK.Game.time);
+
+    // Breach phase: path preview from holes to heart
+    if (DK.Game.state === 'breach') {
+      renderPathPreview(offCtx);
+    }
+
     // Render environment particles
     if (DK.Game.particles) {
       const worldW = DK.CONFIG.WORLD_WIDTH || DK.CONFIG.GAME_WIDTH;
@@ -974,6 +987,151 @@ window.DK = window.DK || {};
     }
   }
 
+  // === Dungeon Heart Renderer ===
+
+  function renderDungeonHeart(ctx, time) {
+    const hp = DK.Map.heartPos;
+    if (!hp) return;
+    const T = DK.CONFIG.TILE_SIZE;
+    const x = hp.col * T;
+    const y = hp.row * T;
+    const PA = DK.PixelArt;
+
+    // Hurt flash
+    const isFlashing = DK.Game.heartFlashTimer > 0;
+
+    // Pulse (2000ms cycle)
+    const pulse = Math.sin(time / 1000 * Math.PI) * 0.5 + 0.5;
+    const hpPercent = DK.Game.dungeonHeartHP / DK.Game.dungeonHeartMaxHP;
+
+    // HP < 30%: faster pulse
+    const fastPulse = hpPercent < 0.3 ? Math.sin(time / 500 * Math.PI) * 0.5 + 0.5 : pulse;
+
+    // Stone base (2x2 = 32x32 pixel area)
+    PA.rect(ctx, x + 1, y + 1, 30, 30, '#2a1a3a');
+    PA.rect(ctx, x + 2, y + 2, 28, 28, '#3a2a4a');
+
+    // Crystal heart (center area)
+    const coreColor = isFlashing ? '#ff4444' : '#aa44ff';
+    const coreLight = isFlashing ? '#ff8888' : '#cc88ff';
+    const coreDark = isFlashing ? '#880000' : '#6622aa';
+
+    // Diamond shape (~16x20 pixels)
+    PA.rect(ctx, x + 10, y + 6, 12, 20, coreDark);
+    PA.rect(ctx, x + 12, y + 4, 8, 24, coreColor);
+    PA.rect(ctx, x + 14, y + 3, 4, 26, coreLight);
+
+    // Inner glow point (pulsating)
+    const glowSize = 2 + Math.round(fastPulse * 2);
+    PA.rect(ctx, x + 15 - Math.floor(glowSize / 2), y + 14 - Math.floor(glowSize / 2),
+            glowSize, glowSize, '#ffffff');
+
+    // Glow effect (tile-based halo)
+    const glowAlpha = 0.08 + fastPulse * 0.08;
+    const glowRadius = 3 + fastPulse * 0.5;
+    for (let gr = -glowRadius; gr <= glowRadius; gr++) {
+      for (let gc = -glowRadius; gc <= glowRadius; gc++) {
+        const dist = Math.sqrt(gr * gr + gc * gc);
+        if (dist > glowRadius) continue;
+        const falloff = 1 - dist / glowRadius;
+        const alpha = glowAlpha * falloff * falloff;
+        if (alpha < 0.01) continue;
+        const gx = (hp.col + 1) * T + gc * T;
+        const gy = (hp.row + 1) * T + gr * T;
+        const r = isFlashing ? 255 : 170;
+        const g = isFlashing ? 68 : 68;
+        const b = isFlashing ? 68 : 255;
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+        ctx.fillRect(gx, gy, T, T);
+      }
+    }
+
+    // HP bar (above heart) - only show when damaged
+    if (hpPercent < 1) {
+      const barW = 28;
+      const barX = x + 2;
+      const barY = y - 4;
+      PA.rect(ctx, barX - 1, barY - 1, barW + 2, 5, '#1a1a1a');
+      PA.rect(ctx, barX, barY, barW, 3, '#2a0a0a');
+      const fillW = Math.ceil(barW * hpPercent);
+      PA.rect(ctx, barX, barY + 1, fillW, 2, hpPercent > 0.3 ? '#ff4444' : '#ff0000');
+      PA.rect(ctx, barX, barY, fillW, 1, hpPercent > 0.3 ? '#ff8888' : '#ff4444');
+    }
+  }
+
+  // === Wall Break Effect ===
+
+  function renderWallBreak(ctx, PA, effect, progress) {
+    // Wall debris particles
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + progress * 2;
+      const dist = progress * 12;
+      const px = Math.round(effect.x + Math.cos(angle) * dist);
+      const py = Math.round(effect.y + Math.sin(angle) * dist);
+      if (progress < 0.7) {
+        const colors = ['#3e3e5a', '#2d2d44', '#565470'];
+        PA.pixel(ctx, px, py, colors[i % 3]);
+      }
+    }
+    // Dust cloud
+    if (progress < 0.4) {
+      const dustR = progress * 8;
+      for (let a = 0; a < 6; a++) {
+        const angle = (a / 6) * Math.PI * 2;
+        PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * dustR),
+                 Math.round(effect.y + Math.sin(angle) * dustR), '#888888');
+      }
+    }
+  }
+
+  // === Breakable Wall Highlight (breach phase) ===
+
+  function renderBreakableWallHighlight(ctx, time) {
+    const T = DK.CONFIG.TILE_SIZE;
+    const pulse = Math.sin(time / 500) * 0.15 + 0.25;
+    const range = DK.Map.getVisibleRange ? DK.Map.getVisibleRange() : null;
+    if (!range) return;
+    const { startCol, startRow, endCol, endRow } = range;
+
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        if (!DK.Map.isBreakable || !DK.Map.isBreakable(c, r)) continue;
+        ctx.fillStyle = `rgba(255,200,100,${pulse})`;
+        ctx.fillRect(c * T, r * T, T, T);
+      }
+    }
+  }
+
+  // === Path Preview (breach phase) ===
+
+  function renderPathPreview(ctx) {
+    if (DK.Game.state !== 'breach') return;
+    if (!DK.Map.distanceField || !DK.Map.heartPos) return;
+    if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) return;
+    const T = DK.CONFIG.TILE_SIZE;
+
+    for (const hole of DK.Map.breachHoles) {
+      let col = hole.col;
+      let row = hole.row;
+      let steps = 0;
+      const maxSteps = 200;
+
+      while (steps < maxSteps) {
+        const next = DK.Map.getNextStep ? DK.Map.getNextStep(col, row) : null;
+        if (!next) break;
+        if (DK.Map.isHeart && DK.Map.isHeart(next.col, next.row)) break;
+
+        ctx.fillStyle = 'rgba(255,200,100,0.15)';
+        ctx.fillRect(next.col * T + 4, next.row * T + 4, T - 8, T - 8);
+
+        col = next.col;
+        row = next.row;
+        steps++;
+      }
+    }
+  }
+
   // === Minecart Renderer ===
 
   function renderMinecarts(ctx) {
@@ -1070,6 +1228,7 @@ window.DK = window.DK || {};
         case 'hero_deploy': renderHeroDeploy(ctx, PA, effect, progress); break;
         case 'hero_recall': renderHeroRecall(ctx, PA, effect, progress); break;
         case 'minecart_hit': renderMinecartHit(ctx, PA, effect, progress); break;
+        case 'wall_break': renderWallBreak(ctx, PA, effect, progress); break;
         case 'damage':
         case 'gold':
         case 'float_text':

@@ -15,6 +15,10 @@ DK.Traps = {
     const typeDef = Object.values(DK.TRAP_TYPES).find(t => t.id === trapTypeId);
     if (!typeDef) return false;
 
+    // Safety: cannot place on outer walls or heart tiles
+    if (DK.Map.isOuter && DK.Map.isOuter(col, row)) return false;
+    if (DK.Map.isHeart && DK.Map.isHeart(col, row)) return false;
+
     // Check if already occupied
     if (this.placed.some(t => t.col === col && t.row === row)) return false;
 

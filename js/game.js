@@ -5,9 +5,12 @@
 window.DK = window.DK || {};
 
 DK.Game = {
-  state: 'start', // 'start' | 'playing'
+  state: 'start', // 'start' | 'planning' | 'breach' | 'invasion'
   gold: 0,
-  lives: 0,
+  dungeonHeartHP: 0,
+  dungeonHeartMaxHP: 0,
+  heartFlashTimer: 0,
+  waveAutoTimer: 0,
   currentWave: 0,
   waveActive: false,
   gameOver: false,
@@ -20,6 +23,7 @@ DK.Game = {
   time: 0,
   screenShake: { intensity: 0, timer: 0 },
   camera: { x: 0, y: 0 },
+  _spawnHoleIndex: 0,
 
   clampCamera() {
     const maxX = (DK.CONFIG.WORLD_COLS - DK.CONFIG.GRID_COLS) * DK.CONFIG.TILE_SIZE;
@@ -30,7 +34,11 @@ DK.Game = {
 
   init() {
     this.gold = DK.CONFIG.STARTING_GOLD;
-    this.lives = DK.CONFIG.STARTING_LIVES;
+    this.dungeonHeartHP = DK.CONFIG.DUNGEON_HEART_HP;
+    this.dungeonHeartMaxHP = DK.CONFIG.DUNGEON_HEART_HP;
+    this.heartFlashTimer = 0;
+    this.waveAutoTimer = 0;
+    this._spawnHoleIndex = 0;
     this.currentWave = 0;
     this.waveActive = false;
     this.gameOver = false;
@@ -55,8 +63,46 @@ DK.Game = {
   },
 
   startGame() {
-    this.state = 'playing';
+    this.state = 'planning';
     this.init();
+  },
+
+  startBreach() {
+    if (this.state !== 'planning') return;
+    this.state = 'breach';
+  },
+
+  startInvasion() {
+    if (this.state !== 'breach') return;
+    if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) return;
+    this.state = 'invasion';
+    this._spawnHoleIndex = 0;
+    this.startWave();
+  },
+
+  damageHeart(amount) {
+    this.dungeonHeartHP = Math.max(0, this.dungeonHeartHP - amount);
+    this.heartFlashTimer = 300;
+    this.screenShake = { intensity: 3, timer: 200 };
+
+    // 傷害數字特效
+    const hp = DK.Map.heartPos;
+    if (hp) {
+      const T = DK.CONFIG.TILE_SIZE;
+      this.effects.push({
+        type: 'damage',
+        x: (hp.col + 1) * T,
+        y: hp.row * T - 4,
+        text: `-${amount}`,
+        color: '#ff4444',
+        duration: 800,
+        timer: 0,
+      });
+    }
+
+    if (this.dungeonHeartHP <= 0) {
+      this.gameOver = true;
+    }
   },
 
   startWave() {
@@ -90,33 +136,45 @@ DK.Game = {
       this.time += dt;
       return;
     }
+
+    // planning 和 breach 階段只更新時間和 UI
+    if (this.state === 'planning' || this.state === 'breach') {
+      this.time += dt;
+      DK.UI.update(dt);
+      // 更新粒子和特效（環境動畫繼續）
+      this.updateParticles(dt);
+      this.updateEffects(dt);
+      return;
+    }
+
+    // invasion 階段 = 原本的 playing 邏輯
     if (this.gameOver) return;
 
     this.time += dt;
 
-    // Spawn enemies
+    // Heart flash timer
+    if (this.heartFlashTimer > 0) {
+      this.heartFlashTimer -= dt;
+    }
+
+    // Spawn enemies from breach holes（取代原本的單一入口生成）
     if (this.waveActive && this.spawnQueue.length > 0) {
       this.spawnTimer += dt;
       if (this.spawnTimer >= DK.CONFIG.ENEMY_SPAWN_INTERVAL) {
         this.spawnTimer = 0;
         const type = this.spawnQueue.shift();
-        DK.Enemies.spawn(type);
+        // 從洞口之一生成（輪流分配）
+        if (DK.Map.breachHoles && DK.Map.breachHoles.length > 0) {
+          const holeIdx = this._spawnHoleIndex % DK.Map.breachHoles.length;
+          this._spawnHoleIndex++;
+          const hole = DK.Map.breachHoles[holeIdx];
+          DK.Enemies.spawnAt(type, hole.col, hole.row);
+        }
       }
     }
 
     // Update enemies
     DK.Enemies.update(dt);
-
-    // Check for enemies that reached the end
-    for (const enemy of DK.Enemies.active) {
-      if (enemy.reachedEnd && enemy.alive === false && !enemy._counted) {
-        this.lives--;
-        enemy._counted = true;
-        if (this.lives <= 0) {
-          this.gameOver = true;
-        }
-      }
-    }
 
     // Update traps
     DK.Traps.update(dt, DK.Enemies.active);
@@ -145,7 +203,7 @@ DK.Game = {
     // Update particles
     this.updateParticles(dt);
 
-    // Update screen shake
+    // Screen shake
     if (this.screenShake.timer > 0) {
       this.screenShake.timer -= dt;
       if (this.screenShake.timer <= 0) {
@@ -156,7 +214,7 @@ DK.Game = {
     // Update UI
     DK.UI.update(dt);
 
-    // Check wave completion
+    // 波次完成 + 自動下一波
     if (this.waveActive && this.spawnQueue.length === 0) {
       const aliveEnemies = DK.Enemies.active.filter(e => e.alive);
       if (aliveEnemies.length === 0) {
@@ -174,8 +232,19 @@ DK.Game = {
         this.currentWave++;
 
         if (this.currentWave >= DK.WAVES.length) {
-          this.gameOver = true;
+          this.gameOver = true; // 勝利！
+        } else {
+          // 自動開始下一波倒數
+          this.waveAutoTimer = DK.CONFIG.WAVE_AUTO_DELAY;
         }
+      }
+    }
+
+    // 自動波次倒數
+    if (!this.waveActive && this.waveAutoTimer > 0 && !this.gameOver) {
+      this.waveAutoTimer -= dt;
+      if (this.waveAutoTimer <= 0) {
+        this.startWave();
       }
     }
   },
@@ -387,7 +456,7 @@ DK.Game = {
   },
 
   restart() {
-    this.state = 'playing';
+    this.state = 'planning';
     this.init();
   },
 };
