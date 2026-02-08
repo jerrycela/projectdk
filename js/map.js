@@ -109,10 +109,22 @@ DK.Map = {
   // 距離場：distanceField[row][col] = 到地心距離 (-1 = 不可達)
   distanceField: null,
 
+  // 路障系統
+  barricades: [],
+
+  // 穿透距離場（路障視為可行走，用於封路時導航）
+  distanceFieldThrough: null,
+
+  // 路徑預覽快取（每個洞口的路徑座標陣列）
+  pathPreviewCache: [],
+
   init() {
     this.initGrassState();
     this.findHeartPos();
     this.computeDistanceField();
+    this.computeDistanceFieldThrough();
+    this.barricades = [];
+    this.pathPreviewCache = [];
     this.computeTrapSlots();
     this.computeTracks();
     this.prerenderTiles();
@@ -253,6 +265,70 @@ DK.Map = {
     return this.getTile(col, row) === 'H';
   },
 
+  /** 檢查該格是否有路障 */
+  hasBarricade(col, row) {
+    return this.barricades.some(b => b.col === col && b.row === row);
+  },
+
+  /** 取得該格的路障物件 */
+  getBarricadeAt(col, row) {
+    return this.barricades.find(b => b.col === col && b.row === row) || null;
+  },
+
+  /** 放置路障 */
+  placeBarricade(col, row) {
+    if (this.barricades.length >= DK.CONFIG.BARRICADE_MAX) return false;
+    if (this.hasBarricade(col, row)) return false;
+
+    const t = this.getTile(col, row);
+    if (t !== '.' && t !== 'P' && t !== 'G') return false;
+    if (this.isOuter(col, row)) return false;
+    if (this.isHeart(col, row)) return false;
+
+    // 檢查不與陷阱重疊
+    if (DK.Traps && DK.Traps.getTrapAt && DK.Traps.getTrapAt(col, row)) return false;
+    // 檢查不與英雄重疊
+    if (DK.Heroes && DK.Heroes.getHeroAt && DK.Heroes.getHeroAt(col, row)) return false;
+
+    const barricade = {
+      id: Date.now() + Math.random(),
+      col, row,
+      hp: DK.CONFIG.BARRICADE_HP,
+      maxHp: DK.CONFIG.BARRICADE_HP,
+    };
+
+    this.barricades = [...this.barricades, barricade];
+    this.recomputeFields();
+    return true;
+  },
+
+  /** 移除路障（規劃期退回配額） */
+  removeBarricade(col, row) {
+    const idx = this.barricades.findIndex(b => b.col === col && b.row === row);
+    if (idx === -1) return false;
+    this.barricades = [...this.barricades.slice(0, idx), ...this.barricades.slice(idx + 1)];
+    this.recomputeFields();
+    return true;
+  },
+
+  /** 對路障造成傷害，回傳 true 表示被摧毀 */
+  damageBarricade(col, row, amount) {
+    const b = this.getBarricadeAt(col, row);
+    if (!b) return false;
+
+    const newHp = Math.max(0, b.hp - amount);
+    // 更新 HP（immutable style）
+    this.barricades = this.barricades.map(bar =>
+      bar.col === col && bar.row === row ? { ...bar, hp: newHp } : bar
+    );
+
+    if (newHp <= 0) {
+      this.removeBarricade(col, row);
+      return true; // destroyed
+    }
+    return false;
+  },
+
   /** 可放置陷阱的內部地板格（.PGR，排除外圍與牆壁） */
   isInteriorFloor(col, row) {
     const t = this.getTile(col, row);
@@ -278,8 +354,8 @@ DK.Map = {
     // 加入 breachHoles
     this.breachHoles = [...this.breachHoles, { col, row }];
 
-    // 重新計算距離場
-    this.computeDistanceField();
+    // 重新計算距離場（含穿透距離場與路徑預覽）
+    this.recomputeFields();
 
     // 需要重新預渲染被破壞格的地磚（改為地板）
     // 由呼叫端負責觸發重繪
@@ -338,6 +414,7 @@ DK.Map = {
         if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
         if (field[nr][nc] !== -1) continue;
         if (!this.isPath(nc, nr)) continue;
+        if (this.hasBarricade(nc, nr)) continue; // 路障視為牆壁
 
         field[nr][nc] = curDist + 1;
         queue.push({ col: nc, row: nr });
@@ -345,6 +422,64 @@ DK.Map = {
     }
 
     this.distanceField = field;
+  },
+
+  /** BFS 從地心出發，忽略路障（用於封路時導航） */
+  computeDistanceFieldThrough() {
+    const rows = this.layout.length;
+    const cols = this.layout[0].length;
+
+    const field = [];
+    for (let r = 0; r < rows; r++) {
+      field[r] = [];
+      for (let c = 0; c < cols; c++) {
+        field[r][c] = -1;
+      }
+    }
+
+    if (!this.heartPos) {
+      this.distanceFieldThrough = field;
+      return;
+    }
+
+    const queue = [];
+    const hp = this.heartPos;
+    const heartCells = [
+      { col: hp.col, row: hp.row },
+      { col: hp.col + 1, row: hp.row },
+      { col: hp.col, row: hp.row + 1 },
+      { col: hp.col + 1, row: hp.row + 1 },
+    ];
+
+    for (const cell of heartCells) {
+      if (cell.row >= 0 && cell.row < rows && cell.col >= 0 && cell.col < cols) {
+        field[cell.row][cell.col] = 0;
+        queue.push(cell);
+      }
+    }
+
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let head = 0;
+
+    while (head < queue.length) {
+      const cur = queue[head];
+      head++;
+      const curDist = field[cur.row][cur.col];
+
+      for (const [dc, dr] of dirs) {
+        const nc = cur.col + dc;
+        const nr = cur.row + dr;
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+        if (field[nr][nc] !== -1) continue;
+        if (!this.isPath(nc, nr)) continue;
+        // 注意：這裡不檢查路障！
+
+        field[nr][nc] = curDist + 1;
+        queue.push({ col: nc, row: nr });
+      }
+    }
+
+    this.distanceFieldThrough = field;
   },
 
   /** 回傳鄰格中 distanceField 值最小且 >= 0 的 {col, row}，找不到則回傳 null */
@@ -372,6 +507,77 @@ DK.Map = {
 
     if (bestCol === -1) return null;
     return { col: bestCol, row: bestRow };
+  },
+
+  /** 用 distanceFieldThrough 找下一步（封路時用） */
+  getNextStepThrough(col, row) {
+    if (!this.distanceFieldThrough) return null;
+
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let bestCol = -1;
+    let bestRow = -1;
+    let bestDist = Infinity;
+
+    for (const [dc, dr] of dirs) {
+      const nc = col + dc;
+      const nr = row + dr;
+      if (nr < 0 || nr >= this.layout.length || nc < 0 || nc >= this.layout[0].length) continue;
+
+      const dist = this.distanceFieldThrough[nr][nc];
+      if (dist >= 0 && dist < bestDist) {
+        bestDist = dist;
+        bestCol = nc;
+        bestRow = nr;
+      }
+    }
+
+    if (bestCol === -1) return null;
+    return { col: bestCol, row: bestRow };
+  },
+
+  /** 重算兩個距離場 + 路徑預覽 */
+  recomputeFields() {
+    this.computeDistanceField();
+    this.computeDistanceFieldThrough();
+    this.recomputePathPreview();
+  },
+
+  /** 重算路徑預覽快取 */
+  recomputePathPreview() {
+    this.pathPreviewCache = [];
+    if (!this.breachHoles || this.breachHoles.length === 0) return;
+    if (!this.distanceField || !this.heartPos) return;
+
+    for (const hole of this.breachHoles) {
+      const path = [];
+      let col = hole.col;
+      let row = hole.row;
+      let steps = 0;
+      const maxSteps = 200;
+
+      // 先嘗試用正常距離場（有路繞道）
+      const useThrough = this.distanceField[row] && this.distanceField[row][col] === -1;
+
+      while (steps < maxSteps) {
+        const next = useThrough
+          ? this.getNextStepThrough(col, row)
+          : this.getNextStep(col, row);
+        if (!next) break;
+        if (this.isHeart(next.col, next.row)) break;
+
+        path.push({
+          col: next.col,
+          row: next.row,
+          blocked: this.hasBarricade(next.col, next.row)
+        });
+
+        col = next.col;
+        row = next.row;
+        steps++;
+      }
+
+      this.pathPreviewCache = [...this.pathPreviewCache, { hole, path }];
+    }
   },
 
   /**

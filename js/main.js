@@ -144,6 +144,7 @@ window.DK = window.DK || {};
     }
 
     DK.Traps.render(offCtx);
+    renderBarricades(offCtx, DK.Game.time);
     renderMinecarts(offCtx);
     DK.Enemies.render(offCtx, DK.Game.time);
     if (DK.Heroes) DK.Heroes.render(offCtx, DK.Game.time);
@@ -1103,9 +1104,137 @@ window.DK = window.DK || {};
     }
   }
 
+  // === 路障渲染 ===
+
+  function renderBarricades(ctx, time) {
+    if (!DK.Map.barricades) return;
+    const T = DK.CONFIG.TILE_SIZE;
+
+    for (const b of DK.Map.barricades) {
+      const x = b.col * T;
+      const y = b.row * T;
+
+      // 受擊晃動
+      let shakeX = 0;
+      if (b.hp < b.maxHp) {
+        const shakeCycle = Math.sin(time * 0.04) * 1;
+        if (b.hp < b.maxHp * 0.5) shakeX = Math.round(shakeCycle);
+      }
+
+      const bx = x + shakeX;
+
+      // 石磚底座（10px 高）
+      ctx.fillStyle = DK.COLORS.BARRICADE_STONE || '#5a5a6e';
+      ctx.fillRect(bx + 1, y + 4, T - 2, 10);
+
+      // 頂部深色邊緣（2px）
+      ctx.fillStyle = DK.COLORS.BARRICADE_STONE_DARK || '#2a2a3a';
+      ctx.fillRect(bx + 1, y + 2, T - 2, 2);
+
+      // 左上光源 — 左側高光
+      ctx.fillStyle = DK.COLORS.BARRICADE_STONE_LIGHT || '#7a7a8e';
+      ctx.fillRect(bx + 1, y + 4, 1, 10);
+      ctx.fillRect(bx + 1, y + 4, T - 2, 1);
+
+      // 右側和底部陰影
+      ctx.fillStyle = DK.COLORS.BARRICADE_STONE_DARK || '#2a2a3a';
+      ctx.fillRect(bx + T - 2, y + 4, 1, 10);
+      ctx.fillRect(bx + 1, y + 13, T - 2, 1);
+
+      // 灰縫（中間分隔線）
+      ctx.fillStyle = DK.COLORS.BARRICADE_MORTAR || '#3a3a4a';
+      ctx.fillRect(bx + 1, y + 9, T - 2, 1);
+      // 垂直灰縫
+      ctx.fillRect(bx + T / 2, y + 4, 1, 5);
+      ctx.fillRect(bx + T / 4, y + 10, 1, 4);
+      ctx.fillRect(bx + T * 3 / 4, y + 10, 1, 4);
+
+      // 裂痕（HP < 50%）
+      if (b.hp < b.maxHp * 0.5) {
+        ctx.fillStyle = DK.COLORS.BARRICADE_CRACK || '#1a1a2a';
+        ctx.fillRect(bx + 4, y + 5, 1, 3);
+        ctx.fillRect(bx + 5, y + 7, 1, 2);
+        if (b.hp < b.maxHp * 0.25) {
+          ctx.fillRect(bx + 10, y + 6, 1, 4);
+          ctx.fillRect(bx + 11, y + 9, 1, 2);
+        }
+      }
+
+      // HP 條（受損時顯示）
+      if (b.hp < b.maxHp) {
+        const barW = T - 4;
+        const hpRatio = b.hp / b.maxHp;
+        // 背景
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(bx + 2, y, barW, 2);
+        // 血量
+        ctx.fillStyle = hpRatio > 0.5 ? '#44aa44' : hpRatio > 0.25 ? '#aaaa44' : '#aa4444';
+        ctx.fillRect(bx + 2, y, Math.round(barW * hpRatio), 2);
+      }
+    }
+
+    // 路障懸停預覽（breach 階段 + 路障模式）
+    if (DK.Game.state === 'breach' && DK.UI.selectedBarricadeMode && DK.UI.hoveredTile) {
+      const hc = DK.UI.hoveredTile.col;
+      const hr = DK.UI.hoveredTile.row;
+      const tile = DK.Map.getTile ? DK.Map.getTile(hc, hr) : null;
+      if (tile && (tile === '.' || tile === 'P' || tile === 'G') && !(DK.Map.hasBarricade && DK.Map.hasBarricade(hc, hr))) {
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = DK.COLORS.BARRICADE_STONE || '#5a5a6e';
+        ctx.fillRect(hc * T + 1, hr * T + 4, T - 2, 10);
+        ctx.fillStyle = DK.COLORS.BARRICADE_STONE_DARK || '#2a2a3a';
+        ctx.fillRect(hc * T + 1, hr * T + 2, T - 2, 2);
+        ctx.globalAlpha = 1.0;
+      }
+    }
+  }
+
   // === Path Preview (breach phase) ===
 
   function renderPathPreview(ctx) {
+    // 優先使用路徑預覽快取（支援路障標記）
+    if (DK.Map.pathPreviewCache && DK.Map.pathPreviewCache.length > 0) {
+      const T = DK.CONFIG.TILE_SIZE;
+      const time = DK.Game.time || 0;
+
+      for (const { hole, path } of DK.Map.pathPreviewCache) {
+        if (path.length === 0) continue;
+
+        // 從洞口開始畫虛線
+        let prevX = hole.col * T + T / 2;
+        let prevY = hole.row * T + T / 2;
+
+        for (const step of path) {
+          const curX = step.col * T + T / 2;
+          const curY = step.row * T + T / 2;
+
+          // 顏色：路障格用橙色，正常格用紅色
+          const color = step.blocked
+            ? 'rgba(255,160,40,0.5)'
+            : 'rgba(255,80,80,0.35)';
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          // 流動動畫偏移
+          ctx.lineDashOffset = -(time * 0.003) % 6;
+
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(curX, curY);
+          ctx.stroke();
+
+          prevX = curX;
+          prevY = curY;
+        }
+
+        ctx.setLineDash([]);
+        ctx.lineDashOffset = 0;
+      }
+      return;
+    }
+
+    // 回退：無快取時使用舊邏輯
     if (DK.Game.state !== 'breach') return;
     if (!DK.Map.distanceField || !DK.Map.heartPos) return;
     if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) return;
@@ -1229,6 +1358,31 @@ window.DK = window.DK || {};
         case 'hero_recall': renderHeroRecall(ctx, PA, effect, progress); break;
         case 'minecart_hit': renderMinecartHit(ctx, PA, effect, progress); break;
         case 'wall_break': renderWallBreak(ctx, PA, effect, progress); break;
+        case 'barricade_shatter': {
+          if (progress > 1) break;
+
+          // 4-6 個石磚碎片飛散
+          const bsFragments = [
+            { dx: -3, dy: -4, r: 0.3 },
+            { dx: 4, dy: -3, r: 0.5 },
+            { dx: -2, dy: 3, r: 0.7 },
+            { dx: 3, dy: 2, r: 0.4 },
+            { dx: -5, dy: 0, r: 0.6 },
+            { dx: 1, dy: -5, r: 0.2 },
+          ];
+
+          const bsAlpha = 1 - progress;
+          for (const frag of bsFragments) {
+            const fx = effect.x + frag.dx * progress * 8;
+            const fy = effect.y + frag.dy * progress * 8 + progress * progress * 4; // 重力
+            ctx.fillStyle = `rgba(90,90,110,${bsAlpha})`;
+            ctx.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 2, 2);
+            // 較亮碎片
+            ctx.fillStyle = `rgba(122,122,142,${bsAlpha * 0.7})`;
+            ctx.fillRect(Math.round(fx), Math.round(fy), 1, 1);
+          }
+          break;
+        }
         case 'damage':
         case 'gold':
         case 'float_text':

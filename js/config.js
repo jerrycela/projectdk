@@ -44,6 +44,10 @@ DK.CONFIG = {
   MINECART_SPEED: 1.5,        // 格/秒
   MINECART_DAMAGE: 25,
   MINECART_KNOCKBACK: 2,      // 擊退格數
+
+  // Barricade
+  BARRICADE_HP: 100,
+  BARRICADE_MAX: 5,
 };
 
 // Color Palette - Dungeon Theme
@@ -167,6 +171,13 @@ DK.COLORS = {
   GRASS_HIGHLIGHT: '#4a9a4a',
   GRASS_BURNING: '#cc5522',
   GRASS_SCORCHED: '#2a2420',
+
+  // Barricade
+  BARRICADE_STONE: '#5a5a6e',
+  BARRICADE_STONE_DARK: '#2a2a3a',
+  BARRICADE_STONE_LIGHT: '#7a7a8e',
+  BARRICADE_MORTAR: '#3a3a4a',
+  BARRICADE_CRACK: '#1a1a2a',
 
   // Fire element
   ELEMENT_FIRE: '#ff6622',

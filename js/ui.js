@@ -44,6 +44,7 @@ DK.UI = {
   fontsReady: false,
   _evolveButtonRect: null, // Cached evolve button hit area
   _recallButtonRect: null, // { x, y, w, h } 回收按鈕區域
+  selectedBarricadeMode: false, // 路障放置模式
 
   init() {
     this.selectedTrap = null;
@@ -51,6 +52,7 @@ DK.UI = {
     this.selectedPlacedTrap = null;
     this._evolveButtonRect = null;
     this._recallButtonRect = null;
+    this.selectedBarricadeMode = false;
     this.hoveredTile = null;
     this.buildButtons();
     this.checkFonts();
@@ -71,13 +73,14 @@ DK.UI = {
     this.buttons = [];
     const trapTypes = Object.values(DK.TRAP_TYPES);
     const heroTypes = Object.values(DK.HERO_TYPES);
-    const totalItems = trapTypes.length + heroTypes.length;
-    const separatorGap = 14; // Gap between trap and hero sections
+    // 總按鈕數：陷阱 + 英雄 + 路障
+    const totalItems = trapTypes.length + heroTypes.length + 1;
+    const separatorGap = 14; // Gap between sections
 
-    // Dynamic button sizing — now only 4+3 items, more room
+    // Dynamic button sizing — 多一個路障按鈕和分隔間距
     const waveButtonWidth = 100;
     const waveGap = 12;
-    const availableWidth = DK.CONFIG.DISPLAY_WIDTH - 20 - waveButtonWidth - waveGap - 20 - separatorGap;
+    const availableWidth = DK.CONFIG.DISPLAY_WIDTH - 20 - waveButtonWidth - waveGap - 20 - separatorGap * 2;
     const gap = 6;
     const btnWidth = Math.min(120, Math.floor((availableWidth - gap * (totalItems - 1)) / totalItems));
     const btnHeight = 70;
@@ -107,6 +110,16 @@ DK.UI = {
       });
     });
 
+    // 路障按鈕（英雄按鈕之後）
+    const barricadeStartX = heroStartX + (btnWidth + gap) * heroTypes.length + separatorGap;
+    this.buttons.push({
+      barricade: true,
+      x: barricadeStartX,
+      y: startY,
+      width: btnWidth,
+      height: btnHeight,
+    });
+
     // Store layout info for separator and labels
     const trapEndX = startX + (btnWidth + gap) * trapTypes.length - gap;
     this._sectionLayout = {
@@ -116,6 +129,8 @@ DK.UI = {
       trapLabelX: startX + (trapEndX - startX) / 2,
       heroLabelX: heroStartX + ((btnWidth + gap) * heroTypes.length - gap) / 2,
       labelY: startY - 2,
+      // 路障區分隔線
+      barricadeSeparatorX: Math.floor(heroStartX + (btnWidth + gap) * heroTypes.length + separatorGap / 2 - gap / 2),
     };
 
     // Wave start button (always far right)
@@ -200,12 +215,23 @@ DK.UI = {
           this.selectedHeroType = null;
           this.selectedPlacedTrap = null;
           this._evolveButtonRect = null;
+          this.selectedBarricadeMode = false;
           if (DK.Heroes) DK.Heroes.selectedHero = null;
           return true;
         }
         if (btn.hero) {
           this.selectedHeroType = btn.hero;
           this.selectedTrap = null;
+          this.selectedPlacedTrap = null;
+          this._evolveButtonRect = null;
+          this.selectedBarricadeMode = false;
+          if (DK.Heroes) DK.Heroes.selectedHero = null;
+          return true;
+        }
+        if (btn.barricade) {
+          this.selectedBarricadeMode = !this.selectedBarricadeMode;
+          this.selectedTrap = null;
+          this.selectedHeroType = null;
           this.selectedPlacedTrap = null;
           this._evolveButtonRect = null;
           if (DK.Heroes) DK.Heroes.selectedHero = null;
@@ -230,6 +256,20 @@ DK.UI = {
               y: row * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
               timer: 0, duration: 500,
             });
+          }
+          return true;
+        }
+
+        // 路障放置（breach 階段）
+        if (this.selectedBarricadeMode) {
+          // 點擊已有路障 → 移除
+          if (DK.Map.hasBarricade && DK.Map.hasBarricade(col, row)) {
+            DK.Map.removeBarricade(col, row);
+            return true;
+          }
+          // 點擊空地 → 放置
+          if (DK.Map.placeBarricade && DK.Map.placeBarricade(col, row)) {
+            return true;
           }
           return true;
         }
@@ -430,6 +470,10 @@ DK.UI = {
       // Separator line between trap and hero sections
       ctx.fillStyle = C.UI_BORDER;
       ctx.fillRect(sl.separatorX, sl.separatorY, 1, sl.separatorH);
+      // 路障區分隔線
+      if (sl.barricadeSeparatorX) {
+        ctx.fillRect(sl.barricadeSeparatorX, sl.separatorY, 1, sl.separatorH);
+      }
       // "陷阱" label
       ctx.font = DK.FONTS.body(10);
       ctx.textAlign = 'center';
@@ -738,6 +782,55 @@ DK.UI = {
         ctx.fillStyle = 'rgba(255,255,255,0.08)';
         ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
       }
+      return;
+    }
+
+    // 路障按鈕渲染
+    if (btn.barricade) {
+      const isBarricadeSelected = DK.UI.selectedBarricadeMode;
+      ctx.fillStyle = isBarricadeSelected ? '#4a3e6e' : '#1e1a2e';
+      ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
+      ctx.strokeStyle = isBarricadeSelected ? '#ffaa44' : '#4a3e6e';
+      ctx.lineWidth = isBarricadeSelected ? 2 : 1;
+      ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
+
+      // 石磚圖示（小型）
+      const iconX = btn.x + btn.width / 2 - 8;
+      const iconY = btn.y + 12;
+      ctx.fillStyle = '#5a5a6e';
+      ctx.fillRect(iconX, iconY, 16, 10);
+      ctx.fillStyle = '#7a7a8e';
+      ctx.fillRect(iconX, iconY, 16, 1);
+      ctx.fillRect(iconX, iconY, 1, 10);
+      ctx.fillStyle = '#3a3a4a';
+      ctx.fillRect(iconX, iconY + 5, 16, 1);
+
+      // 文字（路障 + 數量）
+      const count = DK.Map.barricades ? DK.Map.barricades.length : 0;
+      const max = DK.CONFIG.BARRICADE_MAX || 5;
+      ctx.fillStyle = '#e8e0d0';
+      ctx.font = DK.FONTS.body(11);
+      ctx.textAlign = 'center';
+      ctx.fillText('路障', btn.x + btn.width / 2, btn.y + 40);
+      ctx.fillStyle = count >= max ? '#ff4444' : '#8a8070';
+      ctx.font = DK.FONTS.body(10);
+      ctx.fillText(`${count}/${max}`, btn.x + btn.width / 2, btn.y + 55);
+      ctx.textAlign = 'left';
+
+      // 選取中脈衝邊框
+      if (isBarricadeSelected) {
+        const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+        ctx.strokeStyle = `rgba(255,170,68,${pulse})`;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
+      }
+
+      // 懸停高亮
+      if (btn === this.hoveredButton) {
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+      }
+
       return;
     }
 
@@ -1552,6 +1645,7 @@ DK.UI = {
     this.selectedPlacedTrap = null;
     this._evolveButtonRect = null;
     this._recallButtonRect = null;
+    this.selectedBarricadeMode = false;
     this.tooltipText = '';
     if (DK.Heroes) DK.Heroes.selectedHero = null;
   },

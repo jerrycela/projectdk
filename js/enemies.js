@@ -208,15 +208,16 @@ DK.Enemies = {
       // Skip movement if paralyzed
       if (enemy.paralyzed) continue;
 
-      // === 距離場移動（取代原本的路徑跟隨） ===
+      // === 距離場移動（含路障攻擊邏輯） ===
       const curCol = Math.floor(enemy.x / T);
       const curRow = Math.floor(enemy.y / T);
 
-      // 檢查是否已到達地心相鄰格（distanceField === 1）
+      // 檢查是否已到達地心相鄰格（distanceField === 1 或 distanceFieldThrough === 1）
       if (DK.Map.isHeart && DK.Map.heartPos) {
-        const isNextToHeart = DK.Map.distanceField &&
-          DK.Map.distanceField[curRow] &&
-          DK.Map.distanceField[curRow][curCol] === 1;
+        const df = DK.Map.distanceField;
+        const dft = DK.Map.distanceFieldThrough;
+        const isNextToHeart = (df && df[curRow] && df[curRow][curCol] === 1) ||
+          (dft && dft[curRow] && dft[curRow][curCol] === 1 && !DK.Map.hasBarricade(curCol, curRow));
 
         if (isNextToHeart) {
           // 攻擊地心
@@ -228,7 +229,84 @@ DK.Enemies = {
         }
       }
 
-      // 用距離場找下一步
+      // 判斷是否被路障封路（正常距離場無法到達 = -1 或不存在）
+      const df = DK.Map.distanceField;
+      const isBlocked = !df || !df[curRow] || df[curRow][curCol] === -1;
+
+      if (isBlocked && DK.Map.hasBarricade) {
+        // 封路模式：用 distanceFieldThrough 導航（忽略路障的距離場）
+        const nextStep = DK.Map.getNextStepThrough ? DK.Map.getNextStepThrough(curCol, curRow) : null;
+
+        if (nextStep && DK.Map.hasBarricade(nextStep.col, nextStep.row)) {
+          // 下一步是路障 → 停下攻擊
+          if (!enemy._attackingBarricade) {
+            enemy._attackingBarricade = { col: nextStep.col, row: nextStep.row };
+            enemy._barricadeAttackTimer = 0;
+          }
+
+          // 累計攻擊計時器
+          enemy._barricadeAttackTimer = (enemy._barricadeAttackTimer || 0) + dt;
+          const attackInterval = 1000; // 每秒攻擊一次
+
+          if (enemy._barricadeAttackTimer >= attackInterval) {
+            enemy._barricadeAttackTimer -= attackInterval;
+            const damage = enemy.type.heartDamage || 10;
+            const destroyed = DK.Map.damageBarricade(nextStep.col, nextStep.row, damage);
+
+            // 傷害數字特效
+            if (DK.Game.effects) {
+              DK.Game.effects.push({
+                type: 'damage',
+                x: nextStep.col * T + T / 2,
+                y: nextStep.row * T - 4,
+                text: `-${damage}`,
+                color: '#ffaa44',
+                duration: 600,
+                timer: 0,
+              });
+            }
+
+            if (destroyed) {
+              // 路障被摧毀 → 碎裂特效
+              if (DK.Game.effects) {
+                DK.Game.effects.push({
+                  type: 'barricade_shatter',
+                  x: nextStep.col * T + T / 2,
+                  y: nextStep.row * T + T / 2,
+                  timer: 0,
+                  duration: 400,
+                });
+              }
+              enemy._attackingBarricade = null;
+              enemy._barricadeAttackTimer = 0;
+            }
+          }
+          continue; // 攻擊路障時不移動
+        }
+
+        // 下一步不是路障 → 正常移動（用 through 距離場）
+        if (nextStep) {
+          enemy._attackingBarricade = null;
+          const targetX = nextStep.col * T + T / 2;
+          const targetY = nextStep.row * T + T / 2;
+          const dx = targetX - enemy.x;
+          const dy = targetY - enemy.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 1) {
+            enemy.x = targetX;
+            enemy.y = targetY;
+          } else {
+            const moveSpeed = enemy.speed * enemy.slowFactor * (dt / 16);
+            enemy.x += (dx / dist) * moveSpeed;
+            enemy.y += (dy / dist) * moveSpeed;
+          }
+        }
+        continue;
+      }
+
+      // 正常模式：用 distanceField 導航（路障 = 牆壁，自動繞道）
+      enemy._attackingBarricade = null;
       const nextStep = DK.Map.getNextStep ? DK.Map.getNextStep(curCol, curRow) : null;
       if (!nextStep) continue; // 無路可走
 
@@ -239,7 +317,6 @@ DK.Enemies = {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 1) {
-        // 已到達目標格，更新格座標
         enemy.x = targetX;
         enemy.y = targetY;
       } else {
