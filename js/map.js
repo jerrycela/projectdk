@@ -13,33 +13,35 @@ DK.Map = {
     { col: 37, row: 2 },
     { col: 2, row: 23 },
     { col: 37, row: 23 },
-    // 左側內牆 W 格
-    { col: 7, row: 3 },
-    { col: 5, row: 9 },
-    { col: 5, row: 16 },
-    { col: 7, row: 22 },
-    // 右側內牆 W 格
-    { col: 28, row: 3 },
-    { col: 22, row: 9 },
-    { col: 22, row: 16 },
-    { col: 28, row: 22 },
-    // 左上角落房間牆壁
-    { col: 4, row: 4 },
-    { col: 8, row: 4 },
-    // 右上角落房間牆壁
-    { col: 27, row: 4 },
-    { col: 31, row: 4 },
-    // 中央心臟房牆壁
-    { col: 12, row: 11 },
-    { col: 23, row: 10 },
-    { col: 16, row: 15 },
-    { col: 23, row: 15 },
-    // 左下角落房間牆壁
-    { col: 4, row: 21 },
-    { col: 8, row: 21 },
-    // 右下角落房間牆壁
-    { col: 27, row: 21 },
-    { col: 31, row: 21 },
+    // 北側迷宮（蛇繞走廊入口附近）
+    { col: 12, row: 3 },
+    { col: 27, row: 3 },
+    // 水牢房附近
+    { col: 7, row: 7 },
+    { col: 12, row: 7 },
+    // 熔岩祭壇附近
+    { col: 27, row: 6 },
+    { col: 33, row: 7 },
+    // 西側入口走廊
+    { col: 3, row: 8 },
+    // 東側入口走廊
+    { col: 36, row: 8 },
+    // 中央迷宮帶（守衛廳附近）
+    { col: 3, row: 12 },
+    { col: 13, row: 12 },
+    { col: 18, row: 12 },
+    { col: 33, row: 12 },
+    // 荒草庭院 / 地心附近
+    { col: 7, row: 13 },
+    { col: 23, row: 13 },
+    // 下層迷宮
+    { col: 3, row: 16 },
+    { col: 36, row: 16 },
+    { col: 7, row: 17 },
+    { col: 33, row: 17 },
+    // 南側蛇繞走廊
+    { col: 12, row: 19 },
+    { col: 27, row: 19 },
   ],
 
   // 地圖佈局: W=牆壁, .=路徑, O=外圍, B=可破壞牆, H=地心, A=深淵, P=水潭, G=草叢, R=軌道
@@ -48,29 +50,29 @@ DK.Map = {
     // row 0-1: 全外圍
     'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO', // row 0
     'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO', // row 1
-    // row 2: 外牆上邊 (cols 0-1=O, 2=W角, 3-36=B, 37=W角, 38-39=O)
+    // row 2: 外牆上邊
     'OOWBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBWOO', // row 2
-    // rows 3-22: 左右 cols 0-1=O, col 2=B, col 37=B, cols 38-39=O, 內部 cols 3-36
-    'OOB....W....A..........A....W......G.BOO', // row 3
-    'OOB.WPPPW..............W...WPPPW..G..BOO', // row 4
-    'OOB.WGGGW..............W...WGGGW.....BOO', // row 5
-    'OOB.WPPPW..........A.......WPPPW.....BOO', // row 6
-    'OOB.WWWWW..................WWWWW.....BOO', // row 7
-    'OOB........A.........................BOO', // row 8
-    'OOB..W..........W.....W..............BOO', // row 9
-    'OOB..W.....WWWWW...WWWWWW............BOO', // row 10
-    'OOB.........W.GGGGGGGG.W..A..........BOO', // row 11
-    'OOB...A.....W.GG.HH.GG.W.............BOO', // row 12
-    'OOB.........W.GG.HH.GG.W.............BOO', // row 13
-    'OOB.........W.GGGGGGGG.W....A........BOO', // row 14
-    'OOB.........WWWWW...WWWWWW...........BOO', // row 15
-    'OOB..W..........W.....W..............BOO', // row 16
-    'OOB........A.........................BOO', // row 17
-    'OOB.WWWWW..................WWWWW.....BOO', // row 18
-    'OOB.WPPPW..........A.......WPPPW.....BOO', // row 19
-    'OOB.WGGGW..............W...WGGGW.....BOO', // row 20
-    'OOB.WPPPW..............W...WPPPW..G..BOO', // row 21
-    'OOB....W....A..........A....W......G.BOO', // row 22
+    // rows 3-22: 迷宮地城（3-tile buffer + 14×7 迷宮 + 7 主題房間）
+    'OOBWWWWWWWW.WWWWWWWWWWWWWWWWWWWWWWWWWBOO', // row 3  N走廊→迷宮入口
+    'OOBWWWWWWWW......................WWWWBOO', // row 4  N蛇繞走廊
+    'OOBWWWWWWWWWWWWWWWWWWWWWWWWWWWWW.WWWWBOO', // row 5  牆壁分隔層
+    'OOBWWW.........W...........W.....WWWWBOO', // row 6  迷宮第1行
+    'OOBWWW.WPPPPWW.W.W.WWWWWWW..AA.W.WWWWBOO', // row 7  水牢+熔岩祭壇
+    'OOBWWW..PPPP.....W.W.W......AA...WWWWBOO', // row 8  水牢+熔岩
+    'OOB..W.WPPPP.WWWWW.W.W.WWWW....W.WW..BOO', // row 9  W/E入口連接
+    'OOBW.W...........W.W.......W.....WW.WBOO', // row 10 迷宮中帶
+    'OOBW.WWWWWWWWW.W......WWWW.W...W.WW.WBOO', // row 11 守衛廳上方
+    'OOBW.W...W...W....W.W....W.W.W.W.WW.WBOO', // row 12 守衛廳+走廊
+    'OOBW.W.WWW.W.W.W.......WWW.W.W.WWWW.WBOO', // row 13 迷宮
+    'OOBW.W.....W.....WW.WW.W...W.W...WW.WBOO', // row 14 迷宮
+    'OOBW.W.WGGGGG.WWWWHHWW.W.WW....W.WW.WBOO', // row 15 庭院+地心北牆
+    'OOBW....GGGGGAAAAAHHAW.W.......W....WBOO', // row 16 庭院+深淵橋+地心
+    'OOBWWW.WGGG..........W.W.W....WW.WWWWBOO', // row 17 庭院+寶藏室走廊
+    'OOBWWW.WGGGGGAAAAAAAAW...........WWWWBOO', // row 18 庭院+深淵南
+    'OOBWWW.WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWBOO', // row 19 牆壁分隔層
+    'OOBWWW.WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWBOO', // row 20 S蛇繞走廊入口
+    'OOBWWW....................WWWWWWWWWWWBOO', // row 21 S蛇繞走廊
+    'OOBWWWWWWWWWWWWWWWWWWWWWW.WWWWWWWWWWWBOO', // row 22 S走廊→迷宮入口
     // row 23: 外牆下邊
     'OOWBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBWOO', // row 23
     // row 24-25: 全外圍
