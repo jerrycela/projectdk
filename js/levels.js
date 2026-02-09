@@ -8,7 +8,7 @@ DK.LEVELS = [
     name: '破牆試煉',
     description: '學習破除路障與埋設障礙物的基礎技能',
 
-    // 直線走廊 + 終點房間設計（迭代 10 最終版）
+    // 直線走廊（修正版 - 路徑完全連通）
     layout: [
       'OOOOOOOOOOOOOOOOOOOO',
       'OWWWWWWWBBWWWWWWWWWO',
@@ -17,10 +17,10 @@ DK.LEVELS = [
       'OW........WW......WO',
       'OW........WW......WO',
       'OW........WW......WO',
-      'OW......WWWWWW....WO',
-      'OW......W.HH.W....WO',
-      'OW......W....W....WO',
-      'OW......WWWWWW....WO',
+      'OW........WW......WO',
+      'OW........WW......WO',
+      'OW........HH......WO',
+      'OW........WW......WO',
       'OWWWWWWWWWWWWWWWWWWO',
       'OOOOOOOOOOOOOOOOOOOO',
     ],
@@ -83,7 +83,7 @@ DK.LEVELS = [
     name: '水坑戰術',
     description: '掌握水元素與電擊陷阱的協同作戰',
 
-    // L 型走廊 + 轉角水坑設計（迭代 10 最終版）
+    // L 型走廊（修正版 - 路徑完全連通）
     layout: [
       'OOOOOOOOOOOOOOOOOOOO',
       'OWWWWWWWBBWWWWWWWWWO',
@@ -92,10 +92,10 @@ DK.LEVELS = [
       'OW........WW......WO',
       'OW........WW......WO',
       'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........WWWWWWWWWO',
-      'OW..PP........HH.WWO',
-      'OW..PP......WWWWWWWO',
+      'OW..PP....WW......WO',
+      'OW..PP............WO',
+      'OW................WO',
+      'OW..............HHWO',
       'OWWWWWWWWWWWWWWWWWWO',
       'OOOOOOOOOOOOOOOOOOOO',
     ],
@@ -209,19 +209,19 @@ DK.LEVELS = [
     name: '組合攻勢',
     description: '綜合運用所有元素反應',
 
-    // 不對稱雙路徑 + 混合元素設計（迭代 10 最終版）
+    // 雙路徑開放區域（修正版 - 路徑完全連通）
     layout: [
       'OOOOOOOOOOOOOOOOOOOO',
-      'OWWWBBWWWWWWWWBBWWWO',
-      'OW..WW........WW..WO',
-      'OW..WW........WW..WO',
-      'OW..WW........WW..WO',
-      'OW..WWGG......WW..WO',
-      'OW....GG..HH......WO',
-      'OW........PP......WO',
-      'OW........PP..WW..WO',
-      'OW............WW..WO',
-      'OW............WW..WO',
+      'OWWWWBBWWWWWWWBBWWWO',
+      'OW................WO',
+      'OW................WO',
+      'OW..GG............WO',
+      'OW..GG............WO',
+      'OW........HH......WO',
+      'OW..........PP....WO',
+      'OW..........PP....WO',
+      'OW................WO',
+      'OW................WO',
       'OWWWWWWWWWWWWWWWWWWO',
       'OOOOOOOOOOOOOOOOOOOO',
     ],
