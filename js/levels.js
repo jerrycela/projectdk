@@ -271,11 +271,11 @@ DK.LEVELS = [
 
 // LevelManager
 DK.LevelManager = {
-  currentLevelIndex: 0,
+  currentLevelIndex: 4,  // 臨時修改：直接載入 Level 5（40×26 大地圖）
   currentLevel: null,
 
   init() {
-    this.loadLevel(0);
+    this.loadLevel(4);  // 臨時修改：直接載入 Level 5
   },
 
   loadLevel(index) {
