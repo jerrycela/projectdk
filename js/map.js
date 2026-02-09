@@ -48,63 +48,7 @@ DK.Map = {
   // layer: 1=地板, 2=物件, 3=牆壁
   // 水牢區實際範圍: P 格 (8-11, 7-9), W 格周圍, . 格 (6,7), (6-7,8), (3-4,9), (6,9)
   decorations: [
-    // === 水牢區 (row 7-9, col 3-11) ===
-
-    // Layer 1 - 地板裝飾（只能放在 . 或 P 格）
-    // crack_small × 8（散布在 . 格和 P 格）
-    { type: 'crack_small', variant: 0, col: 6, row: 7, layer: 1 },  // . 格
-    { type: 'crack_small', variant: 1, col: 6, row: 8, layer: 1 },  // . 格
-    { type: 'crack_small', variant: 0, col: 7, row: 8, layer: 1 },  // . 格
-    { type: 'crack_small', variant: 1, col: 3, row: 9, layer: 1 },  // . 格
-    { type: 'crack_small', variant: 0, col: 4, row: 9, layer: 1 },  // . 格
-    { type: 'crack_small', variant: 1, col: 6, row: 9, layer: 1 },  // . 格
-    { type: 'crack_small', variant: 0, col: 8, row: 7, layer: 1 },  // P 格
-    { type: 'crack_small', variant: 1, col: 10, row: 8, layer: 1 }, // P 格
-
-    // moss × 6（水池周圍的 . 格）
-    { type: 'moss', variant: 0, col: 6, row: 7, layer: 1 },  // . 格（水池左側）
-    { type: 'moss', variant: 1, col: 7, row: 8, layer: 1 },  // . 格（水池左側）
-    { type: 'moss', variant: 0, col: 6, row: 8, layer: 1 },  // . 格（水池左側）
-    { type: 'moss', variant: 1, col: 6, row: 9, layer: 1 },  // . 格（水池左下）
-    { type: 'moss', variant: 0, col: 8, row: 9, layer: 1 },  // P 格（水池邊緣）
-    { type: 'moss', variant: 1, col: 9, row: 7, layer: 1 },  // P 格（水池邊緣）
-
-    // water_puddle × 4（水池外溢，P 格旁的 . 格）
-    { type: 'water_puddle', variant: 0, col: 6, row: 7, layer: 1 },  // . 格（水池左側）
-    { type: 'water_puddle', variant: 1, col: 7, row: 8, layer: 1 },  // . 格（水池左側）
-    { type: 'water_puddle', variant: 0, col: 6, row: 8, layer: 1 },  // . 格（水池左側）
-    { type: 'water_puddle', variant: 1, col: 6, row: 9, layer: 1 },  // . 格（水池左下）
-
-    // bloodstain × 3（走廊區域 . 格）
-    { type: 'bloodstain', variant: 0, col: 3, row: 9, layer: 1 },  // . 格（西側入口）
-    { type: 'bloodstain', variant: 1, col: 4, row: 9, layer: 1 },  // . 格（西側入口）
-    { type: 'bloodstain', variant: 0, col: 6, row: 8, layer: 1 },  // . 格（水池旁）
-
-    // Layer 2 - 物件裝飾（只能放在 . 格，不能放 P 或 W）
-    // rock_medium × 8（圍繞 P 水池格的周圍 . 格）
-    { type: 'rock_medium', variant: 0, col: 6, row: 7, layer: 2 },  // . 格（水池左側）
-    { type: 'rock_medium', variant: 1, col: 7, row: 8, layer: 2 },  // . 格（水池左側）
-    { type: 'rock_medium', variant: 0, col: 6, row: 8, layer: 2 },  // . 格（水池左側）
-    { type: 'rock_medium', variant: 1, col: 6, row: 9, layer: 2 },  // . 格（水池左下）
-    { type: 'rock_medium', variant: 0, col: 3, row: 9, layer: 2 },  // . 格（入口）
-    { type: 'rock_medium', variant: 1, col: 4, row: 9, layer: 2 },  // . 格（入口）
-
-    // bone_pile × 2（角落 . 格）
-    { type: 'bone_pile', variant: 0, col: 3, row: 9, layer: 2 },  // . 格（西側角落）
-    { type: 'bone_pile', variant: 1, col: 4, row: 9, layer: 2 },  // . 格（西側角落）
-
-    // Layer 3 - 牆壁裝飾（只能放在 W 格）
-    // wall_moss × 5（W 格）
-    { type: 'wall_moss', variant: 0, col: 3, row: 7, layer: 3 },  // W 格
-    { type: 'wall_moss', variant: 1, col: 4, row: 7, layer: 3 },  // W 格
-    { type: 'wall_moss', variant: 0, col: 5, row: 7, layer: 3 },  // W 格
-    { type: 'wall_moss', variant: 1, col: 3, row: 8, layer: 3 },  // W 格
-    { type: 'wall_moss', variant: 0, col: 5, row: 8, layer: 3 },  // W 格
-
-    // chain × 3（W 格）
-    { type: 'chain', variant: 0, col: 7, row: 7, layer: 3 },  // W 格
-    { type: 'chain', variant: 1, col: 4, row: 8, layer: 3 },  // W 格
-    { type: 'chain', variant: 0, col: 7, row: 9, layer: 3 },  // W 格
+    // 清空：裝飾物系統待重新設計
   ],
 
   // 地圖佈局: W=牆壁, .=路徑, O=外圍, B=可破壞牆, H=地心, A=深淵, P=水潭, G=草叢, R=軌道
