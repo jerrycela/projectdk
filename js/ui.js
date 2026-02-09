@@ -657,25 +657,27 @@ DK.UI = {
         ctx.fillRect(x + hs, y + s - 3, 1, 2);
         break;
 
-      case 'blast_trap':
-        // 爆破裝置圖標
-        ctx.fillStyle = '#5a3020';
+      case 'oil_trap':
+        // 油漬陷阱圖標
+        ctx.fillStyle = '#3a3020';
         ctx.beginPath();
         ctx.arc(x + hs, y + hs + 2, hs - 6, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#aa4422';
+        ctx.fillStyle = '#2a2010';
         ctx.beginPath();
         ctx.arc(x + hs, y + hs + 2, hs - 8, 0, Math.PI * 2);
         ctx.fill();
-        // 火焰紋路
-        ctx.fillStyle = '#ff6633';
-        ctx.fillRect(x + hs - 1, y + hs, 2, 3);
-        ctx.fillRect(x + hs - 2, y + hs + 1, 4, 1);
-        // 引信
-        ctx.fillStyle = '#cc8844';
-        ctx.fillRect(x + hs, y + 3, 1, 4);
-        ctx.fillStyle = '#ffdd66';
-        ctx.fillRect(x + hs, y + 2, 2, 2);
+        // 油光反射
+        ctx.fillStyle = '#5a5030';
+        ctx.fillRect(x + hs - 2, y + hs - 1, 3, 1);
+        // 油滴
+        ctx.fillStyle = '#3a2810';
+        ctx.fillRect(x + hs - 1, y + hs + 3, 2, 2);
+        ctx.fillRect(x + hs + 2, y + hs + 1, 1, 2);
+        // 噴嘴
+        ctx.fillStyle = '#4a3828';
+        ctx.fillRect(x + hs - 3, y + hs, 1, 1);
+        ctx.fillRect(x + hs + 3, y + hs, 1, 1);
         break;
 
       case 'wind_trap':
@@ -972,12 +974,11 @@ DK.UI = {
       ctx.fillText(`傷害:${btn.trap.damage}`, statsCX - 18, statsY);
       ctx.fillStyle = C.TRAP_ELECTRIC;
       ctx.fillText('⚡', statsCX + 20, statsY);
-    } else if (btn.trap.damage > 0 && btn.trap.element === 'fire') {
-      // blast_trap: 傷害 + 火焰
-      ctx.fillStyle = '#cc8888';
-      ctx.fillText(`傷害:${btn.trap.damage}`, statsCX - 18, statsY);
-      ctx.fillStyle = '#ff6622';
-      ctx.fillText('🔥', statsCX + 20, statsY);
+    } else if (btn.trap.id === 'oil_trap') {
+      // oil_trap: 緩速
+      ctx.fillStyle = '#8a6030';
+      ctx.fillText('緩速60%', statsCX - 10, statsY);
+      ctx.fillText('🛢', statsCX + 24, statsY);
     } else if (btn.trap.damage === 0 && btn.trap.element === 'ice') {
       // wind_trap: 推力 + 冰
       ctx.fillStyle = C.ELEMENT_ICE;

@@ -139,11 +139,11 @@ DK.COLORS = {
   TRAP_PUSH_CHARGE: '#ff6622',
   TRAP_PUSH_GLOW: '#ffaa44',
 
-  // Blast trap
-  TRAP_BLAST_BODY: '#5a3020',
-  TRAP_BLAST_CORE: '#aa4422',
-  TRAP_BLAST_GLOW: '#ff6633',
-  TRAP_BLAST_FUSE: '#cc8844',
+  // Oil trap
+  TRAP_OIL_BODY: '#3a3020',
+  TRAP_OIL_PUDDLE: '#2a2010',
+  TRAP_OIL_SHEEN: '#5a5030',
+  TRAP_OIL_DARK: '#1a1808',
 
   // Wind trap
   TRAP_WIND_HOUSING: '#2a3448',
@@ -226,17 +226,19 @@ DK.TRAP_TYPES = {
     pushForce: 2,
     icon: 'push_trap',
   },
-  BLAST_TRAP: {
-    id: 'blast_trap',
-    name: '爆破陷阱',
-    description: '踩到時爆炸，灼印敵人觸發烈焰引爆',
-    cost: 60,
-    damage: 40,
-    range: 1.5,
-    cooldown: 3000,
+  OIL_TRAP: {
+    id: 'oil_trap',
+    name: '油漬陷阱',
+    description: '踩到時噴灑油漬，大幅緩速並附加油污',
+    cost: 50,
+    damage: 0,
+    range: 0,
+    cooldown: 4000,
     type: 'floor',
-    element: 'fire',
-    icon: 'blast_trap',
+    element: null,
+    oilDuration: 2000,
+    oilSlowAmount: 0.4,
+    icon: 'oil_trap',
   },
   WIND_TRAP: {
     id: 'wind_trap',
@@ -264,15 +266,18 @@ DK.EVOLUTION_TYPES = {
     chainRangeBonus: 2,
     electrocuteRangeBonus: 0.5,
   },
-  seismic_blast_trap: {
-    baseTrap: 'blast_trap',
-    name: '震爆陷阱',
+  inferno_oil_trap: {
+    baseTrap: 'oil_trap',
+    name: '油焰陷阱',
     cost: 80,
     requiredHeroElement: 'fire',
-    description: '擊退2格、1秒眩暈波、範圍+30%',
-    knockbackTiles: 2,
+    description: '九宮格油沼、5秒持續、75%緩速、引爆眩暈1秒',
+    oilDuration: 5000,
+    oilSlowAmount: 0.25,
+    igniteDamageBonus: 0.4,
+    igniteDotBonus: 0.4,
+    igniteRangeBonus: 0.5,
     stunDuration: 1000,
-    rangeBonus: 0.3,
   },
   glacial_wind_trap: {
     baseTrap: 'wind_trap',
@@ -288,7 +293,7 @@ DK.EVOLUTION_TYPES = {
 
 DK.AURA_PAIRS = {
   water: 'shock_plate',
-  fire: 'blast_trap',
+  fire: 'oil_trap',
   ice: 'wind_trap',
 };
 

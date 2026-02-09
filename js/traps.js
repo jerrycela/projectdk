@@ -34,6 +34,9 @@ DK.Traps = {
       evolved: false,
       evolutionType: null,
       flashTimer: 0,
+      oilZoneTimer: 0,
+      oilZoneActive: false,
+      oilZoneTiles: [],
     };
 
     this.placed.push(trap);
@@ -81,6 +84,100 @@ DK.Traps = {
           trap.active = true;
           trap.flashTimer = 150;
           this.fireWindTrap(trap, enemies, T);
+        }
+        continue;
+      }
+
+      // 油漬陷阱：限時區域型觸發
+      if (trap.type.id === 'oil_trap') {
+        // 油漬區域活躍中
+        if (trap.oilZoneActive && trap.oilZoneTimer > 0) {
+          trap.oilZoneTimer -= dt;
+          trap.active = true;
+
+          // 對區域內所有敵人施加油污狀態
+          const evo = trap.evolved ? DK.EVOLUTION_TYPES[trap.evolutionType] : null;
+          const oilSlow = evo ? evo.oilSlowAmount : trap.type.oilSlowAmount;
+          for (const enemy of enemies) {
+            if (enemy.hp <= 0 || !enemy.alive) continue;
+            const ex = Math.floor(enemy.x / T);
+            const ey = Math.floor(enemy.y / T);
+            for (const tile of trap.oilZoneTiles) {
+              if (ex === tile.col && ey === tile.row) {
+                if (DK.Elements) {
+                  DK.Elements.addStatus(enemy, 'oiled');
+                  // 進化態覆寫緩速：0.25 (-75%) 取代預設 0.4 (-60%)
+                  if (evo) {
+                    enemy.slowFactor = oilSlow;
+                    enemy.slowTimer = trap.oilZoneTimer;
+                  }
+                }
+                break;
+              }
+            }
+          }
+
+          // 區域到期
+          if (trap.oilZoneTimer <= 0) {
+            trap.oilZoneActive = false;
+            trap.oilZoneTiles = [];
+            trap.active = false;
+            trap.cooldownTimer = trap.type.cooldown;
+          }
+          continue;
+        }
+
+        // 冷卻中
+        if (trap.cooldownTimer > 0) {
+          trap.cooldownTimer -= dt;
+          trap.active = false;
+          continue;
+        }
+
+        // 觸發檢查：敵人踩到
+        for (const enemy of enemies) {
+          if (enemy.hp <= 0 || !enemy.alive) continue;
+          const ex = Math.floor(enemy.x / T);
+          const ey = Math.floor(enemy.y / T);
+          if (ex === trap.col && ey === trap.row) {
+            const evo = trap.evolved ? DK.EVOLUTION_TYPES[trap.evolutionType] : null;
+            const duration = evo ? evo.oilDuration : trap.type.oilDuration;
+
+            trap.oilZoneTimer = duration;
+            trap.oilZoneActive = true;
+            trap.flashTimer = 150;
+
+            // 建立油漬區域格子
+            if (evo) {
+              trap.oilZoneTiles = [];
+              for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                  trap.oilZoneTiles.push({ col: trap.col + dc, row: trap.row + dr });
+                }
+              }
+            } else {
+              trap.oilZoneTiles = [{ col: trap.col, row: trap.row }];
+            }
+
+            // 噴灑特效
+            if (DK.Game && DK.Game.effects) {
+              DK.Game.effects.push({
+                type: 'oil_splat',
+                x: trap.col * T + T / 2,
+                y: trap.row * T + T / 2,
+                radius: evo ? T * 1.5 : T * 0.5,
+                duration: 400,
+                timer: 0,
+              });
+            }
+
+            // 對觸發的敵人施加油污
+            if (DK.Elements) {
+              DK.Elements.addStatus(enemy, 'oiled');
+            }
+
+            break;
+          }
         }
         continue;
       }
@@ -165,79 +262,14 @@ DK.Traps = {
               }
             }
 
-            // Apply element if trap has one (blast_trap handles its own applyElement manually)
-            if (trap.type.element && DK.Elements && trap.type.id !== 'blast_trap') {
+            // Apply element if trap has one
+            if (trap.type.element && DK.Elements) {
               DK.Elements.applyElement(enemy, trap.type.element, { evolved: trap.evolved, evolutionType: trap.evolutionType });
             }
 
             // shock_plate 進化態增強
             if (trap.type.id === 'shock_plate' && trap.evolved) {
               // 進化態的感電效果由 elements.js 透過 source 物件處理
-            }
-
-            // 爆破陷阱：踩到時爆炸，灼印敵人觸發烈焰引爆
-            if (trap.type.id === 'blast_trap' && DK.Game && DK.Game.effects) {
-              const hasBurning = DK.Elements && DK.Elements.hasStatus(enemy, 'burning');
-              let blastDamage = trap.type.damage; // 40
-              let blastRange = trap.type.range;   // 1.5
-
-              // 進化態增強：範圍 +30%
-              const evo = trap.evolved ? DK.EVOLUTION_TYPES[trap.evolutionType] : null;
-              if (evo) {
-                blastRange *= (1 + (evo.rangeBonus || 0));
-              }
-
-              if (hasBurning) {
-                // 烈焰引爆：消耗灼印，增強傷害與範圍
-                DK.Elements.removeStatus(enemy, 'burning');
-                blastDamage = Math.round(blastDamage * 1.5); // 60
-                blastRange = blastRange * 1.3;
-
-                // 烈焰引爆特效
-                DK.Game.effects.push({
-                  type: 'blaze_explosion',
-                  x: trap.col * T + T / 2,
-                  y: trap.row * T + T / 2,
-                  radius: blastRange * T,
-                  duration: 600,
-                  timer: 0,
-                });
-
-                // 反應文字
-                DK.Game.effects.push({
-                  type: 'reaction_text',
-                  x: enemy.x,
-                  y: enemy.y - 14,
-                  text: '烈焰引爆！',
-                  color: '#ff4400',
-                  duration: 1000,
-                  timer: 0,
-                });
-
-                // 螢幕震動
-                DK.Game.screenShake = { intensity: 4, timer: 300 };
-
-                // AoE 傷害 + 擊退（烈焰引爆：無條件擊退）
-                this.applyBlastAoE(enemies, enemy, trap, T, blastDamage, blastRange, evo, true);
-              } else {
-                // 普通爆炸
-                DK.Game.effects.push({
-                  type: 'explosion',
-                  x: trap.col * T + T / 2,
-                  y: trap.row * T + T / 2,
-                  radius: blastRange * T,
-                  duration: 500,
-                  timer: 0,
-                });
-
-                // AoE 傷害（普通爆炸：僅進化態擊退）
-                this.applyBlastAoE(enemies, enemy, trap, T, blastDamage, blastRange, evo, false);
-              }
-
-              // 附著灼印給命中的敵人
-              if (DK.Elements) {
-                DK.Elements.applyElement(enemy, 'fire');
-              }
             }
             break;
           }
@@ -259,6 +291,32 @@ DK.Traps = {
         this.renderWallTrap(ctx, trap, x, y);
       } else {
         this.renderFloorTrap(ctx, trap, x, y);
+      }
+
+      // 油漬區域地面渲染
+      if (trap.type.id === 'oil_trap' && trap.oilZoneActive && trap.oilZoneTiles.length > 0) {
+        const zoneAlpha = Math.min(1, trap.oilZoneTimer / 500);
+        for (const tile of trap.oilZoneTiles) {
+          const tx = tile.col * T;
+          const ty = tile.row * T;
+          // 深褐色半透明油灘
+          ctx.fillStyle = `rgba(42,32,16,${0.5 * zoneAlpha})`;
+          ctx.fillRect(tx + 1, ty + 1, T - 2, T - 2);
+          // 油光反射
+          ctx.fillStyle = `rgba(90,80,48,${0.3 * zoneAlpha})`;
+          ctx.fillRect(tx + 3, ty + 3, 4, 2);
+          ctx.fillRect(tx + 8, ty + 8, 3, 2);
+          // 不規則邊緣
+          PA.pixel(ctx, tx + 2, ty + 6, `rgba(42,32,16,${0.3 * zoneAlpha})`);
+          PA.pixel(ctx, tx + 12, ty + 4, `rgba(42,32,16,${0.3 * zoneAlpha})`);
+          PA.pixel(ctx, tx + 5, ty + 12, `rgba(42,32,16,${0.3 * zoneAlpha})`);
+          // 進化態：深紅色紋路
+          if (trap.evolved) {
+            ctx.fillStyle = `rgba(106,32,16,${0.2 * zoneAlpha})`;
+            ctx.fillRect(tx + 4, ty + 5, 3, 1);
+            ctx.fillRect(tx + 9, ty + 9, 2, 1);
+          }
+        }
       }
 
       // 啟動閃光覆蓋層（觸發攻擊時短暫白色閃爍）
@@ -283,6 +341,8 @@ DK.Traps = {
           barColor = '#ff8844';
         } else if (trap.type.element === 'ice') {
           barColor = '#aaddff';
+        } else if (trap.type.id === 'oil_trap') {
+          barColor = '#8a6030';
         }
 
         // === 2L: 深色底框 (1px) ===
@@ -603,95 +663,66 @@ DK.Traps = {
         PA.pixel(ctx, x + 13, y + 12, '#ffffff');
       }
 
-    } else if (trap.type.id === 'blast_trap') {
-      // === BLAST TRAP: 地板嵌入式爆破裝置，火焰紋路 ===
+    } else if (trap.type.id === 'oil_trap') {
+      // === OIL TRAP: 地板嵌入式油罐裝置 ===
 
-      // 嵌入式底座（略低於地面）
-      PA.rect(ctx, x + 2, y + 2, 12, 12, '#3a2818');
-      PA.rect(ctx, x + 3, y + 3, 10, 10, '#2a1a10');
+      // 嵌入式底座
+      PA.rect(ctx, x + 2, y + 2, 12, 12, '#2a2418');
+      PA.rect(ctx, x + 3, y + 3, 10, 10, C.TRAP_OIL_BODY);
 
-      // 金屬外殼帶火焰紋路
-      PA.rect(ctx, x + 4, y + 4, 8, 8, C.TRAP_BLAST_BODY);
-      PA.rect(ctx, x + 5, y + 5, 6, 6, '#4a2818');
+      // 金屬外框
+      PA.rect(ctx, x + 2, y + 2, 12, 1, '#4a4030');
+      PA.rect(ctx, x + 2, y + 2, 1, 12, '#4a4030');
+      PA.rect(ctx, x + 2, y + 13, 12, 1, '#1a1808');
+      PA.rect(ctx, x + 13, y + 2, 1, 12, '#1a1808');
 
-      // 火焰紋路裝飾
-      PA.pixel(ctx, x + 4, y + 5, '#6a3a1a');
-      PA.pixel(ctx, x + 5, y + 4, '#6a3a1a');
-      PA.pixel(ctx, x + 11, y + 5, '#6a3a1a');
-      PA.pixel(ctx, x + 10, y + 4, '#6a3a1a');
-      PA.pixel(ctx, x + 4, y + 10, '#6a3a1a');
-      PA.pixel(ctx, x + 11, y + 10, '#6a3a1a');
-
-      // 中央火焰核心 — 2K: 中間漸變層
-      PA.rect(ctx, x + 5, y + 5, 6, 6, '#5a3018');  // 中間色漸變層
-      PA.rect(ctx, x + 6, y + 6, 4, 4, C.TRAP_BLAST_CORE);
-      PA.rect(ctx, x + 7, y + 7, 2, 2, '#cc5533');
-
-      // 核心高光
-      PA.pixel(ctx, x + 7, y + 7, '#dd6644');
-      PA.pixel(ctx, x + 8, y + 8, '#993322');
-
-      // 引信（從核心延伸）
-      PA.pixel(ctx, x + 10, y + 4, C.TRAP_BLAST_FUSE);
-      PA.pixel(ctx, x + 11, y + 3, C.TRAP_BLAST_FUSE);
-      PA.pixel(ctx, x + 12, y + 3, C.TRAP_BLAST_FUSE);
-
-      // 引信火花 — 2K: 增至 4 個
-      const frame = trap.animFrame;
-      if (frame === 0 || frame === 2) {
-        PA.pixel(ctx, x + 13, y + 2, '#ffaa33');
-        PA.pixel(ctx, x + 12, y + 2, '#ff8822');
-        PA.pixel(ctx, x + 13, y + 1, '#ffdd44');
-        PA.pixel(ctx, x + 11, y + 2, '#ff6611');
-      } else {
-        PA.pixel(ctx, x + 13, y + 3, '#ff6611');
-        PA.pixel(ctx, x + 13, y + 2, '#ffcc44');
-        PA.pixel(ctx, x + 12, y + 1, '#ffaa33');
-        PA.pixel(ctx, x + 13, y + 4, '#ff8822');
-      }
-
-      // 閒置時微弱脈動光
-      if (!firing) {
-        const pulseFrame = frame % 4;
-        if (pulseFrame < 2) {
-          PA.pixel(ctx, x + 7, y + 6, C.TRAP_BLAST_GLOW);
-          PA.pixel(ctx, x + 8, y + 6, C.TRAP_BLAST_GLOW);
-        }
-      } else {
-        // 觸發時爆炸閃光
-        PA.pixel(ctx, x + 6, y + 5, '#ffffff');
-        PA.pixel(ctx, x + 9, y + 5, '#ffffff');
-        PA.pixel(ctx, x + 6, y + 10, '#ffaa33');
-        PA.pixel(ctx, x + 9, y + 10, '#ffaa33');
-        PA.pixel(ctx, x + 7, y + 6, '#ffffff');
-        PA.pixel(ctx, x + 8, y + 6, '#ffffff');
-      }
-
-      // 角落固定螺栓
+      // 角落鉚釘
       PA.pixel(ctx, x + 2, y + 2, C.TRAP_METAL);
       PA.pixel(ctx, x + 13, y + 2, C.TRAP_METAL);
       PA.pixel(ctx, x + 2, y + 13, C.TRAP_METAL);
       PA.pixel(ctx, x + 13, y + 13, C.TRAP_METAL);
 
-      // 邊緣高光
-      PA.rect(ctx, x + 2, y + 2, 12, 1, '#4a3020');
-      PA.rect(ctx, x + 2, y + 2, 1, 12, '#4a3020');
+      // 中央油罐（圓形）
+      PA.rect(ctx, x + 5, y + 5, 6, 6, '#2a1a10');
+      PA.rect(ctx, x + 6, y + 6, 4, 4, C.TRAP_OIL_PUDDLE);
+      PA.rect(ctx, x + 7, y + 7, 2, 2, '#1a1208');
 
-      // 進化態增強視覺：核心更亮、衝擊波紋路
+      // 油光反射
+      PA.pixel(ctx, x + 6, y + 5, C.TRAP_OIL_SHEEN);
+      PA.pixel(ctx, x + 7, y + 5, C.TRAP_OIL_SHEEN);
+
+      // 噴嘴（上方 4 個出口）
+      PA.pixel(ctx, x + 4, y + 7, '#4a3828');
+      PA.pixel(ctx, x + 11, y + 7, '#4a3828');
+      PA.pixel(ctx, x + 7, y + 4, '#4a3828');
+      PA.pixel(ctx, x + 7, y + 11, '#4a3828');
+
+      // 閒置時油面微光
+      const frame = trap.animFrame;
+      if (!firing) {
+        if (frame < 2) {
+          PA.pixel(ctx, x + 7, y + 6, C.TRAP_OIL_SHEEN);
+        }
+      } else {
+        // 觸發時油滴飛濺
+        PA.pixel(ctx, x + 4, y + 4, '#3a2810');
+        PA.pixel(ctx, x + 11, y + 4, '#3a2810');
+        PA.pixel(ctx, x + 4, y + 11, '#3a2810');
+        PA.pixel(ctx, x + 11, y + 11, '#3a2810');
+      }
+
+      // 進化態增強視覺：深紅色油漬 + 火焰紋路
       if (trap.evolved) {
-        // 核心顏色更亮
-        PA.rect(ctx, x + 6, y + 6, 4, 4, '#dd6644');
-        PA.rect(ctx, x + 7, y + 7, 2, 2, '#ff8855');
-        PA.pixel(ctx, x + 7, y + 7, '#ffaa77');
-        // 衝擊波紋路（十字放射）
-        PA.pixel(ctx, x + 3, y + 7, '#ff6633');
-        PA.pixel(ctx, x + 3, y + 8, '#ff6633');
-        PA.pixel(ctx, x + 12, y + 7, '#ff6633');
-        PA.pixel(ctx, x + 12, y + 8, '#ff6633');
-        PA.pixel(ctx, x + 7, y + 3, '#ff6633');
-        PA.pixel(ctx, x + 8, y + 3, '#ff6633');
-        PA.pixel(ctx, x + 7, y + 12, '#ff6633');
-        PA.pixel(ctx, x + 8, y + 12, '#ff6633');
+        PA.rect(ctx, x + 6, y + 6, 4, 4, '#4a1810');
+        PA.pixel(ctx, x + 5, y + 7, '#6a2010');
+        PA.pixel(ctx, x + 10, y + 7, '#6a2010');
+        PA.pixel(ctx, x + 7, y + 5, '#6a2010');
+        PA.pixel(ctx, x + 7, y + 10, '#6a2010');
+        // 微弱火焰紋
+        if (frame % 2 === 0) {
+          PA.pixel(ctx, x + 6, y + 5, '#ff6633');
+          PA.pixel(ctx, x + 9, y + 10, '#ff6633');
+        }
       }
     }
   },
@@ -892,58 +923,6 @@ DK.Traps = {
 
     if (pushedAny && DK.Game) {
       DK.Game.screenShake = { intensity: 1, timer: 150 };
-    }
-  },
-
-  /**
-   * blast_trap AoE 共用邏輯：對範圍內敵人造成傷害、擊退、眩暈
-   * @param {Array} enemies - 所有敵人
-   * @param {Object} triggerEnemy - 觸發陷阱的敵人（排除在 AoE 之外）
-   * @param {Object} trap - 陷阱物件
-   * @param {number} T - TILE_SIZE
-   * @param {number} damage - AoE 傷害值
-   * @param {number} range - AoE 範圍（tile 單位）
-   * @param {Object|null} evo - 進化態定義（若有）
-   * @param {boolean} alwaysKnockback - true=無條件擊退（烈焰引爆），false=僅進化態擊退
-   */
-  applyBlastAoE(enemies, triggerEnemy, trap, T, damage, range, evo, alwaysKnockback) {
-    const centerX = trap.col * T + T / 2;
-    const centerY = trap.row * T + T / 2;
-    const knockbackDist = evo ? (evo.knockbackTiles || 1) * T : T;
-    const rangePixels = range * T;
-
-    for (const e2 of enemies) {
-      if (e2.hp <= 0 || e2 === triggerEnemy) continue;
-      const dx = e2.x - centerX;
-      const dy = e2.y - centerY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist >= rangePixels) continue;
-
-      e2.hp -= damage;
-      e2.flashTimer = 150;
-
-      // 擊退：烈焰引爆無條件擊退，普通爆炸僅進化態擊退
-      const shouldKnockback = alwaysKnockback || !!evo;
-      if (shouldKnockback && !e2.pushed && dist > 0) {
-        const pushDx = dx / dist;
-        const pushDy = dy / dist;
-        e2.pushed = {
-          startX: e2.x,
-          startY: e2.y,
-          targetX: e2.x + pushDx * knockbackDist,
-          targetY: e2.y + pushDy * knockbackDist,
-          timer: 0,
-          duration: 250,
-          intoAbyss: false,
-        };
-      }
-
-      // 進化態眩暈
-      if (evo && evo.stunDuration) {
-        const ref = e2;
-        ref.paralyzed = true;
-        setTimeout(() => { if (ref.alive) ref.paralyzed = false; }, evo.stunDuration);
-      }
     }
   },
 

@@ -275,58 +275,39 @@ window.DK = window.DK || {};
     }
   }
 
-  function renderExplosion(ctx, PA, C, effect, progress) {
-    const maxR = effect.radius;
-    const expandProgress = Math.min(1, progress * 2);
-    const fadeProgress = Math.max(0, (progress - 0.3) / 0.7);
+  function renderOilSplat(ctx, PA, effect, progress) {
+    // 油漬噴灑 — 深褐色油滴從中心向外濺射
+    const splatR = (effect.radius || 8) * progress;
+    const splatFade = 1 - progress;
 
-    // Phase 1: White flash (0-20%) - radius at least 3
-    if (progress < 0.2) {
-      const flashR = Math.max(3, Math.round(maxR * progress * 3));
-      PA.circle(ctx, Math.round(effect.x), Math.round(effect.y),
-               flashR, '#ffffff');
-    }
-
-    // Phase 2: Fire ring expanding (10-60%) - 4-color gradient
-    if (progress > 0.1 && progress < 0.6) {
-      const ringR = maxR * expandProgress;
-      const ringColors = ['#ffffff', '#ffcc44', '#ff6622', '#cc2200'];
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.25) {
-        const r = ringR * (0.7 + Math.random() * 0.3);
-        const epx = Math.round(effect.x + Math.cos(angle) * r);
-        const epy = Math.round(effect.y + Math.sin(angle) * r);
-        const colorIdx = Math.min(3, Math.floor((r / ringR) * 4));
-        PA.pixel(ctx, epx, epy, ringColors[colorIdx]);
-        // Inner fire
-        const ir = r * 0.6;
-        PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * ir),
-                 Math.round(effect.y + Math.sin(angle) * ir),
-                 Math.random() > 0.5 ? '#ffcc44' : '#ff8822');
+    if (splatFade > 0.1) {
+      // 中心油漬擴散
+      if (progress < 0.5) {
+        const coreR = splatR * 0.6;
+        PA.circle(ctx, Math.round(effect.x), Math.round(effect.y),
+                 Math.max(1, Math.round(coreR)), '#2a2010');
       }
-    }
 
-    // Phase 3: Smoke and embers (30-100%) - 7 particles, multi-gray
-    if (progress > 0.3) {
-      const smokeR = maxR * 1.2;
-      const smokeColors = ['#443322', '#3a3020', '#332a1a'];
-      for (let i = 0; i < 7; i++) {
-        const angle = (i / 7) * Math.PI * 2 + progress * 2;
-        const r = smokeR * (0.5 + Math.random() * 0.5) * (1 - fadeProgress * 0.5);
+      // 4-6 個油滴粒子向外飛濺
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + progress * 1.5;
+        const r = splatR * (0.6 + Math.random() * 0.4);
         const spx = Math.round(effect.x + Math.cos(angle) * r);
-        const spy = Math.round(effect.y + Math.sin(angle) * r - fadeProgress * 3);
-        PA.pixel(ctx, spx, spy, smokeColors[Math.floor(Math.random() * 3)]);
-        // Embers
-        if (Math.random() > 0.7) {
-          PA.pixel(ctx, spx + 1, spy - 1, '#ff6622');
+        const spy = Math.round(effect.y + Math.sin(angle) * r);
+        const color = Math.random() > 0.5 ? '#3a2810' : '#5a4020';
+        PA.pixel(ctx, spx, spy, color);
+        // 油滴拖尾
+        if (progress < 0.6) {
+          const trailR = r * 0.5;
+          PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * trailR),
+                   Math.round(effect.y + Math.sin(angle) * trailR), '#2a2010');
         }
       }
-    }
 
-    // Scorch mark at center (persists)
-    if (progress > 0.4) {
-      PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y), '#1a1008');
-      PA.pixel(ctx, Math.round(effect.x) + 1, Math.round(effect.y), '#1a1008');
-      PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y) + 1, '#1a1008');
+      // 油光閃爍
+      if (progress < 0.3) {
+        PA.pixel(ctx, Math.round(effect.x + 1), Math.round(effect.y - 1), '#5a5030');
+      }
     }
   }
 
@@ -584,69 +565,87 @@ window.DK = window.DK || {};
     }
   }
 
-  function renderBlazeExplosion(ctx, PA, effect, progress) {
-    // 烈焰引爆 - 比普通 explosion 更大更紅
-    const blazeMaxR = (effect.radius || 6) * 1.3;
-    const blazeExpand = Math.min(1, progress * 2);
-    const blazeFade = Math.max(0, (progress - 0.3) / 0.7);
+  function renderOilIgniteBurst(ctx, PA, effect, progress) {
+    // 油燃引爆 — 橘紅色火焰從中心爆發
+    const burstMaxR = (effect.radius || 16) * 1.2;
+    const burstExpand = Math.min(1, progress * 2.5);
+    const burstFade = Math.max(0, (progress - 0.3) / 0.7);
 
-    // Phase 1：白色閃光（0-15%）半徑更大
-    if (progress < 0.15) {
-      const flashR = blazeMaxR * progress * 4;
+    // Phase 1：白色閃光核心（0-12%）
+    if (progress < 0.12) {
+      const flashR = burstMaxR * progress * 5;
       PA.circle(ctx, Math.round(effect.x), Math.round(effect.y),
-               Math.round(flashR), '#ffffff');
+               Math.max(2, Math.round(flashR)), '#ffffff');
     }
 
-    // Phase 2：橘紅火焰環（10-50%）+ 雙層衝擊波環
-    if (progress > 0.1 && progress < 0.5) {
-      const ringR = blazeMaxR * blazeExpand;
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.2) {
+    // Phase 2：橘紅火焰環擴散（8-50%）
+    if (progress > 0.08 && progress < 0.5) {
+      const ringR = burstMaxR * burstExpand;
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.22) {
         const r = ringR * (0.7 + Math.random() * 0.3);
         const epx = Math.round(effect.x + Math.cos(angle) * r);
         const epy = Math.round(effect.y + Math.sin(angle) * r);
-        const color = Math.random() > 0.5 ? '#ff4400' : '#ff6622';
+        const color = Math.random() > 0.4 ? '#ff5500' : '#ffaa22';
         PA.pixel(ctx, epx, epy, color);
         // 內層火焰
-        const ir = r * 0.6;
+        const ir = r * 0.5;
         PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * ir),
                  Math.round(effect.y + Math.sin(angle) * ir),
-                 Math.random() > 0.5 ? '#ffcc44' : '#ffaa22');
-      }
-      // 外層衝擊波環 - thickened to 2px (outer + inner ring)
-      const shockR = ringR * 1.4;
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.35) {
-        const sr = shockR * (0.95 + Math.random() * 0.05);
-        PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * sr),
-                 Math.round(effect.y + Math.sin(angle) * sr), '#ff6633');
-        // Inner shock ring for thickness
-        const sr2 = sr * 0.92;
-        PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * sr2),
-                 Math.round(effect.y + Math.sin(angle) * sr2), '#ff4422');
+                 Math.random() > 0.5 ? '#ffdd44' : '#ff8822');
       }
     }
 
-    // Phase 3：煙霧和餘燼（30-100%）- 9 particles (7 fire debris)
+    // Phase 3：黑煙+油燃餘燼（30-100%）
     if (progress > 0.3) {
-      const smokeR = blazeMaxR * 1.3;
-      for (let i = 0; i < 9; i++) {
-        const angle = (i / 9) * Math.PI * 2 + progress * 2;
-        const r = smokeR * (0.5 + Math.random() * 0.5) * (1 - blazeFade * 0.5);
+      const smokeR = burstMaxR * 1.2;
+      const smokeColors = ['#1a1008', '#2a1a10', '#3a2810'];
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + progress * 2;
+        const r = smokeR * (0.5 + Math.random() * 0.5) * (1 - burstFade * 0.5);
         const spx = Math.round(effect.x + Math.cos(angle) * r);
-        const spy = Math.round(effect.y + Math.sin(angle) * r - blazeFade * 4);
-        PA.pixel(ctx, spx, spy, '#443322');
-        // 餘燼
+        const spy = Math.round(effect.y + Math.sin(angle) * r - burstFade * 4);
+        PA.pixel(ctx, spx, spy, smokeColors[Math.floor(Math.random() * 3)]);
+        // 油燃火星
         if (Math.random() > 0.6) {
-          PA.pixel(ctx, spx + 1, spy - 1, '#ff6622');
+          PA.pixel(ctx, spx + 1, spy - 1, '#ff5500');
         }
       }
     }
 
     // 焦痕
-    if (progress > 0.4) {
-      PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y), '#1a0808');
-      PA.pixel(ctx, Math.round(effect.x) + 1, Math.round(effect.y), '#1a0808');
-      PA.pixel(ctx, Math.round(effect.x) - 1, Math.round(effect.y), '#1a0808');
-      PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y) + 1, '#1a0808');
+    if (progress > 0.5) {
+      PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y), '#0a0804');
+      PA.pixel(ctx, Math.round(effect.x) + 1, Math.round(effect.y), '#0a0804');
+    }
+  }
+
+  function renderOilSplash(ctx, PA, effect, progress) {
+    // 油污飛濺 — 首次掛上 oiled 時的視覺效果
+    const oilSplashP = progress;
+    const oilSplashR = 2 + oilSplashP * 4;
+    const oilSplashFade = 1 - oilSplashP;
+
+    if (oilSplashFade > 0.1) {
+      // 擴散的油環
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.5) {
+        const r = oilSplashR * (0.8 + Math.random() * 0.2);
+        const spx = Math.round(effect.x + Math.cos(angle) * r);
+        const spy = Math.round(effect.y + Math.sin(angle) * r * 0.5);
+        const color = Math.random() > 0.5 ? '#5a4020' : '#3a2810';
+        PA.pixel(ctx, spx, spy, color);
+      }
+      // 中心油核
+      if (oilSplashP < 0.3) {
+        PA.circle(ctx, Math.round(effect.x), Math.round(effect.y), 2, '#2a2010');
+      }
+      // 下墜油滴
+      for (let i = 0; i < 3; i++) {
+        const dAngle = (i / 3) * Math.PI * 2 + oilSplashP * 2;
+        const dR = oilSplashR * 0.5;
+        const dpy = Math.round(effect.y + oilSplashP * 4 + Math.sin(dAngle) * 2);
+        const dpx = Math.round(effect.x + Math.cos(dAngle) * dR);
+        PA.pixel(ctx, dpx, dpy, '#3a2810');
+      }
     }
   }
 
@@ -1347,7 +1346,7 @@ window.DK = window.DK || {};
 
       switch (effect.type) {
         case 'projectile': renderProjectile(ctx, PA, C, effect, progress); break;
-        case 'explosion': renderExplosion(ctx, PA, C, effect, progress); break;
+        case 'oil_splat': renderOilSplat(ctx, PA, effect, progress); break;
         case 'electrocute_burst': renderElectrocuteBurst(ctx, PA, effect, progress); break;
         case 'chain_lightning': renderChainLightning(ctx, PA, effect, progress); break;
         case 'water_nova': renderWaterNova(ctx, PA, effect, progress); break;
@@ -1355,7 +1354,8 @@ window.DK = window.DK || {};
         case 'push_wave': renderPushWave(ctx, PA, effect, progress); break;
         case 'abyss_fall': renderAbyssFall(ctx, PA, effect, progress); break;
         case 'ice_ray': renderIceRay(ctx, PA, effect, progress); break;
-        case 'blaze_explosion': renderBlazeExplosion(ctx, PA, effect, progress); break;
+        case 'oil_ignite_burst': renderOilIgniteBurst(ctx, PA, effect, progress); break;
+        case 'oil_splash': renderOilSplash(ctx, PA, effect, progress); break;
         case 'fire_splash': renderFireSplash(ctx, PA, effect, progress); break;
         case 'ice_splash': renderIceSplash(ctx, PA, effect, progress); break;
         case 'fire_nova': renderFireNova(ctx, PA, effect, progress); break;

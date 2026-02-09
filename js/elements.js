@@ -39,12 +39,37 @@ DK.Elements = {
       particleColor: '#aaddff',
       slowAmount: 0.8, // 移速×0.8 = -20%
     },
+    oiled: {
+      id: 'oiled',
+      name: '油污',
+      duration: 3000,
+      color: '#5a4020',
+      particleColor: '#3a2810',
+      slowAmount: 0.4, // 移速×0.4 = -60%
+    },
+    oil_burn: {
+      id: 'oil_burn',
+      name: '油燃燒傷',
+      duration: 3000,
+      color: '#ff5500',
+      particleColor: '#ffaa22',
+      dot: 20,
+      dotInterval: 500,
+    },
+    oil_stun: {
+      id: 'oil_stun',
+      name: '油燃眩暈',
+      duration: 1000,
+      color: '#ff8800',
+      particleColor: '#ffaa44',
+      paralysis: true,
+    },
   },
 
   // Reaction definitions: { trigger, consumed, result }
   REACTIONS: [
     { trigger: 'electric', consumed: 'wet', result: 'electrocuted' },
-    { trigger: 'fire', consumed: 'burning', result: 'blaze_ignition' },
+    { trigger: 'fire', consumed: 'oiled', result: 'oil_ignite' },
   ],
 
   // Active reaction effects (for chain lightning rendering)
@@ -161,6 +186,48 @@ DK.Elements = {
         // 套用減速效果
         enemy.slowFactor = def.slowAmount;
         enemy.slowTimer = def.duration;
+      } else if (effectId === 'oiled') {
+        DK.Game.effects.push({
+          type: 'reaction_text',
+          x: enemy.x,
+          y: enemy.y - 12,
+          text: '油污',
+          color: '#8a6030',
+          duration: 800,
+          timer: 0,
+        });
+        DK.Game.effects.push({
+          type: 'oil_splash',
+          x: enemy.x,
+          y: enemy.y,
+          duration: 400,
+          timer: 0,
+        });
+        // 套用強力減速
+        enemy.slowFactor = def.slowAmount;
+        enemy.slowTimer = def.duration;
+      } else if (effectId === 'oil_burn') {
+        // 油燃燒傷：移除油污（火燒掉了油）
+        this.removeStatus(enemy, 'oiled');
+        DK.Game.effects.push({
+          type: 'reaction_text',
+          x: enemy.x,
+          y: enemy.y - 12,
+          text: '油燃燒傷',
+          color: '#ff5500',
+          duration: 800,
+          timer: 0,
+        });
+        DK.Game.effects.push({
+          type: 'fire_splash',
+          x: enemy.x,
+          y: enemy.y,
+          duration: 400,
+          timer: 0,
+        });
+      } else if (effectId === 'oil_stun') {
+        // oil_stun 不需要特殊視覺（oil_burn 已經很醒目）
+        // paralysis 由 updateStatuses 自動套用
       }
     }
   },
@@ -316,83 +383,133 @@ DK.Elements = {
       }
     }
 
-    // 烈焰引爆：火元素觸發灼印
-    if (reactionId === 'blaze_ignition') {
+    // 油燃引爆：火元素觸發油污
+    if (reactionId === 'oil_ignite') {
       const T = DK.CONFIG.TILE_SIZE;
+
+      // 引爆傷害
+      let igniteDamage = 50;
+      let igniteRange = T * 1;
+      let igniteDotAmount = 20;
+      let igniteDotInterval = 500;
+      let stunDuration = 0;
+
+      // 進化態加成：尋找附近的進化態油漬陷阱
+      if (DK.Traps && DK.Traps.placed) {
+        for (const trap of DK.Traps.placed) {
+          if (trap.type.id !== 'oil_trap' || !trap.evolved) continue;
+          const trapCX = trap.col * T + T / 2;
+          const trapCY = trap.row * T + T / 2;
+          const dx = enemy.x - trapCX;
+          const dy = enemy.y - trapCY;
+          if (Math.sqrt(dx * dx + dy * dy) < T * 2) {
+            const evoDef = DK.EVOLUTION_TYPES[trap.evolutionType];
+            if (evoDef) {
+              igniteDamage = Math.round(igniteDamage * (1 + (evoDef.igniteDamageBonus || 0)));
+              igniteDotAmount = Math.round(igniteDotAmount * (1 + (evoDef.igniteDotBonus || 0)));
+              igniteRange = T * (1 + (evoDef.igniteRangeBonus || 0));
+              stunDuration = evoDef.stunDuration || 0;
+            }
+            break;
+          }
+        }
+      }
 
       // 螢幕震動
       if (DK.Game) {
-        DK.Game.screenShake = { intensity: 4, timer: 400 };
+        DK.Game.screenShake = { intensity: 3, timer: 300 };
       }
 
-      // 反應文字
+      // 對被引爆的敵人造成一次性傷害
+      enemy.hp -= igniteDamage;
+      enemy.flashTimer = 200;
+
       if (DK.Game && DK.Game.effects) {
+        // 引爆傷害數字
+        DK.Game.effects.push({
+          type: 'damage',
+          x: enemy.x + (Math.random() - 0.5) * 4,
+          y: enemy.y - 8,
+          text: `-${igniteDamage}`,
+          color: '#ff5500',
+          duration: 800,
+          timer: 0,
+        });
+
+        // 反應文字
         DK.Game.effects.push({
           type: 'reaction_text',
           x: enemy.x,
           y: enemy.y - 14,
-          text: '烈焰引爆！',
-          color: '#ff6633',
+          text: '油燃引爆！',
+          color: '#ff5500',
           duration: 1200,
           timer: 0,
         });
 
-        // 爆炸效果
+        // 引爆爆發特效
         DK.Game.effects.push({
-          type: 'blaze_explosion',
+          type: 'oil_ignite_burst',
           x: enemy.x,
           y: enemy.y,
-          radius: T * 1.5 * 1.3,
-          duration: 600,
+          radius: igniteRange,
+          duration: 500,
           timer: 0,
         });
       }
 
-      // 白閃
-      enemy.flashTimer = 200;
-
-      // 範圍傷害 + 擊退
+      // 範圍效果：1 格內所有其他敵人
       if (DK.Enemies && DK.Enemies.active) {
-        const aoeRange = T * 1.5 * 1.3;
         for (const other of DK.Enemies.active) {
-          if (!other.alive || other.hp <= 0) continue;
+          if (other === enemy || !other.alive || other.hp <= 0) continue;
           const dx = other.x - enemy.x;
           const dy = other.y - enemy.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist <= aoeRange) {
-            // 60 點傷害
-            other.hp -= 60;
-            other.flashTimer = 150;
+          if (dist > igniteRange) continue;
 
+          // 有油污的敵人：額外消耗油污 + 引爆傷害
+          if (this.hasStatus(other, 'oiled')) {
+            this.removeStatus(other, 'oiled');
+            other.hp -= igniteDamage;
+            other.flashTimer = 150;
             if (DK.Game && DK.Game.effects) {
               DK.Game.effects.push({
                 type: 'damage',
                 x: other.x + (Math.random() - 0.5) * 4,
                 y: other.y - 8,
-                text: '-60',
-                color: '#ff6633',
+                text: `-${igniteDamage}`,
+                color: '#ff5500',
                 duration: 800,
                 timer: 0,
               });
-            }
-
-            // 擊退 1 格（使用 pushed 系統，避免穿牆）
-            if (dist > 0 && !other.pushed) {
-              const pushDist = T;
-              const pushDx = dx / dist;
-              const pushDy = dy / dist;
-              other.pushed = {
-                startX: other.x,
-                startY: other.y,
-                targetX: other.x + pushDx * pushDist,
-                targetY: other.y + pushDy * pushDist,
+              DK.Game.effects.push({
+                type: 'reaction_text',
+                x: other.x,
+                y: other.y - 14,
+                text: '連鎖引爆！',
+                color: '#ff5500',
+                duration: 1000,
                 timer: 0,
-                duration: 250,
-                intoAbyss: false,
-              };
+              });
             }
           }
+
+          // 所有範圍內敵人（無論有無油污）：施加油燃燒傷
+          this.addStatus(other, 'oil_burn');
+
+          // 進化態眩暈（透過狀態系統，讓 updateStatuses 正確管理）
+          if (stunDuration > 0) {
+            this.addStatus(other, 'oil_stun');
+          }
         }
+      }
+
+      // 被引爆的敵人自身也施加油燃燒傷
+      this.addStatus(enemy, 'oil_burn');
+
+      // 進化態眩暈（自身）
+      if (stunDuration > 0) {
+        this.addStatus(enemy, 'oil_stun');
       }
     }
 
@@ -627,6 +744,57 @@ DK.Elements = {
           PA.pixel(ctx, px + 1, py, '#88ccff');
           PA.pixel(ctx, px, py + 1, '#aaddff');
         }
+      } else if (status.id === 'oiled') {
+        // 油污：深褐色油滴向下滴落
+        const PA = DK.PixelArt;
+        const t = (time || 0) / 300;
+
+        // 身體深褐色光暈
+        const glowAlpha = 0.12 + Math.sin(t * 2) * 0.05;
+        PA.rect(ctx, x - 4, y - 6 + yOffset, 9, 11, `rgba(90,64,32,${glowAlpha})`);
+
+        // 3-4 個深褐色油滴向下滴落
+        for (let i = 0; i < 4; i++) {
+          const dripPhase = ((t * 1.5) + i * 0.8) % 2.5;
+          if (dripPhase < 1.8) {
+            const dripX = x - 3 + Math.round(i * 2.5);
+            const dripY = Math.round(y + yOffset + dripPhase * 5);
+            PA.pixel(ctx, dripX, dripY, '#3a2810');
+            PA.pixel(ctx, dripX, dripY - 1, '#5a4020');
+          }
+        }
+
+        // 腳底油漬
+        PA.pixel(ctx, x - 2, y + 4, '#2a2010');
+        PA.pixel(ctx, x, y + 4, '#3a2810');
+        PA.pixel(ctx, x + 2, y + 4, '#2a2010');
+      } else if (status.id === 'oil_burn') {
+        // 油燃燒傷：猛烈火焰粒子
+        const PA = DK.PixelArt;
+        const t = (time || 0) / 200;
+
+        // 底部猛烈橘紅光
+        const glowAlpha = 0.18 + Math.sin(t * 4) * 0.08;
+        PA.rect(ctx, x - 5, y - 7 + yOffset, 11, 13, `rgba(255,85,0,${glowAlpha})`);
+
+        // 8 個火焰粒子猛烈向上飄動（比灼印更大更亮）
+        for (let i = 0; i < 8; i++) {
+          const angle = t * 2 + (i * Math.PI * 2) / 8;
+          const radius = 6 + Math.sin(t * 3 + i) * 2;
+          const px = Math.round(x + Math.cos(angle) * radius);
+          const floatY = Math.sin(t * 4 + i * 0.7) * 3 - 2;
+          const py = Math.round(y - 3 + yOffset + Math.sin(angle) * radius * 0.4 + floatY);
+          const colors = ['#ffdd44', '#ffaa22', '#ff5500', '#cc2200'];
+          PA.pixel(ctx, px, py, colors[i % 4]);
+          PA.pixel(ctx, px, py - 1, colors[(i + 1) % 4]);
+        }
+
+        // 底部大火焰
+        PA.pixel(ctx, x - 2, y + 3, '#ff5500');
+        PA.pixel(ctx, x, y + 3, '#ffaa22');
+        PA.pixel(ctx, x + 2, y + 3, '#ff5500');
+        PA.pixel(ctx, x - 1, y + 4, '#cc2200');
+        PA.pixel(ctx, x + 1, y + 4, '#cc2200');
       }
 
       activeIndex++;
