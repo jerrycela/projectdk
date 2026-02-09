@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Tutorial System Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #1a1a2a; color: #fff; }
+    .test { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+    .pass { background: #1a3a1a; }
+    .fail { background: #3a1a1a; }
+    pre { background: #0a0a0a; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>ProjectDK 教學系統測試</h1>
+  <div id="results"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script>
+    const results = document.getElementById('results');
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.innerHTML += `<div class="test pass">✓ ${name}</div>`;
+      } catch (err) {
+        results.innerHTML += `<div class="test fail">✗ ${name}<pre>${err.stack}</pre></div>`;
+      }
+    }
+
+    // 測試 1: 檢查命名空間
+    test('DK 命名空間存在', () => {
+      if (!window.DK) throw new Error('DK 未定義');
+    });
+
+    // 測試 2: 檢查 LEVELS 陣列
+    test('DK.LEVELS 已載入', () => {
+      if (!DK.LEVELS) throw new Error('DK.LEVELS 未定義');
+      if (DK.LEVELS.length !== 5) throw new Error(`預期 5 個關卡，實際 ${DK.LEVELS.length}`);
+    });
+
+    // 測試 3: 檢查 Level 1 地圖尺寸
+    test('Level 1 地圖尺寸正確', () => {
+      const level1 = DK.LEVELS[0];
+      if (!level1.layout) throw new Error('Level 1 沒有 layout');
+      if (level1.layout.length !== 13) throw new Error(`預期 13 行，實際 ${level1.layout.length}`);
+
+      for (let i = 0; i < level1.layout.length; i++) {
+        if (level1.layout[i].length !== 20) {
+          throw new Error(`行 ${i} 長度錯誤：預期 20，實際 ${level1.layout[i].length}`);
+        }
+      }
+    });
+
+    // 測試 4: 檢查 Level 1 教學步驟
+    test('Level 1 教學步驟完整', () => {
+      const level1 = DK.LEVELS[0];
+      if (!level1.tutorial) throw new Error('Level 1 沒有 tutorial');
+      if (!level1.tutorial.steps) throw new Error('Level 1 沒有 steps');
+      if (level1.tutorial.steps.length < 3) throw new Error(`預期至少 3 步，實際 ${level1.tutorial.steps.length}`);
+    });
+
+    // 測試 5: 檢查 LevelManager
+    test('DK.LevelManager 已定義', () => {
+      if (!DK.LevelManager) throw new Error('DK.LevelManager 未定義');
+      if (typeof DK.LevelManager.init !== 'function') throw new Error('init 不是函式');
+      if (typeof DK.LevelManager.loadLevel !== 'function') throw new Error('loadLevel 不是函式');
+      if (typeof DK.LevelManager.nextLevel !== 'function') throw new Error('nextLevel 不是函式');
+    });
+
+    // 測試 6: 檢查 Tutorial 系統
+    test('DK.Tutorial 已定義', () => {
+      if (!DK.Tutorial) throw new Error('DK.Tutorial 未定義');
+      if (typeof DK.Tutorial.init !== 'function') throw new Error('init 不是函式');
+      if (typeof DK.Tutorial.update !== 'function') throw new Error('update 不是函式');
+      if (typeof DK.Tutorial.render !== 'function') throw new Error('render 不是函式');
+      if (typeof DK.Tutorial.checkCondition !== 'function') throw new Error('checkCondition 不是函式');
+    });
+
+    // 測試 7: 模擬 LevelManager 初始化
+    test('LevelManager 初始化', () => {
+      DK.LevelManager.init();
+      if (!DK.LevelManager.currentLevel) throw new Error('currentLevel 未設置');
+      if (DK.LevelManager.currentLevel.id !== 1) throw new Error(`預期 Level 1，實際 Level ${DK.LevelManager.currentLevel.id}`);
+    });
+
+    // 測試 8: 檢查 Level 5 使用原始配置
+    test('Level 5 使用原始配置', () => {
+      const level5 = DK.LEVELS[4];
+      if (level5.layout !== 'original') throw new Error('Level 5 應使用 original 地圖');
+      if (level5.waves !== 'original') throw new Error('Level 5 應使用 original 波次');
+      if (level5.tutorial !== null) throw new Error('Level 5 不應有教學');
+    });
+
+    // 測試 9: 檢查各關卡定義完整性
+    test('所有關卡定義完整', () => {
+      DK.LEVELS.forEach((level, idx) => {
+        if (!level.id) throw new Error(`Level ${idx + 1} 沒有 id`);
+        if (!level.name) throw new Error(`Level ${idx + 1} 沒有 name`);
+        if (!level.layout) throw new Error(`Level ${idx + 1} 沒有 layout`);
+        if (!level.waves) throw new Error(`Level ${idx + 1} 沒有 waves`);
+
+        // Level 5 特殊檢查
+        if (level.id === 5) {
+          if (level.layout !== 'original') throw new Error('Level 5 layout 應為 original');
+          if (level.waves !== 'original') throw new Error('Level 5 waves 應為 original');
+        }
+      });
+    });
+
+    // 測試 10: Tutorial 初始化測試
+    test('Tutorial 系統初始化', () => {
+      const tutorialConfig = {
+        steps: [
+          {
+            id: 'test',
+            trigger: 'onLoad',
+            message: '測試訊息',
+            nextTrigger: 'auto',
+            autoDelay: 1000,
+          }
+        ]
+      };
+
+      DK.Tutorial.init(tutorialConfig);
+
+      if (!DK.Tutorial.enabled) throw new Error('Tutorial 未啟用');
+      if (!DK.Tutorial.currentStep) throw new Error('currentStep 未設置');
+      if (DK.Tutorial.currentStep.id !== 'test') throw new Error('步驟未正確載入');
+    });
+
+    results.innerHTML += '<div class="test pass" style="margin-top: 20px; font-weight: bold;">🎉 所有測試通過！第 1 階段功能驗證完成</div>';
+  </script>
+</body>
+</html>

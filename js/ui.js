@@ -206,6 +206,10 @@ DK.UI = {
               DK.Game.startBreach();
             } else if (DK.Game.state === 'breach' && DK.Map.breachHoles && DK.Map.breachHoles.length > 0) {
               DK.Game.startInvasion();
+              // 教學系統：檢測波次開始
+              if (DK.Tutorial) {
+                DK.Tutorial.checkCondition('waveStarted', { wave: DK.Game.currentWave + 1 });
+              }
             }
           }
           return true;
@@ -269,6 +273,10 @@ DK.UI = {
           }
           // 點擊空地 → 放置
           if (DK.Map.placeBarricade && DK.Map.placeBarricade(col, row)) {
+            // 教學系統：檢測路障放置
+            if (DK.Tutorial && DK.Map.barricades) {
+              DK.Tutorial.checkCondition('barricadePlaced', { count: DK.Map.barricades.length });
+            }
             return true;
           }
           return true;
@@ -341,6 +349,10 @@ DK.UI = {
         if (DK.Game.gold >= this.selectedTrap.cost) {
           if (DK.Traps.place(this.selectedTrap.id, col, row)) {
             DK.Game.gold -= this.selectedTrap.cost;
+            // 教學系統：檢測陷阱放置
+            if (DK.Tutorial && DK.Traps.placed) {
+              DK.Tutorial.checkCondition('trapPlaced', { count: DK.Traps.placed.length });
+            }
             return true;
           }
         } else {
@@ -350,6 +362,10 @@ DK.UI = {
         if (DK.Game.gold >= this.selectedTrap.cost) {
           if (DK.Traps.place(this.selectedTrap.id, col, row)) {
             DK.Game.gold -= this.selectedTrap.cost;
+            // 教學系統：檢測陷阱放置
+            if (DK.Tutorial && DK.Traps.placed) {
+              DK.Tutorial.checkCondition('trapPlaced', { count: DK.Traps.placed.length });
+            }
             return true;
           }
         } else {
@@ -533,6 +549,11 @@ DK.UI = {
     // Game over / Victory
     if (game && game.gameOver) {
       this.renderGameOver(ctx);
+    }
+
+    // 教學系統渲染
+    if (DK.Tutorial) {
+      DK.Tutorial.render(ctx);
     }
   },
 

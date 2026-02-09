@@ -33,6 +33,11 @@ DK.Game = {
   },
 
   init() {
+    // 初始化關卡管理器（首次啟動）
+    if (DK.LevelManager && !DK.LevelManager.currentLevel) {
+      DK.LevelManager.init();
+    }
+
     this.gold = DK.CONFIG.STARTING_GOLD;
     this.dungeonHeartHP = DK.CONFIG.DUNGEON_HEART_HP;
     this.dungeonHeartMaxHP = DK.CONFIG.DUNGEON_HEART_HP;
@@ -141,6 +146,8 @@ DK.Game = {
     if (this.state === 'planning' || this.state === 'breach') {
       this.time += dt;
       DK.UI.update(dt);
+      // 更新教學系統
+      if (DK.Tutorial) DK.Tutorial.update(dt);
       // 更新粒子和特效（環境動畫繼續）
       this.updateParticles(dt);
       this.updateEffects(dt);
@@ -232,7 +239,14 @@ DK.Game = {
         this.currentWave++;
 
         if (this.currentWave >= DK.WAVES.length) {
-          this.gameOver = true; // 勝利！
+          // 檢查是否有下一關
+          if (DK.LevelManager && DK.LevelManager.nextLevel()) {
+            // 載入下一關成功，重新初始化遊戲
+            this.init();
+          } else {
+            // 所有關卡完成，勝利！
+            this.gameOver = true;
+          }
         } else {
           // 自動開始下一波倒數
           this.waveAutoTimer = DK.CONFIG.WAVE_AUTO_DELAY;

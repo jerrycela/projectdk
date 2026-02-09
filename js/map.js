@@ -119,6 +119,20 @@ DK.Map = {
   pathPreviewCache: [],
 
   init() {
+    // 動態載入關卡地圖（如果 LevelManager 有提供）
+    if (DK.LevelManager?.currentLevel?.layout &&
+        DK.LevelManager.currentLevel.layout !== 'original') {
+      this.layout = DK.LevelManager.currentLevel.layout;
+    }
+
+    // 自動偵測地圖尺寸並調整 camera（簡化地圖不使用 camera）
+    const rows = this.layout.length;
+    const cols = this.layout[0].length;
+    if (cols === 20 && rows === 13) {
+      // 簡化地圖：禁用 camera 移動
+      if (DK.Game) DK.Game.camera = { x: 0, y: 0 };
+    }
+
     this.initGrassState();
     this.findHeartPos();
     this.computeDistanceField();
