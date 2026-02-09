@@ -80,20 +80,20 @@ DK.COLORS = {
   TRAP_METAL_LIGHT: '#98a8c0',
   TRAP_METAL_DARK: '#586878',
 
-  // Enemies
-  GOBLIN_SKIN: '#44aa44',
-  GOBLIN_DARK: '#2a7a2a',
-  GOBLIN_EYE: '#ff4444',
-  SKELETON_BONE: '#d8d0c0',
-  SKELETON_DARK: '#a89880',
-  SKELETON_EYE: '#ff2200',
-  ORC_SKIN: '#8a6040',
-  ORC_DARK: '#6a4020',
-  ORC_ARMOR: '#606870',
-  SLIME_BODY: '#4488cc',
-  SLIME_LIGHT: '#66aaee',
-  SLIME_DARK: '#2266aa',
-  SLIME_EYE: '#ffffff',
+  // Enemies (Human Adventurers)
+  GOBLIN_SKIN: '#e8c8a0',      // 劍士膚色（人類膚色）
+  GOBLIN_DARK: '#c8a878',      // 劍士膚色暗面
+  GOBLIN_EYE: '#4466aa',       // 劍士藍眼
+  SKELETON_BONE: '#c8b898',    // 弓手皮革色
+  SKELETON_DARK: '#a89070',    // 弓手皮革暗色
+  SKELETON_EYE: '#44aa44',     // 弓手綠眼
+  ORC_SKIN: '#e0c0a0',        // 騎士膚色
+  ORC_DARK: '#c0a080',        // 騎士膚色暗面
+  ORC_ARMOR: '#7080a0',       // 騎士銀甲
+  SLIME_BODY: '#4a4a5a',      // 盜賊暗色衣
+  SLIME_LIGHT: '#6a6a7a',     // 盜賊衣服亮面
+  SLIME_DARK: '#2a2a3a',      // 盜賊衣服暗面
+  SLIME_EYE: '#ffffff',       // 盜賊眼白
 
   // UI
   UI_BG: '#12101e',
@@ -120,11 +120,11 @@ DK.COLORS = {
   ELEMENT_ELECTRIC_LIGHT: '#ffff88',
   ELEMENT_REACTION: '#ffffff',
 
-  // Heroes
-  HERO_ROBE: '#2244aa',
-  HERO_ROBE_DARK: '#1a3388',
-  HERO_ROBE_LIGHT: '#3355cc',
-  HERO_SKIN: '#e8d0b0',
+  // Heroes (Dungeon Deities - Female)
+  HERO_ROBE: '#1a4488',         // 利維坦深藍禮服
+  HERO_ROBE_DARK: '#0e2a5a',    // 利維坦暗面
+  HERO_ROBE_LIGHT: '#2a5aaa',   // 利維坦亮面
+  HERO_SKIN: '#f0dcc8',         // 女神膚色（白皙）
   HERO_SELECTED: '#44ff44',
 
   // Electric trap
@@ -188,15 +188,15 @@ DK.COLORS = {
   ELEMENT_ICE_LIGHT: '#aaddff',
   ELEMENT_ICE_DARK: '#4488cc',
 
-  // Heroes - Fire mage
-  HERO_FIRE_ROBE: '#aa3322',
-  HERO_FIRE_ROBE_DARK: '#882211',
-  HERO_FIRE_ROBE_LIGHT: '#cc4433',
+  // Heroes - Baal (Fire Goddess)
+  HERO_FIRE_ROBE: '#882020',     // 巴爾深紅禮服
+  HERO_FIRE_ROBE_DARK: '#5a1010',// 巴爾暗面
+  HERO_FIRE_ROBE_LIGHT: '#aa3030',// 巴爾亮面
 
-  // Heroes - Ice mage
-  HERO_ICE_ROBE: '#4488aa',
-  HERO_ICE_ROBE_DARK: '#336688',
-  HERO_ICE_ROBE_LIGHT: '#55aacc',
+  // Heroes - Skadi (Ice Goddess)
+  HERO_ICE_ROBE: '#6688aa',      // 斯卡蒂銀藍禮服
+  HERO_ICE_ROBE_DARK: '#445a78', // 斯卡蒂暗面
+  HERO_ICE_ROBE_LIGHT: '#88aacc',// 斯卡蒂亮面
 };
 
 // Trap definitions
@@ -296,9 +296,9 @@ DK.AURA_PAIRS = {
 DK.ENEMY_TYPES = {
   GOBLIN: {
     id: 'goblin',
-    name: '哥布林',
+    name: '劍士',
     hp: 60,
-    speed: 1.2,
+    speed: 1.0,
     reward: 10,
     size: 0.7,
     mass: 1,
@@ -306,7 +306,7 @@ DK.ENEMY_TYPES = {
   },
   SKELETON: {
     id: 'skeleton',
-    name: '骷髏',
+    name: '弓手',
     hp: 100,
     speed: 0.8,
     reward: 15,
@@ -316,7 +316,7 @@ DK.ENEMY_TYPES = {
   },
   ORC: {
     id: 'orc',
-    name: '獸人',
+    name: '騎士',
     hp: 200,
     speed: 0.5,
     reward: 25,
@@ -326,7 +326,7 @@ DK.ENEMY_TYPES = {
   },
   SLIME: {
     id: 'slime',
-    name: '史萊姆',
+    name: '盜賊',
     hp: 80,
     speed: 0.9,
     reward: 12,

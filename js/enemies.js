@@ -419,103 +419,87 @@ DK.Enemies = {
     const f = enemy.animFrame;
     const flash = enemy.flashTimer > 0;
     const skin = flash ? '#ffffff' : C.GOBLIN_SKIN;
-    const dark = flash ? '#dddddd' : C.GOBLIN_DARK;
-    const light = flash ? '#ffffff' : '#55cc55';
+    const skinDark = flash ? '#dddddd' : C.GOBLIN_DARK;
+    const armor = flash ? '#cccccc' : '#8a6a4a';
+    const armorDark = flash ? '#aaaaaa' : '#6a4a2a';
+    const hair = flash ? '#dddddd' : '#6a4a2a';
 
-    // === GOBLIN: Small, hunched, pointy-eared creature with ragged tunic ===
+    // === SWORDSMAN: Light-armored human fighter with sword ===
 
-    // Shadow on ground
-    PA.rect(ctx, x - 3, y + 4, 6, 1, 'rgba(0,0,0,0.2)');
+    // Shadow
+    PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.2)');
 
-    // Feet (animated walk cycle)
+    // Boots (leather)
     if (f === 0 || f === 2) {
-      PA.pixel(ctx, x - 2, y + 3, '#4a3020');
-      PA.pixel(ctx, x - 1, y + 3, '#4a3020');
-      PA.pixel(ctx, x + 1, y + 3, '#4a3020');
-      PA.pixel(ctx, x + 2, y + 3, '#4a3020');
+      PA.rect(ctx, x - 2, y + 3, 2, 1, '#5a4030');
+      PA.rect(ctx, x + 1, y + 3, 2, 1, '#5a4030');
     } else if (f === 1) {
-      PA.pixel(ctx, x - 3, y + 3, '#4a3020');
-      PA.pixel(ctx, x - 2, y + 2, '#4a3020');
-      PA.pixel(ctx, x + 2, y + 3, '#4a3020');
-      PA.pixel(ctx, x + 3, y + 3, '#4a3020');
+      PA.rect(ctx, x - 3, y + 3, 2, 1, '#5a4030');
+      PA.rect(ctx, x + 2, y + 3, 2, 1, '#5a4030');
     } else {
-      PA.pixel(ctx, x - 2, y + 3, '#4a3020');
-      PA.pixel(ctx, x - 3, y + 3, '#4a3020');
-      PA.pixel(ctx, x + 3, y + 2, '#4a3020');
-      PA.pixel(ctx, x + 2, y + 3, '#4a3020');
+      PA.rect(ctx, x - 2, y + 3, 2, 1, '#5a4030');
+      PA.rect(ctx, x + 2, y + 3, 2, 1, '#5a4030');
     }
 
-    // Legs (green, thin)
-    PA.pixel(ctx, x - 1, y + 2, dark);
-    PA.pixel(ctx, x + 1, y + 2, dark);
+    // Legs (trousers)
+    PA.pixel(ctx, x - 1, y + 2, '#6a5a4a');
+    PA.pixel(ctx, x + 1, y + 2, '#6a5a4a');
 
-    // Ragged tunic (brown)
-    PA.rect(ctx, x - 2, y - 1, 5, 3, '#6a4a2a');
-    PA.rect(ctx, x - 3, y, 7, 2, '#5a3a1a');
-    // Tunic trim
-    PA.pixel(ctx, x - 3, y + 1, '#4a2a10');
-    PA.pixel(ctx, x + 3, y + 1, '#4a2a10');
+    // Leather armor (torso)
+    PA.rect(ctx, x - 2, y - 1, 5, 3, armor);
+    PA.rect(ctx, x - 3, y, 7, 2, armorDark);
+    // Armor light edge (left-top light source)
+    PA.pixel(ctx, x - 2, y - 1, PA.lighten(armor, 12));
+    PA.pixel(ctx, x + 2, y + 1, PA.darken(armor, 12));
+    // Belt
+    PA.rect(ctx, x - 2, y + 1, 5, 1, '#4a3a2a');
+    PA.pixel(ctx, x, y + 1, '#c8a050');
 
-    // Body/skin (behind tunic)
-    PA.rect(ctx, x - 2, y - 2, 5, 1, skin);
+    // Body/neck
+    PA.rect(ctx, x - 1, y - 2, 3, 1, skin);
 
-    // Arms (thin, reaching forward)
+    // Arms
     const armOffset = f % 2;
     PA.pixel(ctx, x - 3, y - 1 + armOffset, skin);
     PA.pixel(ctx, x - 4, y + armOffset, skin);
     PA.pixel(ctx, x + 3, y - 1 - armOffset, skin);
     PA.pixel(ctx, x + 4, y - armOffset, skin);
 
-    // Head (large for body, distinctive green)
-    PA.rect(ctx, x - 3, y - 6, 7, 4, skin);
-    PA.rect(ctx, x - 2, y - 7, 5, 1, skin);
+    // Head
+    PA.rect(ctx, x - 2, y - 6, 5, 4, skin);
+    PA.rect(ctx, x - 1, y - 7, 3, 1, skin);
     // Face shading
-    PA.rect(ctx, x - 3, y - 4, 7, 1, dark);
+    PA.pixel(ctx, x + 2, y - 4, skinDark);
+    PA.pixel(ctx, x + 2, y - 3, skinDark);
 
-    // Pointy ears (prominent, goblin signature)
-    PA.pixel(ctx, x - 4, y - 5, skin);
-    PA.pixel(ctx, x - 5, y - 6, skin);
-    PA.pixel(ctx, x - 5, y - 7, light);
-    PA.pixel(ctx, x + 4, y - 5, skin);
-    PA.pixel(ctx, x + 5, y - 6, skin);
-    PA.pixel(ctx, x + 5, y - 7, light);
+    // Hair (short brown)
+    PA.rect(ctx, x - 2, y - 7, 5, 1, hair);
+    PA.rect(ctx, x - 3, y - 6, 1, 2, hair);
+    PA.pixel(ctx, x - 2, y - 6, hair);
+    PA.pixel(ctx, x + 2, y - 7, hair);
 
-    // Eyes (large, menacing red)
-    PA.pixel(ctx, x - 2, y - 5, C.GOBLIN_EYE);
-    PA.pixel(ctx, x - 1, y - 5, '#ff8888');
+    // Eyes (blue)
+    PA.pixel(ctx, x - 1, y - 5, C.GOBLIN_EYE);
     PA.pixel(ctx, x + 1, y - 5, C.GOBLIN_EYE);
-    PA.pixel(ctx, x + 2, y - 5, '#ff8888');
 
-    // Nose (pointy)
-    PA.pixel(ctx, x, y - 4, light);
+    // Nose
+    PA.pixel(ctx, x, y - 4, skinDark);
 
-    // Mouth (toothy grin)
-    PA.pixel(ctx, x - 1, y - 3, '#2a5a2a');
-    PA.pixel(ctx, x, y - 3, '#ffffff');
-    PA.pixel(ctx, x + 1, y - 3, '#2a5a2a');
+    // Mouth
+    PA.pixel(ctx, x, y - 3, '#c0a080');
 
-    // === 2A: 光源面統一 — 頭部左上高光、右下陰影 ===
-    PA.pixel(ctx, x - 3, y - 6, PA.lighten(skin, 12));  // 頭部左側高光
-    PA.pixel(ctx, x - 2, y - 7, PA.lighten(skin, 12));  // 頭頂左側高光
-    PA.pixel(ctx, x + 3, y - 4, PA.darken(skin, 12));   // 頭部右下陰影
-    PA.pixel(ctx, x + 2, y - 3, PA.darken(skin, 12));   // 下巴右側陰影
+    // Light source highlights
+    PA.pixel(ctx, x - 2, y - 6, PA.lighten(skin, 12));
+    PA.pixel(ctx, x - 1, y - 7, PA.lighten(skin, 12));
+    PA.pixel(ctx, x + 2, y - 4, PA.darken(skin, 10));
 
-    // === 2B: 衣著分明暗面 ===
-    PA.pixel(ctx, x - 2, y - 1, PA.lighten('#6a4a2a', 12));  // 衣著左側高光
-    PA.pixel(ctx, x + 2, y - 1, PA.darken('#6a4a2a', 12));   // 衣著右側陰影
-
-    // === 2B: 耳朵底部陰影 ===
-    PA.pixel(ctx, x - 4, y - 4, PA.darken(skin, 12));  // 左耳底部陰影
-    PA.pixel(ctx, x + 4, y - 4, PA.darken(skin, 12));  // 右耳底部陰影
-
-    // === 2B: 眼睛黑底對比 ===
-    PA.pixel(ctx, x - 2, y - 4, '#1a0a0a');  // 左眼下方黑底
-    PA.pixel(ctx, x + 1, y - 4, '#1a0a0a');  // 右眼下方黑底
-
-    // Small rusty dagger (held in right hand)
-    PA.pixel(ctx, x + 5, y - 1, '#8a6a4a');
-    PA.pixel(ctx, x + 5, y - 2, '#aaaaaa');
+    // Sword (right hand)
+    PA.pixel(ctx, x + 5, y + 1, '#6a5a4a');  // hilt
+    PA.pixel(ctx, x + 5, y, '#8a7a5a');      // guard
+    PA.pixel(ctx, x + 5, y - 1, '#aaaaaa');
+    PA.pixel(ctx, x + 5, y - 2, '#bbbbbb');
     PA.pixel(ctx, x + 5, y - 3, '#cccccc');
+    PA.pixel(ctx, x + 5, y - 4, '#dddddd');  // tip highlight
   },
 
   renderSkeleton(ctx, enemy, x, y) {
@@ -523,100 +507,92 @@ DK.Enemies = {
     const C = DK.COLORS;
     const f = enemy.animFrame;
     const flash = enemy.flashTimer > 0;
-    const bone = flash ? '#ffffff' : C.SKELETON_BONE;
-    const dark = flash ? '#dddddd' : C.SKELETON_DARK;
-    const joint = flash ? '#cccccc' : '#b0a890';
+    const skin = flash ? '#ffffff' : '#e0c0a0';
+    const skinDark = flash ? '#dddddd' : '#c0a080';
+    const cloak = flash ? '#cccccc' : '#3a5a2a';
+    const cloakLight = flash ? '#dddddd' : '#4a7a3a';
+    const leather = flash ? '#bbbbbb' : C.SKELETON_BONE;
 
-    // === SKELETON: Undead warrior with visible bone structure and tattered armor ===
+    // === ARCHER: Cloaked ranger with longbow ===
 
     // Shadow
     PA.rect(ctx, x - 3, y + 5, 7, 1, 'rgba(0,0,0,0.2)');
 
-    // Feet (bone)
+    // Boots
     if (f < 2) {
-      PA.rect(ctx, x - 2, y + 4, 2, 1, bone);
-      PA.rect(ctx, x + 1, y + 4, 2, 1, bone);
+      PA.rect(ctx, x - 2, y + 4, 2, 1, '#5a4030');
+      PA.rect(ctx, x + 1, y + 4, 2, 1, '#5a4030');
     } else {
-      PA.rect(ctx, x - 3, y + 4, 2, 1, bone);
-      PA.rect(ctx, x + 2, y + 4, 2, 1, bone);
+      PA.rect(ctx, x - 3, y + 4, 2, 1, '#5a4030');
+      PA.rect(ctx, x + 2, y + 4, 2, 1, '#5a4030');
     }
 
-    // Leg bones
-    PA.pixel(ctx, x - 1, y + 3, bone);
-    PA.pixel(ctx, x - 1, y + 2, joint);
-    PA.pixel(ctx, x + 1, y + 3, bone);
-    PA.pixel(ctx, x + 1, y + 2, joint);
+    // Legs
+    PA.pixel(ctx, x - 1, y + 3, '#6a5a4a');
+    PA.pixel(ctx, x - 1, y + 2, '#6a5a4a');
+    PA.pixel(ctx, x + 1, y + 3, '#6a5a4a');
+    PA.pixel(ctx, x + 1, y + 2, '#6a5a4a');
 
-    // Pelvis
-    PA.rect(ctx, x - 2, y + 1, 5, 1, dark);
+    // Cloak lower (flowing)
+    PA.rect(ctx, x - 3, y, 7, 2, cloak);
+    PA.pixel(ctx, x - 3, y + 1, cloakLight);
 
-    // Ribcage (detailed - visible ribs)
-    PA.rect(ctx, x - 2, y - 3, 5, 4, bone);
-    // Spine (center dark line)
-    PA.rect(ctx, x, y - 3, 1, 4, dark);
-    // Rib gaps
-    PA.pixel(ctx, x - 1, y - 2, dark);
-    PA.pixel(ctx, x + 1, y - 2, dark);
-    PA.pixel(ctx, x - 1, y, dark);
-    PA.pixel(ctx, x + 1, y, dark);
+    // Leather chest armor
+    PA.rect(ctx, x - 2, y - 3, 5, 3, leather);
+    PA.rect(ctx, x - 3, y - 2, 7, 2, C.SKELETON_DARK);
+    // Armor light
+    PA.pixel(ctx, x - 2, y - 3, PA.lighten(leather, 10));
 
-    // Tattered armor remnant (shoulder piece)
-    PA.rect(ctx, x - 3, y - 3, 2, 2, '#505860');
-    PA.pixel(ctx, x - 3, y - 3, '#606870');
-    PA.rect(ctx, x + 2, y - 3, 2, 2, '#505860');
-    PA.pixel(ctx, x + 3, y - 3, '#606870');
+    // Cloak shoulders
+    PA.rect(ctx, x - 4, y - 3, 2, 3, cloak);
+    PA.rect(ctx, x + 3, y - 3, 2, 3, cloak);
+    PA.pixel(ctx, x - 4, y - 3, cloakLight);
+    PA.pixel(ctx, x + 4, y - 3, cloakLight);
 
-    // Arms (bone with joints)
+    // Arms
     const armSwing = f % 2;
-    // Left arm
-    PA.pixel(ctx, x - 3, y - 1, bone);
-    PA.pixel(ctx, x - 4, y - armSwing, joint);
-    PA.pixel(ctx, x - 5, y + 1 - armSwing, bone);
-    // Right arm
-    PA.pixel(ctx, x + 3, y - 1, bone);
-    PA.pixel(ctx, x + 4, y + armSwing, joint);
-    PA.pixel(ctx, x + 5, y + 1 + armSwing, bone);
+    PA.pixel(ctx, x - 4, y - 1, skin);
+    PA.pixel(ctx, x - 5, y - armSwing, skin);
+    PA.pixel(ctx, x + 4, y - 1, skin);
+    PA.pixel(ctx, x + 5, y + armSwing, skin);
 
-    // Skull (detailed)
-    PA.rect(ctx, x - 3, y - 8, 7, 5, bone);
-    PA.pixel(ctx, x - 3, y - 8, dark);
-    PA.pixel(ctx, x + 3, y - 8, dark);
-    // Cranium highlight
-    PA.rect(ctx, x - 1, y - 8, 3, 1, '#e8e0d0');
+    // Head
+    PA.rect(ctx, x - 2, y - 8, 5, 5, skin);
+    PA.pixel(ctx, x - 2, y - 8, skinDark);
+    PA.pixel(ctx, x + 2, y - 4, skinDark);
 
-    // Eye sockets (deep and dark)
-    PA.rect(ctx, x - 2, y - 7, 2, 2, '#0a0808');
-    PA.rect(ctx, x + 1, y - 7, 2, 2, '#0a0808');
-    // === 2C: 眼眶周圍暗色環像素 ===
-    PA.pixel(ctx, x - 3, y - 6, '#0a0808');
-    PA.pixel(ctx, x + 3, y - 6, '#0a0808');
-    // Glowing eyes (2C: 改為黃綠色)
-    PA.pixel(ctx, x - 2, y - 6, '#ccff44');
-    PA.pixel(ctx, x + 1, y - 6, '#ccff44');
+    // Hood (green cloak hood)
+    PA.rect(ctx, x - 3, y - 8, 7, 2, cloak);
+    PA.rect(ctx, x - 2, y - 9, 5, 1, cloak);
+    PA.pixel(ctx, x - 1, y - 9, cloakLight);
 
-    // Nasal cavity
-    PA.pixel(ctx, x, y - 5, '#2a2018');
+    // Eyes (green)
+    PA.pixel(ctx, x - 1, y - 6, C.SKELETON_EYE);
+    PA.pixel(ctx, x + 1, y - 6, C.SKELETON_EYE);
 
-    // Jaw (separate, slightly open)
-    PA.rect(ctx, x - 2, y - 4, 5, 1, dark);
-    // Teeth
-    PA.pixel(ctx, x - 1, y - 4, bone);
-    PA.pixel(ctx, x + 1, y - 4, bone);
+    // Nose & mouth
+    PA.pixel(ctx, x, y - 5, skinDark);
+    PA.pixel(ctx, x, y - 4, '#c0a080');
 
-    // === 2A: 骷髏光源面統一 — 頭骨左上高光、右下陰影 ===
-    PA.pixel(ctx, x - 3, y - 7, PA.lighten(bone, 12));  // 頭骨左側高光
-    PA.pixel(ctx, x - 1, y - 8, PA.lighten(bone, 12));  // 頭頂左側高光
-    PA.pixel(ctx, x + 3, y - 5, PA.darken(bone, 12));   // 頭骨右下陰影
-    PA.pixel(ctx, x + 2, y - 4, PA.darken(bone, 12));   // 下顎右側陰影
+    // Light source
+    PA.pixel(ctx, x - 2, y - 7, PA.lighten(skin, 12));
+    PA.pixel(ctx, x + 2, y - 5, PA.darken(skin, 10));
 
-    // Rusty sword (left hand)
-    PA.pixel(ctx, x - 6, y + 2, '#6a5a4a');
-    PA.pixel(ctx, x - 6, y + 1, '#8a7a6a');
-    PA.pixel(ctx, x - 6, y, '#aaaaaa');
-    PA.pixel(ctx, x - 6, y - 1, '#bbbbbb');
-    PA.pixel(ctx, x - 6, y - 2, '#cccccc');
-    // === 2C: 劍尖高光 ===
-    PA.pixel(ctx, x - 6, y - 3, '#dddddd');
+    // Quiver (back, right side)
+    PA.rect(ctx, x + 3, y - 7, 1, 5, '#6a4a2a');
+    PA.pixel(ctx, x + 3, y - 8, '#aaaaaa'); // arrow tips
+    PA.pixel(ctx, x + 4, y - 8, '#aaaaaa');
+
+    // Longbow (left side)
+    PA.pixel(ctx, x - 6, y - 6, '#7a5a30');
+    PA.pixel(ctx, x - 6, y - 5, '#8a6a40');
+    PA.pixel(ctx, x - 6, y - 4, '#8a6a40');
+    PA.pixel(ctx, x - 6, y - 3, '#8a6a40');
+    PA.pixel(ctx, x - 6, y - 2, '#8a6a40');
+    PA.pixel(ctx, x - 6, y - 1, '#7a5a30');
+    // Bowstring
+    PA.pixel(ctx, x - 5, y - 5, '#aaaaaa');
+    PA.pixel(ctx, x - 5, y - 2, '#aaaaaa');
   },
 
   renderOrc(ctx, enemy, x, y) {
@@ -624,201 +600,160 @@ DK.Enemies = {
     const C = DK.COLORS;
     const f = enemy.animFrame;
     const flash = enemy.flashTimer > 0;
+    const armor = flash ? '#cccccc' : C.ORC_ARMOR;
+    const armorLight = flash ? '#dddddd' : '#8898b0';
+    const armorDark = flash ? '#aaaaaa' : '#506080';
     const skin = flash ? '#ffffff' : C.ORC_SKIN;
-    const dark = flash ? '#dddddd' : C.ORC_DARK;
-    const armor = flash ? '#bbbbbb' : C.ORC_ARMOR;
 
-    // === ORC: Large, muscular brute with heavy plate armor and battleaxe ===
+    // === KNIGHT: Heavy plate armored warrior with greatsword ===
 
     // Shadow (larger)
     PA.rect(ctx, x - 4, y + 6, 9, 1, 'rgba(0,0,0,0.3)');
 
-    // Boots (heavy, armored)
+    // Armored boots
     if (f === 0 || f === 2) {
-      PA.rect(ctx, x - 3, y + 4, 3, 2, '#3a3030');
-      PA.rect(ctx, x + 1, y + 4, 3, 2, '#3a3030');
+      PA.rect(ctx, x - 3, y + 4, 3, 2, armorDark);
+      PA.rect(ctx, x + 1, y + 4, 3, 2, armorDark);
     } else if (f === 1) {
-      PA.rect(ctx, x - 4, y + 3, 3, 2, '#3a3030');
-      PA.rect(ctx, x + 2, y + 4, 3, 2, '#3a3030');
+      PA.rect(ctx, x - 4, y + 3, 3, 2, armorDark);
+      PA.rect(ctx, x + 2, y + 4, 3, 2, armorDark);
     } else {
-      PA.rect(ctx, x - 3, y + 4, 3, 2, '#3a3030');
-      PA.rect(ctx, x + 3, y + 3, 3, 2, '#3a3030');
+      PA.rect(ctx, x - 3, y + 4, 3, 2, armorDark);
+      PA.rect(ctx, x + 3, y + 3, 3, 2, armorDark);
     }
     // Boot metal trim
-    PA.pixel(ctx, x - 2, y + 4, armor);
-    PA.pixel(ctx, x + 2, y + 4, armor);
+    PA.pixel(ctx, x - 2, y + 4, armorLight);
+    PA.pixel(ctx, x + 2, y + 4, armorLight);
 
-    // Legs (thick, armored greaves)
+    // Leg armor (greaves)
     PA.rect(ctx, x - 2, y + 2, 2, 2, armor);
     PA.rect(ctx, x + 1, y + 2, 2, 2, armor);
 
-    // Body armor (heavy plate)
+    // Plate armor (torso)
     PA.rect(ctx, x - 4, y - 3, 9, 5, armor);
     PA.rect(ctx, x - 3, y - 4, 7, 1, armor);
-    // Armor detail - rivets and plates
-    PA.rect(ctx, x - 3, y - 2, 7, 1, '#707880');
-    PA.pixel(ctx, x - 4, y - 3, '#808890');
-    PA.pixel(ctx, x + 4, y - 3, '#808890');
-    // Center chest plate
-    PA.rect(ctx, x - 1, y - 3, 3, 3, '#707880');
-    PA.pixel(ctx, x, y - 2, '#888');
-    // Shoulder pauldrons
-    PA.rect(ctx, x - 5, y - 4, 2, 3, '#505860');
-    PA.rect(ctx, x + 4, y - 4, 2, 3, '#505860');
-    PA.pixel(ctx, x - 5, y - 4, '#707880');
-    PA.pixel(ctx, x + 5, y - 4, '#707880');
+    // Armor detail
+    PA.rect(ctx, x - 3, y - 2, 7, 1, armorLight);
+    PA.pixel(ctx, x - 4, y - 3, armorLight);
+    PA.pixel(ctx, x + 4, y - 3, armorDark);
+    // Center chest emblem
+    PA.rect(ctx, x - 1, y - 3, 3, 3, armorLight);
+    PA.pixel(ctx, x, y - 2, '#c8b040'); // gold cross emblem
+    // Left-top light source
+    PA.pixel(ctx, x - 3, y - 3, PA.lighten(armor, 15));
+    PA.pixel(ctx, x - 2, y - 4, PA.lighten(armor, 15));
 
-    // Arms (thick, green skin visible below armor)
-    PA.pixel(ctx, x - 5, y - 1, skin);
-    PA.pixel(ctx, x - 6, y, skin);
-    PA.pixel(ctx, x - 6, y + 1, dark);
-    PA.pixel(ctx, x + 5, y - 1, skin);
-    PA.pixel(ctx, x + 6, y, skin);
-    PA.pixel(ctx, x + 6, y + 1, dark);
+    // Shoulder pauldrons (large)
+    PA.rect(ctx, x - 5, y - 4, 2, 3, armorDark);
+    PA.rect(ctx, x + 4, y - 4, 2, 3, armorDark);
+    PA.pixel(ctx, x - 5, y - 4, armorLight);
+    PA.pixel(ctx, x + 5, y - 4, armorDark);
 
-    // Head (large, brutish)
-    PA.rect(ctx, x - 4, y - 9, 9, 5, skin);
-    PA.rect(ctx, x - 3, y - 10, 7, 1, skin);
-    // Heavy brow ridge
-    PA.rect(ctx, x - 4, y - 9, 9, 1, dark);
-    PA.rect(ctx, x - 3, y - 10, 7, 1, dark);
+    // Arms (armored)
+    PA.pixel(ctx, x - 5, y - 1, armor);
+    PA.pixel(ctx, x - 6, y, armor);
+    PA.pixel(ctx, x - 6, y + 1, armorDark);
+    PA.pixel(ctx, x + 5, y - 1, armor);
+    PA.pixel(ctx, x + 6, y, armor);
+    PA.pixel(ctx, x + 6, y + 1, armorDark);
 
-    // Eyes (fierce orange)
-    PA.pixel(ctx, x - 2, y - 7, '#ff6600');
-    PA.pixel(ctx, x - 1, y - 7, '#ff8800');
-    PA.pixel(ctx, x + 1, y - 7, '#ff6600');
-    PA.pixel(ctx, x + 2, y - 7, '#ff8800');
+    // Helmet (full plate helm with visor)
+    PA.rect(ctx, x - 3, y - 9, 7, 5, armor);
+    PA.rect(ctx, x - 2, y - 10, 5, 1, armorLight);
+    // Visor slit (eyes visible)
+    PA.rect(ctx, x - 2, y - 7, 5, 1, '#1a1a2a');
+    PA.pixel(ctx, x - 1, y - 7, '#aaccff'); // glowing blue eyes through visor
+    PA.pixel(ctx, x + 1, y - 7, '#aaccff');
+    // Helmet crest / plume (blue feather)
+    PA.pixel(ctx, x, y - 11, '#4466aa');
+    PA.pixel(ctx, x, y - 12, '#5577bb');
+    PA.pixel(ctx, x + 1, y - 12, '#4466aa');
+    // Helmet light/shadow
+    PA.pixel(ctx, x - 3, y - 9, armorLight);
+    PA.pixel(ctx, x + 3, y - 6, armorDark);
 
-    // Nose (flat, wide)
-    PA.pixel(ctx, x - 1, y - 6, dark);
-    PA.pixel(ctx, x, y - 6, dark);
-    PA.pixel(ctx, x + 1, y - 6, dark);
-
-    // Tusks (prominent, ivory)
-    PA.pixel(ctx, x - 3, y - 5, '#e8e0d0');
-    PA.pixel(ctx, x - 3, y - 4, '#d8d0c0');
-    PA.pixel(ctx, x + 3, y - 5, '#e8e0d0');
-    PA.pixel(ctx, x + 3, y - 4, '#d8d0c0');
-
-    // Jaw
-    PA.rect(ctx, x - 2, y - 5, 5, 1, dark);
-
-    // Battle axe (right side, large)
-    PA.rect(ctx, x + 6, y - 7, 1, 10, '#6b5010');
-    PA.rect(ctx, x + 7, y - 8, 2, 4, '#aaaaaa');
-    PA.rect(ctx, x + 7, y - 9, 2, 1, '#bbbbbb');
-    PA.pixel(ctx, x + 9, y - 7, '#cccccc');
-    PA.pixel(ctx, x + 9, y - 6, '#bbbbbb');
-    // Axe blade highlight
-    PA.pixel(ctx, x + 7, y - 9, '#dddddd');
-    // === 2D: 戰斧刀刃高光 ===
-    PA.pixel(ctx, x + 9, y - 8, '#eeeeee');
-
-    // === 2A: 獸人光源面統一 — 頭部左上高光、右下陰影 ===
-    PA.pixel(ctx, x - 4, y - 9, PA.lighten(skin, 12));  // 頭部左側高光
-    PA.pixel(ctx, x - 3, y - 10, PA.lighten(skin, 12)); // 頭頂左側高光
-    PA.pixel(ctx, x + 4, y - 5, PA.darken(skin, 12));   // 頭部右下陰影
-    PA.pixel(ctx, x + 3, y - 4, PA.darken(skin, 12));   // 下巴右側陰影
-
-    // === 2D: 胸甲左上光源面高光 ===
-    PA.pixel(ctx, x - 3, y - 3, PA.lighten('#606870', 15));  // 胸甲高光
-    PA.pixel(ctx, x - 2, y - 4, PA.lighten('#606870', 15));  // 胸甲高光 2
-
-    // === 2D: 肩甲高光 ===
-    PA.pixel(ctx, x - 5, y - 5, PA.lighten('#505860', 15));  // 左肩甲高光
+    // Greatsword (right side, large)
+    PA.rect(ctx, x + 6, y - 8, 1, 11, '#6b5a3a'); // handle
+    PA.rect(ctx, x + 5, y - 4, 3, 1, '#c8b040');  // guard (gold)
+    PA.rect(ctx, x + 7, y - 9, 2, 4, '#aaaaaa');   // blade
+    PA.rect(ctx, x + 7, y - 10, 2, 1, '#bbbbbb');
+    PA.pixel(ctx, x + 7, y - 11, '#cccccc');        // tip
+    // Blade highlight
+    PA.pixel(ctx, x + 8, y - 10, '#dddddd');
   },
 
   renderSlime(ctx, enemy, x, y, time) {
     const PA = DK.PixelArt;
     const C = DK.COLORS;
     const flash = enemy.flashTimer > 0;
-    const body = flash ? '#ffffff' : C.SLIME_BODY;
-    const light = flash ? '#eeeeee' : C.SLIME_LIGHT;
-    const dark = flash ? '#dddddd' : C.SLIME_DARK;
+    const cloth = flash ? '#cccccc' : C.SLIME_BODY;
+    const clothLight = flash ? '#dddddd' : C.SLIME_LIGHT;
+    const clothDark = flash ? '#aaaaaa' : C.SLIME_DARK;
 
-    // === SLIME: Translucent jelly creature that bounces and wobbles ===
+    // === THIEF: Agile rogue with dual daggers and mask ===
 
-    // Bounce animation
-    const bounce = Math.sin((time || 0) / 200 + enemy.x) * 1.5;
-    const squish = Math.cos((time || 0) / 200 + enemy.x); // Width variation
-    const by = Math.round(y + bounce);
-    const wide = squish > 0 ? 1 : 0;
+    // Agile dodge sway (reusing bounce animation)
+    const sway = Math.sin((time || 0) / 200 + enemy.x) * 1;
+    const bx = Math.round(x + sway);
 
-    // Shadow (changes with bounce)
-    const shadowW = 6 + wide;
-    PA.rect(ctx, x - Math.floor(shadowW / 2), y + 3, shadowW, 1, 'rgba(0,0,0,0.2)');
+    // Shadow
+    PA.rect(ctx, bx - 3, y + 3, 6, 1, 'rgba(0,0,0,0.2)');
 
-    // Slime trail (transparent)
-    PA.pixel(ctx, x - 2, y + 2, 'rgba(68,136,204,0.3)');
-    PA.pixel(ctx, x + 1, y + 2, 'rgba(68,136,204,0.3)');
+    // Boots (soft leather, silent)
+    PA.pixel(ctx, bx - 2, y + 2, '#3a3030');
+    PA.pixel(ctx, bx - 1, y + 2, '#3a3030');
+    PA.pixel(ctx, bx + 1, y + 2, '#3a3030');
+    PA.pixel(ctx, bx + 2, y + 2, '#3a3030');
 
-    // Body (blob shape with wobble)
-    // Base (wider when squished down)
-    PA.rect(ctx, x - 4 - wide, by + 1, 9 + wide * 2, 2, dark);
-    // Middle body
-    PA.rect(ctx, x - 4, by - 1, 9, 3, body);
-    PA.rect(ctx, x - 3, by - 2, 7, 1, body);
-    // Top (narrower)
-    PA.rect(ctx, x - 2, by - 3, 5, 1, body);
-    PA.pixel(ctx, x - 1, by - 4, body);
-    PA.pixel(ctx, x, by - 4, body);
-    PA.pixel(ctx, x + 1, by - 4, body);
+    // Legs
+    PA.pixel(ctx, bx - 1, y + 1, clothDark);
+    PA.pixel(ctx, bx + 1, y + 1, clothDark);
 
-    // Internal gradient (darker center mass)
-    PA.rect(ctx, x - 2, by - 1, 5, 2, dark);
-    PA.pixel(ctx, x - 1, by - 2, dark);
-    PA.pixel(ctx, x + 1, by - 2, dark);
+    // Dark cloak body
+    PA.rect(ctx, bx - 2, y - 2, 5, 3, cloth);
+    PA.rect(ctx, bx - 3, y - 1, 7, 2, clothDark);
+    // Cloak light edge
+    PA.pixel(ctx, bx - 2, y - 2, clothLight);
+    PA.pixel(ctx, bx + 2, y, clothDark);
 
-    // Glossy highlights (top-left, showing translucency)
-    PA.pixel(ctx, x - 2, by - 3, light);
-    PA.pixel(ctx, x - 1, by - 4, '#88ddff');
-    PA.pixel(ctx, x - 3, by - 2, light);
-    // Secondary highlight
-    PA.pixel(ctx, x + 2, by - 1, light);
+    // Belt with pouches
+    PA.rect(ctx, bx - 2, y, 5, 1, '#4a3a2a');
+    PA.pixel(ctx, bx - 2, y, '#6a5a3a'); // pouch
+    PA.pixel(ctx, bx + 2, y, '#6a5a3a'); // pouch
 
-    // Eyes (cute, round)
-    // Left eye
-    PA.pixel(ctx, x - 2, by - 1, '#ffffff');
-    PA.pixel(ctx, x - 1, by - 1, '#ffffff');
-    PA.pixel(ctx, x - 2, by, '#000000');
-    PA.pixel(ctx, x - 1, by, '#eeeeff');
-    // Right eye
-    PA.pixel(ctx, x + 1, by - 1, '#ffffff');
-    PA.pixel(ctx, x + 2, by - 1, '#ffffff');
-    PA.pixel(ctx, x + 2, by, '#000000');
-    PA.pixel(ctx, x + 1, by, '#eeeeff');
+    // Arms
+    PA.pixel(ctx, bx - 3, y - 1, cloth);
+    PA.pixel(ctx, bx - 4, y, '#d0b898'); // skin hand
+    PA.pixel(ctx, bx + 3, y - 1, cloth);
+    PA.pixel(ctx, bx + 4, y, '#d0b898'); // skin hand
 
-    // Mouth (small smile)
-    PA.pixel(ctx, x - 1, by + 1, '#2266aa');
-    PA.pixel(ctx, x, by + 1, '#2266aa');
-    PA.pixel(ctx, x + 1, by + 1, '#2266aa');
+    // Head (masked)
+    PA.rect(ctx, bx - 2, y - 5, 5, 3, cloth);
+    PA.pixel(ctx, bx - 1, y - 6, cloth);
+    PA.pixel(ctx, bx, y - 6, cloth);
+    PA.pixel(ctx, bx + 1, y - 6, cloth);
 
-    // Light refraction spots (translucent body)
-    PA.pixel(ctx, x + 3, by, 'rgba(136,204,255,0.5)');
-    PA.pixel(ctx, x - 3, by + 1, 'rgba(136,204,255,0.5)');
+    // Mask slit (eyes only)
+    PA.rect(ctx, bx - 2, y - 4, 5, 1, '#1a1a2a');
+    PA.pixel(ctx, bx - 1, y - 4, '#ffffff'); // sharp white eyes
+    PA.pixel(ctx, bx + 1, y - 4, '#ffffff');
 
-    // === 2E: 身體底部邊緣漸進暗色 ===
-    PA.pixel(ctx, x - 3, by + 1, PA.darken(C.SLIME_BODY, 15));
-    PA.pixel(ctx, x + 3, by + 1, PA.darken(C.SLIME_BODY, 15));
-    PA.pixel(ctx, x - 4, by + 1, PA.darken(C.SLIME_BODY, 15));
+    // Hood point
+    PA.pixel(ctx, bx, y - 7, clothDark);
 
-    // === 2E: 高光擴展第 2 層 — 淺藍漸進 ===
-    PA.pixel(ctx, x - 3, by - 3, '#aaddff');
-    PA.pixel(ctx, x - 1, by - 3, '#aaddff');
+    // Light source
+    PA.pixel(ctx, bx - 2, y - 5, clothLight);
+    PA.pixel(ctx, bx + 2, y - 3, PA.darken(cloth, 10));
 
-    // === 2E: 中心深藍核心像素 ===
-    PA.pixel(ctx, x, by, '#1155aa');
-
-    // === 2A: 史萊姆光源面統一 — 左上高光、右下陰影 ===
-    PA.pixel(ctx, x - 4, by - 1, PA.lighten(body, 12));  // 左側高光
-    PA.pixel(ctx, x - 3, by - 2, PA.lighten(body, 12));  // 左上高光
-    PA.pixel(ctx, x + 4, by + 1, PA.darken(body, 12));   // 右側陰影
-    PA.pixel(ctx, x + 3, by + 2, PA.darken(body, 12));   // 右下陰影
-
-    // Wobble drip (animated)
-    if (squish < -0.5) {
-      PA.pixel(ctx, x + 3, by + 2, body);
-    }
+    // Dual daggers
+    // Left dagger
+    PA.pixel(ctx, bx - 5, y + 1, '#6a5a4a');
+    PA.pixel(ctx, bx - 5, y, '#aaaaaa');
+    PA.pixel(ctx, bx - 5, y - 1, '#cccccc');
+    // Right dagger
+    PA.pixel(ctx, bx + 5, y + 1, '#6a5a4a');
+    PA.pixel(ctx, bx + 5, y, '#aaaaaa');
+    PA.pixel(ctx, bx + 5, y - 1, '#cccccc');
   },
 
   renderDeath(ctx, enemy, x, y) {

@@ -7,8 +7,8 @@ window.DK = window.DK || {};
 DK.HERO_TYPES = {
   WATER_MAGE: {
     id: 'water_mage',
-    name: '水法師',
-    description: '施放水系範圍魔法，範圍內敵人附加潮濕',
+    name: '利維坦',
+    description: '海之女神，水系範圍魔法附加潮濕',
     cost: 80,
     hp: 150,
     damage: 10,
@@ -22,8 +22,8 @@ DK.HERO_TYPES = {
   },
   FIRE_MAGE: {
     id: 'fire_mage',
-    name: '火法師',
-    description: '投擲火球，命中單體施加灼印',
+    name: '巴爾',
+    description: '焰之女神，火球命中施加灼印',
     cost: 90,
     hp: 130,
     damage: 15,
@@ -37,8 +37,8 @@ DK.HERO_TYPES = {
   },
   ICE_MAGE: {
     id: 'ice_mage',
-    name: '冰法師',
-    description: '發射冰霜射線，直線施加冰凍印記',
+    name: '斯卡蒂',
+    description: '冰之女神，冰霜射線施加冰凍印記',
     cost: 85,
     hp: 120,
     damage: 8,
@@ -242,6 +242,10 @@ DK.Heroes = {
     let nearestDist = detectRange;
     for (const enemy of enemies) {
       if (!enemy.alive || enemy.hp <= 0) continue;
+      // 九宮格限制：只偵測部署點 ±1 格範圍內的敵人
+      const eCol = Math.floor(enemy.x / T);
+      const eRow = Math.floor(enemy.y / T);
+      if (Math.abs(eCol - hero.deployCol) > 1 || Math.abs(eRow - hero.deployRow) > 1) continue;
       const dx = enemy.x - hero.x;
       const dy = enemy.y - hero.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -301,6 +305,18 @@ DK.Heroes = {
           break;
         }
 
+        // === 九宮格限制：敵人離開部署點 ±1 格範圍就放棄追擊 ===
+        const enemyCol = Math.floor(hero.chaseTarget.x / T);
+        const enemyRow = Math.floor(hero.chaseTarget.y / T);
+        if (Math.abs(enemyCol - hero.deployCol) > 1 || Math.abs(enemyRow - hero.deployRow) > 1) {
+          hero.aiState = 'idle';
+          hero.chaseTarget = null;
+          hero.moving = false;
+          hero.movePath = [];
+          hero.idleTimer = 500 + Math.random() * 500;
+          break;
+        }
+
         const attackRange = hero.type.range * T;
         const dx = hero.chaseTarget.x - hero.x;
         const dy = hero.chaseTarget.y - hero.y;
@@ -316,9 +332,12 @@ DK.Heroes = {
           if (hero._chaseRefreshTimer <= 0) {
             hero._chaseRefreshTimer = 500;
             // 計算敵人所在格子
-            const enemyCol = Math.floor(hero.chaseTarget.x / T);
-            const enemyRow = Math.floor(hero.chaseTarget.y / T);
-            this.commandMove(hero, enemyCol, enemyRow);
+            const tgtCol = Math.floor(hero.chaseTarget.x / T);
+            const tgtRow = Math.floor(hero.chaseTarget.y / T);
+            // 只在九宮格內追擊移動
+            if (Math.abs(tgtCol - hero.deployCol) <= 1 && Math.abs(tgtRow - hero.deployRow) <= 1) {
+              this.commandMove(hero, tgtCol, tgtRow);
+            }
           }
         }
         break;
@@ -331,7 +350,7 @@ DK.Heroes = {
    */
   pickPatrolTarget(hero) {
     const maxAttempts = 20;
-    const patrolRadius = 5;
+    const patrolRadius = 1;
 
     for (let i = 0; i < maxAttempts; i++) {
       const offsetCol = Math.floor(Math.random() * (patrolRadius * 2 + 1)) - patrolRadius;
@@ -683,108 +702,114 @@ DK.Heroes = {
 
   renderWaterMage(ctx, hero, x, y, time) {
     const PA = DK.PixelArt;
+    const C = DK.COLORS;
     const f = hero.animFrame;
     const attacking = hero.attacking && hero.attackTimer > hero.type.attackCooldown * 0.7;
 
-    // === WATER MAGE: Robed wizard with water staff ===
+    // === LEVIATHAN: Sea Goddess with flowing blue hair and trident ===
 
     // Shadow
     PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.25)');
 
-    // Feet (subtle, under robe)
+    // Feet (elegant, under dress)
     if (hero.moving) {
       if (f < 2) {
-        PA.pixel(ctx, x - 1, y + 3, '#3a3050');
-        PA.pixel(ctx, x + 1, y + 3, '#3a3050');
+        PA.pixel(ctx, x - 1, y + 3, '#2a2040');
+        PA.pixel(ctx, x + 1, y + 3, '#2a2040');
       } else {
-        PA.pixel(ctx, x - 2, y + 3, '#3a3050');
-        PA.pixel(ctx, x + 2, y + 3, '#3a3050');
+        PA.pixel(ctx, x - 2, y + 3, '#2a2040');
+        PA.pixel(ctx, x + 2, y + 3, '#2a2040');
       }
     } else {
-      PA.pixel(ctx, x - 1, y + 3, '#3a3050');
-      PA.pixel(ctx, x + 1, y + 3, '#3a3050');
+      PA.pixel(ctx, x - 1, y + 3, '#2a2040');
+      PA.pixel(ctx, x + 1, y + 3, '#2a2040');
     }
 
-    // Robe lower (wide, flowing)
-    PA.rect(ctx, x - 3, y + 1, 7, 2, '#1a3388');
-    PA.rect(ctx, x - 4, y + 2, 9, 1, '#152a70');
-    // Robe hem highlight
-    PA.pixel(ctx, x - 3, y + 2, '#2244aa');
-    PA.pixel(ctx, x + 3, y + 2, '#2244aa');
+    // Dress lower (flowing, elegant)
+    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_ROBE_DARK);
+    PA.rect(ctx, x - 4, y + 2, 9, 1, C.HERO_ROBE_DARK);
+    // Dress hem shimmer
+    PA.pixel(ctx, x - 3, y + 2, C.HERO_ROBE_LIGHT);
+    PA.pixel(ctx, x + 3, y + 2, C.HERO_ROBE);
 
-    // Robe upper (body)
-    PA.rect(ctx, x - 3, y - 2, 7, 3, '#2244aa');
-    PA.rect(ctx, x - 2, y - 3, 5, 1, '#2244aa');
-    // Robe center line (belt area)
-    PA.rect(ctx, x - 1, y - 1, 3, 1, '#c8a050');
-    PA.pixel(ctx, x, y - 1, '#e0b860');
-    // === 2H: 長袍褶皺陰影 ===
-    PA.pixel(ctx, x - 1, y + 0, PA.darken('#2244aa', 12));
-    PA.pixel(ctx, x + 1, y + 0, PA.darken('#2244aa', 12));
+    // Dress upper (fitted bodice)
+    PA.rect(ctx, x - 2, y - 2, 5, 3, C.HERO_ROBE);
+    PA.rect(ctx, x - 2, y - 3, 5, 1, C.HERO_ROBE_LIGHT);
+    // Waist sash
+    PA.rect(ctx, x - 2, y, 5, 1, '#2a6aaa');
+    PA.pixel(ctx, x, y, '#5aaadd'); // gem on sash
 
-    // Shoulders
-    PA.rect(ctx, x - 4, y - 3, 2, 2, '#1a3388');
-    PA.rect(ctx, x + 3, y - 3, 2, 2, '#1a3388');
-    // Shoulder trim
-    PA.pixel(ctx, x - 4, y - 3, '#3355cc');
-    PA.pixel(ctx, x + 4, y - 3, '#3355cc');
+    // Dress fold shadows
+    PA.pixel(ctx, x - 1, y + 1, C.HERO_ROBE_DARK);
+    PA.pixel(ctx, x + 1, y + 1, C.HERO_ROBE_DARK);
 
-    // Arms
+    // Shoulders (slim)
+    PA.pixel(ctx, x - 3, y - 3, C.HERO_ROBE);
+    PA.pixel(ctx, x + 3, y - 3, C.HERO_ROBE);
+
+    // Arms (slim, feminine)
     const armOffset = hero.moving ? (f % 2) : 0;
-    // Left arm
-    PA.pixel(ctx, x - 4, y - 1 + armOffset, '#1a3388');
-    PA.pixel(ctx, x - 5, y + armOffset, '#e8d0b0');
-    // Right arm (holding staff)
-    PA.pixel(ctx, x + 4, y - 1 - armOffset, '#1a3388');
-    PA.pixel(ctx, x + 5, y - armOffset, '#e8d0b0');
+    PA.pixel(ctx, x - 3, y - 1 + armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x - 4, y + armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x + 3, y - 1 - armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x + 4, y - armOffset, C.HERO_SKIN);
 
-    // Head (face visible in hood)
-    PA.rect(ctx, x - 2, y - 6, 5, 3, '#e8d0b0');
+    // Neck
+    PA.pixel(ctx, x, y - 3, C.HERO_SKIN);
+
+    // Head (elegant, feminine face)
+    PA.rect(ctx, x - 2, y - 7, 5, 4, C.HERO_SKIN);
+    PA.pixel(ctx, x - 1, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x + 1, y - 8, C.HERO_SKIN);
     // Face shading
-    PA.pixel(ctx, x - 2, y - 4, '#d0b898');
-    PA.pixel(ctx, x + 2, y - 4, '#d0b898');
+    PA.pixel(ctx, x + 2, y - 5, '#e0c8b0');
+    PA.pixel(ctx, x + 2, y - 4, '#e0c8b0');
 
-    // Eyes (blue, magical)
-    PA.pixel(ctx, x - 1, y - 5, '#4488ff');
-    PA.pixel(ctx, x + 1, y - 5, '#4488ff');
-    // === 2H: 眼窩陰影 ===
-    PA.pixel(ctx, x - 2, y - 5, '#c0a888');
-    PA.pixel(ctx, x + 2, y - 5, '#c0a888');
+    // Long flowing blue hair
+    PA.rect(ctx, x - 3, y - 8, 1, 6, '#1a3a88');  // left hair
+    PA.rect(ctx, x + 3, y - 8, 1, 6, '#1a3a88');  // right hair
+    PA.pixel(ctx, x - 2, y - 8, '#1a3a88');
+    PA.pixel(ctx, x + 2, y - 8, '#1a3a88');
+    PA.pixel(ctx, x - 1, y - 9, '#2a4a99');  // top hair
+    PA.pixel(ctx, x, y - 9, '#2a4a99');
+    PA.pixel(ctx, x + 1, y - 9, '#2a4a99');
+    // Hair tips gradient to aqua
+    PA.pixel(ctx, x - 3, y - 3, '#4488cc');
+    PA.pixel(ctx, x + 3, y - 3, '#4488cc');
 
-    // Mouth
-    PA.pixel(ctx, x, y - 4, '#c8a890');
+    // Eyes (large, luminous blue)
+    PA.pixel(ctx, x - 1, y - 6, '#66bbff');
+    PA.pixel(ctx, x + 1, y - 6, '#66bbff');
+    // Eye highlight
+    PA.pixel(ctx, x - 1, y - 7, '#aaddff');
 
-    // Hood (pointed wizard hat)
-    PA.rect(ctx, x - 3, y - 7, 7, 1, '#1a3388');
-    PA.rect(ctx, x - 4, y - 7, 9, 1, '#152a70');
-    PA.rect(ctx, x - 2, y - 8, 5, 1, '#2244aa');
-    PA.rect(ctx, x - 1, y - 9, 3, 1, '#2244aa');
-    PA.pixel(ctx, x, y - 10, '#2244aa');
-    PA.pixel(ctx, x, y - 11, '#3355cc');
-    // Hat tip sparkle
-    const sparkle = Math.sin((time || 0) / 200) > 0.5;
-    if (sparkle) {
-      PA.pixel(ctx, x, y - 12, '#88ccff');
-      PA.pixel(ctx, x + 1, y - 11, '#4488ff');
-    }
+    // Nose (tiny)
+    PA.pixel(ctx, x, y - 5, '#e8ccb4');
 
-    // Staff (right side)
-    PA.rect(ctx, x + 5, y - 8, 1, 10, '#6b5010');
-    PA.pixel(ctx, x + 5, y - 9, '#5a4010');
-    // Staff crystal (water crystal top) — 2H: 改善內部色層
-    PA.pixel(ctx, x + 5, y - 10, '#55bbff');
-    PA.pixel(ctx, x + 4, y - 10, '#2288dd');
-    PA.pixel(ctx, x + 6, y - 10, '#2288dd');
-    PA.pixel(ctx, x + 5, y - 11, '#99ddff');
-    // Crystal glow
-    PA.pixel(ctx, x + 5, y - 12, '#aaddff');
+    // Lips (small, pink)
+    PA.pixel(ctx, x, y - 4, '#dd8888');
+
+    // Light source
+    PA.pixel(ctx, x - 2, y - 7, PA.lighten(C.HERO_SKIN, 10));
+    PA.pixel(ctx, x + 2, y - 5, PA.darken(C.HERO_SKIN, 8));
+
+    // Trident (right side)
+    PA.rect(ctx, x + 5, y - 8, 1, 10, '#4a7aaa');  // shaft
+    // Trident head
+    PA.pixel(ctx, x + 4, y - 10, '#66aadd');
+    PA.pixel(ctx, x + 5, y - 11, '#88ccff');
+    PA.pixel(ctx, x + 6, y - 10, '#66aadd');
+    PA.pixel(ctx, x + 5, y - 10, '#aaddff'); // center prong
+    // Trident crystal glow
+    PA.pixel(ctx, x + 5, y - 12, '#bbddff');
     if (attacking) {
       PA.pixel(ctx, x + 4, y - 11, '#66bbff');
       PA.pixel(ctx, x + 6, y - 11, '#66bbff');
       PA.pixel(ctx, x + 5, y - 13, '#ffffff');
     }
 
-    // Water aura when attacking — 2H: 光環點數 3→5
+    // Water aura when attacking
     if (attacking) {
       const t = (time || 0) / 150;
       for (let i = 0; i < 5; i++) {
@@ -803,115 +828,120 @@ DK.Heroes = {
     const f = hero.animFrame;
     const attacking = hero.attacking && hero.attackTimer > hero.type.attackCooldown * 0.7;
 
-    // === 火法師：紅橘色長袍 + 火焰法杖 ===
+    // === BAAL: Fire Goddess with flame crown and burning scepter ===
 
-    // 陰影
+    // Shadow
     PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.25)');
 
-    // 腳（長袍下方微露）
+    // Feet
     if (hero.moving) {
       if (f < 2) {
-        PA.pixel(ctx, x - 1, y + 3, '#3a2020');
-        PA.pixel(ctx, x + 1, y + 3, '#3a2020');
+        PA.pixel(ctx, x - 1, y + 3, '#2a1010');
+        PA.pixel(ctx, x + 1, y + 3, '#2a1010');
       } else {
-        PA.pixel(ctx, x - 2, y + 3, '#3a2020');
-        PA.pixel(ctx, x + 2, y + 3, '#3a2020');
+        PA.pixel(ctx, x - 2, y + 3, '#2a1010');
+        PA.pixel(ctx, x + 2, y + 3, '#2a1010');
       }
     } else {
-      PA.pixel(ctx, x - 1, y + 3, '#3a2020');
-      PA.pixel(ctx, x + 1, y + 3, '#3a2020');
+      PA.pixel(ctx, x - 1, y + 3, '#2a1010');
+      PA.pixel(ctx, x + 1, y + 3, '#2a1010');
     }
 
-    // 長袍下擺（寬大飄逸）
-    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_FIRE_ROBE);
+    // Dress lower (dark crimson, flowing)
+    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_FIRE_ROBE_DARK);
     PA.rect(ctx, x - 4, y + 2, 9, 1, C.HERO_FIRE_ROBE_DARK);
-    // 下擺高光
-    PA.pixel(ctx, x - 3, y + 2, C.HERO_FIRE_ROBE_LIGHT);
-    PA.pixel(ctx, x + 3, y + 2, C.HERO_FIRE_ROBE_LIGHT);
+    PA.pixel(ctx, x - 3, y + 2, C.HERO_FIRE_ROBE);
+    PA.pixel(ctx, x + 3, y + 2, C.HERO_FIRE_ROBE);
 
-    // 長袍上身
-    PA.rect(ctx, x - 3, y - 2, 7, 3, C.HERO_FIRE_ROBE_LIGHT);
+    // Dress upper (fitted, off-shoulder)
+    PA.rect(ctx, x - 2, y - 2, 5, 3, C.HERO_FIRE_ROBE);
     PA.rect(ctx, x - 2, y - 3, 5, 1, C.HERO_FIRE_ROBE_LIGHT);
-    // 腰帶區域
-    PA.rect(ctx, x - 1, y - 1, 3, 1, '#c8a050');
-    PA.pixel(ctx, x, y - 1, '#e0b860');
-    // === 2H: 長袍褶皺陰影 ===
-    PA.pixel(ctx, x - 1, y + 0, C.HERO_FIRE_ROBE_DARK);
-    PA.pixel(ctx, x + 1, y + 0, C.HERO_FIRE_ROBE_DARK);
+    // Waist ornament
+    PA.rect(ctx, x - 2, y, 5, 1, '#6a2020');
+    PA.pixel(ctx, x, y, '#ff6622'); // flame gem
 
-    // 肩膀
-    PA.rect(ctx, x - 4, y - 3, 2, 2, C.HERO_FIRE_ROBE);
-    PA.rect(ctx, x + 3, y - 3, 2, 2, C.HERO_FIRE_ROBE);
-    // 肩膀裝飾
-    PA.pixel(ctx, x - 4, y - 3, C.HERO_FIRE_ROBE_LIGHT);
-    PA.pixel(ctx, x + 4, y - 3, C.HERO_FIRE_ROBE_LIGHT);
+    // Dress fold
+    PA.pixel(ctx, x - 1, y + 1, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, x + 1, y + 1, C.HERO_FIRE_ROBE_DARK);
 
-    // 手臂
+    // Bare shoulders (off-shoulder dress)
+    PA.pixel(ctx, x - 3, y - 3, C.HERO_SKIN);
+    PA.pixel(ctx, x + 3, y - 3, C.HERO_SKIN);
+
+    // Arms
     const armOffset = hero.moving ? (f % 2) : 0;
-    // 左手
-    PA.pixel(ctx, x - 4, y - 1 + armOffset, C.HERO_FIRE_ROBE);
-    PA.pixel(ctx, x - 5, y + armOffset, C.HERO_SKIN);
-    // 右手（持杖）
-    PA.pixel(ctx, x + 4, y - 1 - armOffset, C.HERO_FIRE_ROBE);
-    PA.pixel(ctx, x + 5, y - armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x - 3, y - 1 + armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x - 4, y + armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x + 3, y - 1 - armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x + 4, y - armOffset, C.HERO_SKIN);
 
-    // 頭部
-    PA.rect(ctx, x - 2, y - 6, 5, 3, C.HERO_SKIN);
-    PA.pixel(ctx, x - 2, y - 4, '#d0b898');
-    PA.pixel(ctx, x + 2, y - 4, '#d0b898');
+    // Neck
+    PA.pixel(ctx, x, y - 3, C.HERO_SKIN);
 
-    // 眼睛（火紅色）
-    PA.pixel(ctx, x - 1, y - 5, '#ff6622');
-    PA.pixel(ctx, x + 1, y - 5, '#ff6622');
-    // === 2H: 眼窩陰影 ===
-    PA.pixel(ctx, x - 2, y - 5, '#c0a888');
-    PA.pixel(ctx, x + 2, y - 5, '#c0a888');
+    // Head
+    PA.rect(ctx, x - 2, y - 7, 5, 4, C.HERO_SKIN);
+    PA.pixel(ctx, x - 1, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x + 1, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x + 2, y - 5, '#e0c8b0');
 
-    // 嘴
-    PA.pixel(ctx, x, y - 4, '#c8a890');
+    // Dark red flowing hair
+    PA.rect(ctx, x - 3, y - 8, 1, 6, '#5a1010');
+    PA.rect(ctx, x + 3, y - 8, 1, 6, '#5a1010');
+    PA.pixel(ctx, x - 2, y - 8, '#6a2020');
+    PA.pixel(ctx, x + 2, y - 8, '#6a2020');
+    PA.pixel(ctx, x - 1, y - 9, '#7a2020');
+    PA.pixel(ctx, x, y - 9, '#7a2020');
+    PA.pixel(ctx, x + 1, y - 9, '#7a2020');
+    // Hair flame tips (animated)
+    const flicker = Math.sin((time || 0) / 120);
+    PA.pixel(ctx, x - 3, y - 3, flicker > 0 ? '#cc4422' : '#aa3322');
+    PA.pixel(ctx, x + 3, y - 3, flicker > 0 ? '#aa3322' : '#cc4422');
 
-    // 尖帽（火紅色）
-    PA.rect(ctx, x - 3, y - 7, 7, 1, C.HERO_FIRE_ROBE);
-    PA.rect(ctx, x - 4, y - 7, 9, 1, C.HERO_FIRE_ROBE_DARK);
-    PA.rect(ctx, x - 2, y - 8, 5, 1, C.HERO_FIRE_ROBE_LIGHT);
-    PA.rect(ctx, x - 1, y - 9, 3, 1, C.HERO_FIRE_ROBE_LIGHT);
-    PA.pixel(ctx, x, y - 10, C.HERO_FIRE_ROBE_LIGHT);
-    PA.pixel(ctx, x, y - 11, '#ff6622');
-    // 帽尖火焰閃爍 — 2H: 加黃色像素
-    const sparkle = Math.sin((time || 0) / 150) > 0.3;
-    if (sparkle) {
-      PA.pixel(ctx, x, y - 12, '#ffaa44');
-      PA.pixel(ctx, x + 1, y - 11, '#ff6622');
-      PA.pixel(ctx, x - 1, y - 12, '#ffdd44');
+    // Flame crown
+    PA.pixel(ctx, x - 1, y - 10, '#ff6622');
+    PA.pixel(ctx, x, y - 11, '#ffaa44');
+    PA.pixel(ctx, x + 1, y - 10, '#ff6622');
+    // Crown flame flicker
+    if (flicker > 0.3) PA.pixel(ctx, x, y - 12, '#ffdd66');
+    PA.pixel(ctx, x - 2, y - 9, '#cc4400');
+    PA.pixel(ctx, x + 2, y - 9, '#cc4400');
+
+    // Eyes (fiery red-orange)
+    PA.pixel(ctx, x - 1, y - 6, '#ff4422');
+    PA.pixel(ctx, x + 1, y - 6, '#ff4422');
+    PA.pixel(ctx, x - 1, y - 7, '#ffaa66');
+
+    // Nose
+    PA.pixel(ctx, x, y - 5, '#e8ccb4');
+
+    // Lips
+    PA.pixel(ctx, x, y - 4, '#cc4444');
+
+    // Light source
+    PA.pixel(ctx, x - 2, y - 7, PA.lighten(C.HERO_SKIN, 10));
+    PA.pixel(ctx, x + 2, y - 5, PA.darken(C.HERO_SKIN, 8));
+
+    // Flame scepter (right side)
+    PA.rect(ctx, x + 5, y - 7, 1, 9, '#4a2010');
+    // Flame on top
+    PA.pixel(ctx, x + 5, y - 8, '#ff4400');
+    PA.pixel(ctx, x + 5, y - 9, '#ff6622');
+    PA.pixel(ctx, x + 4, y - 9, '#ffaa44');
+    PA.pixel(ctx, x + 6, y - 9, '#ffaa44');
+    PA.pixel(ctx, x + 5, y - 10, '#ffdd66');
+    if (attacking) {
+      PA.pixel(ctx, x + 5, y - 11, '#ffffff');
+      PA.pixel(ctx, x + 4, y - 10, '#ff6622');
+      PA.pixel(ctx, x + 6, y - 10, '#ff6622');
     }
 
-    // 法杖（右側）
-    PA.rect(ctx, x + 5, y - 8, 1, 10, '#6b5010');
-    PA.pixel(ctx, x + 5, y - 9, '#5a4010');
-    // 法杖頂端：火焰水晶 — 2H: 改善色層
-    PA.pixel(ctx, x + 5, y - 10, '#ff8833');
-    PA.pixel(ctx, x + 4, y - 10, '#ffaa44');
-    PA.pixel(ctx, x + 6, y - 10, '#ffaa44');
-    PA.pixel(ctx, x + 5, y - 11, '#ffcc66');
-    // 水晶光暈
-    PA.pixel(ctx, x + 5, y - 12, '#ffcc66');
+    // Fire aura when attacking
     if (attacking) {
-      PA.pixel(ctx, x + 4, y - 11, '#ff6622');
-      PA.pixel(ctx, x + 6, y - 11, '#ff6622');
-      PA.pixel(ctx, x + 5, y - 13, '#ffffff');
-    }
-
-    // 攻擊時：手臂上方火球準備動畫
-    if (attacking) {
-      const t = (time || 0) / 120;
-      // 火球在左手上方
-      PA.pixel(ctx, x - 4, y - 4, '#ff6622');
-      PA.pixel(ctx, x - 5, y - 4, '#ffaa44');
-      PA.pixel(ctx, x - 4, y - 5, '#ffcc66');
-      // 火焰光環 — 2H: 光環點數 3→5
+      const t = (time || 0) / 150;
       for (let i = 0; i < 5; i++) {
         const angle = t + (i * Math.PI * 2) / 5;
-        const r = 5;
+        const r = 6;
         const px = Math.round(x + Math.cos(angle) * r);
         const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
         PA.pixel(ctx, px, py, 'rgba(255,102,34,0.6)');
@@ -925,110 +955,121 @@ DK.Heroes = {
     const f = hero.animFrame;
     const attacking = hero.attacking && hero.attackTimer > hero.type.attackCooldown * 0.7;
 
-    // === 冰法師：淺藍白色長袍 + 冰晶法杖 ===
+    // === SKADI: Ice Goddess with silver hair and crystal staff ===
 
-    // 陰影
+    // Shadow
     PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.25)');
 
-    // 腳
+    // Feet
     if (hero.moving) {
       if (f < 2) {
-        PA.pixel(ctx, x - 1, y + 3, '#2a3040');
-        PA.pixel(ctx, x + 1, y + 3, '#2a3040');
+        PA.pixel(ctx, x - 1, y + 3, '#2a2a3a');
+        PA.pixel(ctx, x + 1, y + 3, '#2a2a3a');
       } else {
-        PA.pixel(ctx, x - 2, y + 3, '#2a3040');
-        PA.pixel(ctx, x + 2, y + 3, '#2a3040');
+        PA.pixel(ctx, x - 2, y + 3, '#2a2a3a');
+        PA.pixel(ctx, x + 2, y + 3, '#2a2a3a');
       }
     } else {
-      PA.pixel(ctx, x - 1, y + 3, '#2a3040');
-      PA.pixel(ctx, x + 1, y + 3, '#2a3040');
+      PA.pixel(ctx, x - 1, y + 3, '#2a2a3a');
+      PA.pixel(ctx, x + 1, y + 3, '#2a2a3a');
     }
 
-    // 長袍下擺
-    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_ICE_ROBE);
+    // Dress lower (silver-blue, flowing)
+    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_ICE_ROBE_DARK);
     PA.rect(ctx, x - 4, y + 2, 9, 1, C.HERO_ICE_ROBE_DARK);
-    PA.pixel(ctx, x - 3, y + 2, C.HERO_ICE_ROBE_LIGHT);
-    PA.pixel(ctx, x + 3, y + 2, C.HERO_ICE_ROBE_LIGHT);
+    PA.pixel(ctx, x - 3, y + 2, C.HERO_ICE_ROBE);
+    PA.pixel(ctx, x + 3, y + 2, C.HERO_ICE_ROBE);
 
-    // 長袍上身
-    PA.rect(ctx, x - 3, y - 2, 7, 3, C.HERO_ICE_ROBE_LIGHT);
+    // Dress upper (fitted)
+    PA.rect(ctx, x - 2, y - 2, 5, 3, C.HERO_ICE_ROBE);
     PA.rect(ctx, x - 2, y - 3, 5, 1, C.HERO_ICE_ROBE_LIGHT);
-    // 腰帶
-    PA.rect(ctx, x - 1, y - 1, 3, 1, '#8090a0');
-    PA.pixel(ctx, x, y - 1, '#a0b0c0');
-    // === 2H: 長袍褶皺陰影 ===
-    PA.pixel(ctx, x - 1, y + 0, C.HERO_ICE_ROBE_DARK);
-    PA.pixel(ctx, x + 1, y + 0, C.HERO_ICE_ROBE_DARK);
+    // Waist sash
+    PA.rect(ctx, x - 2, y, 5, 1, '#5a7a8a');
+    PA.pixel(ctx, x, y, '#aaddff'); // ice gem
 
-    // 肩膀
-    PA.rect(ctx, x - 4, y - 3, 2, 2, C.HERO_ICE_ROBE);
-    PA.rect(ctx, x + 3, y - 3, 2, 2, C.HERO_ICE_ROBE);
-    PA.pixel(ctx, x - 4, y - 3, C.HERO_ICE_ROBE_LIGHT);
-    PA.pixel(ctx, x + 4, y - 3, C.HERO_ICE_ROBE_LIGHT);
+    // Dress fold
+    PA.pixel(ctx, x - 1, y + 1, C.HERO_ICE_ROBE_DARK);
+    PA.pixel(ctx, x + 1, y + 1, C.HERO_ICE_ROBE_DARK);
 
-    // 手臂
+    // Fur collar/shawl
+    PA.rect(ctx, x - 3, y - 3, 7, 1, '#c8c8d8');
+    PA.pixel(ctx, x - 4, y - 3, '#b0b0c0');
+    PA.pixel(ctx, x + 4, y - 3, '#b0b0c0');
+    PA.pixel(ctx, x - 3, y - 3, '#d8d8e8'); // fur highlight
+
+    // Arms
     const armOffset = hero.moving ? (f % 2) : 0;
-    PA.pixel(ctx, x - 4, y - 1 + armOffset, C.HERO_ICE_ROBE);
-    PA.pixel(ctx, x - 5, y + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 4, y - 1 - armOffset, C.HERO_ICE_ROBE);
-    PA.pixel(ctx, x + 5, y - armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x - 3, y - 1 + armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x - 4, y + armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x + 3, y - 1 - armOffset, C.HERO_SKIN);
+    PA.pixel(ctx, x + 4, y - armOffset, C.HERO_SKIN);
 
-    // 頭部
-    PA.rect(ctx, x - 2, y - 6, 5, 3, C.HERO_SKIN);
-    PA.pixel(ctx, x - 2, y - 4, '#d0b898');
-    PA.pixel(ctx, x + 2, y - 4, '#d0b898');
+    // Neck
+    PA.pixel(ctx, x, y - 3, C.HERO_SKIN);
 
-    // 眼睛（冰藍色）
-    PA.pixel(ctx, x - 1, y - 5, '#88ccff');
-    PA.pixel(ctx, x + 1, y - 5, '#88ccff');
-    // === 2H: 眼窩陰影 ===
-    PA.pixel(ctx, x - 2, y - 5, '#c0a888');
-    PA.pixel(ctx, x + 2, y - 5, '#c0a888');
+    // Head
+    PA.rect(ctx, x - 2, y - 7, 5, 4, C.HERO_SKIN);
+    PA.pixel(ctx, x - 1, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x + 1, y - 8, C.HERO_SKIN);
+    PA.pixel(ctx, x + 2, y - 5, '#e0c8b0');
 
-    // 嘴
-    PA.pixel(ctx, x, y - 4, '#c8a890');
+    // Silver-white long hair
+    PA.rect(ctx, x - 3, y - 8, 1, 6, '#aab0c0');
+    PA.rect(ctx, x + 3, y - 8, 1, 6, '#aab0c0');
+    PA.pixel(ctx, x - 2, y - 8, '#bbc0d0');
+    PA.pixel(ctx, x + 2, y - 8, '#bbc0d0');
+    PA.pixel(ctx, x - 1, y - 9, '#ccd0e0');
+    PA.pixel(ctx, x, y - 9, '#ccd0e0');
+    PA.pixel(ctx, x + 1, y - 9, '#ccd0e0');
+    // Hair ice crystal sparkle
+    const sparkle = Math.sin((time || 0) / 300);
+    if (sparkle > 0.5) PA.pixel(ctx, x - 3, y - 5, '#ffffff');
+    if (sparkle < -0.5) PA.pixel(ctx, x + 3, y - 6, '#ffffff');
 
-    // 尖帽（淡藍色）
-    PA.rect(ctx, x - 3, y - 7, 7, 1, C.HERO_ICE_ROBE);
-    PA.rect(ctx, x - 4, y - 7, 9, 1, C.HERO_ICE_ROBE_DARK);
-    PA.rect(ctx, x - 2, y - 8, 5, 1, C.HERO_ICE_ROBE_LIGHT);
-    PA.rect(ctx, x - 1, y - 9, 3, 1, C.HERO_ICE_ROBE_LIGHT);
-    PA.pixel(ctx, x, y - 10, C.HERO_ICE_ROBE_LIGHT);
-    PA.pixel(ctx, x, y - 11, '#88ccff');
-    // 帽尖冰晶閃爍
-    const sparkle = Math.sin((time || 0) / 250) > 0.4;
-    if (sparkle) {
-      PA.pixel(ctx, x, y - 12, '#aaddff');
-      PA.pixel(ctx, x + 1, y - 11, '#88ccff');
-    }
+    // Silver tiara
+    PA.pixel(ctx, x - 1, y - 9, '#d0d8e8');
+    PA.pixel(ctx, x, y - 10, '#e0e8f8');
+    PA.pixel(ctx, x + 1, y - 9, '#d0d8e8');
+    // Tiara gem
+    PA.pixel(ctx, x, y - 10, '#88ccff');
 
-    // 法杖（右側）
-    PA.rect(ctx, x + 5, y - 8, 1, 10, '#6b5010');
-    PA.pixel(ctx, x + 5, y - 9, '#5a4010');
-    // 法杖頂端：冰晶
-    PA.pixel(ctx, x + 5, y - 10, '#88ccff');
+    // Eyes (icy blue)
+    PA.pixel(ctx, x - 1, y - 6, '#88ccff');
+    PA.pixel(ctx, x + 1, y - 6, '#88ccff');
+    PA.pixel(ctx, x - 1, y - 7, '#bbddff');
+
+    // Nose
+    PA.pixel(ctx, x, y - 5, '#e8ccb4');
+
+    // Lips
+    PA.pixel(ctx, x, y - 4, '#cc8888');
+
+    // Light source
+    PA.pixel(ctx, x - 2, y - 7, PA.lighten(C.HERO_SKIN, 10));
+    PA.pixel(ctx, x + 2, y - 5, PA.darken(C.HERO_SKIN, 8));
+
+    // Crystal ice staff (right side)
+    PA.rect(ctx, x + 5, y - 8, 1, 10, '#8090a0');
+    // Ice crystal top
+    PA.pixel(ctx, x + 5, y - 9, '#88ccff');
     PA.pixel(ctx, x + 4, y - 10, '#aaddff');
+    PA.pixel(ctx, x + 5, y - 10, '#ccddff');
     PA.pixel(ctx, x + 6, y - 10, '#aaddff');
-    PA.pixel(ctx, x + 5, y - 11, '#bbddff');
-    // 冰晶光暈 — 2H: 加白色高光
-    PA.pixel(ctx, x + 5, y - 12, '#ffffff');
+    PA.pixel(ctx, x + 5, y - 11, '#eef0ff');
+    // Crystal glow
     if (attacking) {
       PA.pixel(ctx, x + 4, y - 11, '#88ccff');
       PA.pixel(ctx, x + 6, y - 11, '#88ccff');
-      PA.pixel(ctx, x + 5, y - 13, '#ffffff');
+      PA.pixel(ctx, x + 5, y - 12, '#ffffff');
     }
 
-    // 攻擊時：冰霜射線準備動畫
+    // Ice aura when attacking
     if (attacking) {
-      const t = (time || 0) / 180;
-      // 冰霜能量在左手上方
-      PA.pixel(ctx, x - 4, y - 4, '#88ccff');
-      PA.pixel(ctx, x - 5, y - 4, '#aaddff');
-      PA.pixel(ctx, x - 4, y - 5, '#ddeeff');
-      // 冰晶光環 — 2H: 光環點數 3→5
+      const t = (time || 0) / 150;
       for (let i = 0; i < 5; i++) {
         const angle = t + (i * Math.PI * 2) / 5;
-        const r = 5;
+        const r = 6;
         const px = Math.round(x + Math.cos(angle) * r);
         const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
         PA.pixel(ctx, px, py, 'rgba(136,204,255,0.6)');

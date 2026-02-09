@@ -1197,10 +1197,13 @@ window.DK = window.DK || {};
       const T = DK.CONFIG.TILE_SIZE;
       const time = DK.Game.time || 0;
 
+      // 動態流動偏移（螞蟻行軍效果，快速流動）
+      const dashOffset = -(time * 0.008) % 8;
+
       for (const { hole, path } of DK.Map.pathPreviewCache) {
         if (path.length === 0) continue;
 
-        // 從洞口開始畫虛線
+        // 從洞口開始畫
         let prevX = hole.col * T + T / 2;
         let prevY = hole.row * T + T / 2;
 
@@ -1208,17 +1211,24 @@ window.DK = window.DK || {};
           const curX = step.col * T + T / 2;
           const curY = step.row * T + T / 2;
 
-          // 顏色：路障格用橙色，正常格用紅色
+          // 高對比色：正常路段亮青色，路障路段亮橙色
           const color = step.blocked
-            ? 'rgba(255,160,40,0.5)'
-            : 'rgba(255,80,80,0.35)';
+            ? 'rgba(255,180,40,0.7)'
+            : 'rgba(40,255,200,0.6)';
 
+          // 底層暗色描邊增加可見度
+          ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([4, 4]);
+          ctx.lineDashOffset = dashOffset;
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(curX, curY);
+          ctx.stroke();
+
+          // 上層亮色主線
           ctx.strokeStyle = color;
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          // 流動動畫偏移
-          ctx.lineDashOffset = -(time * 0.003) % 6;
-
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(prevX, prevY);
           ctx.lineTo(curX, curY);
