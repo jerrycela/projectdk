@@ -85,7 +85,13 @@ DK.Tutorial = {
     } else if (conditionType === 'waveStarted') {
       met = data.wave >= (cond.wave || 1);
     } else if (conditionType === 'trapPlaced') {
+      // 檢查陷阱數量
       met = data.count >= (cond.count || 1);
+
+      // 如果有指定 trapType，還需要檢查類型
+      if (met && cond.trapType && data.trapType) {
+        met = data.trapType === cond.trapType;
+      }
     }
 
     if (met) {

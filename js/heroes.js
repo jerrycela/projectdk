@@ -35,22 +35,6 @@ DK.HERO_TYPES = {
     icon: 'fire_mage',
     auraRange: 2,
   },
-  ICE_MAGE: {
-    id: 'ice_mage',
-    name: '斯卡蒂',
-    description: '冰之女神，冰霜射線施加冰凍印記',
-    cost: 85,
-    hp: 120,
-    damage: 8,
-    range: 3.5,
-    aoeRadius: 0,
-    attackCooldown: 1200,
-    moveSpeed: 1.0,
-    element: 'ice',
-    icon: 'ice_mage',
-    lineAttack: true,
-    auraRange: 2,
-  },
 };
 
 DK.Heroes = {
@@ -476,77 +460,14 @@ DK.Heroes = {
           };
 
           // 根據英雄元素決定傷害文字顏色
-          const dmgColorMap = { water: '#4488ff', fire: '#ff6622', ice: '#88ccff' };
+          const dmgColorMap = { water: '#4488ff', fire: '#ff6622' };
           const dmgColor = dmgColorMap[hero.type.element] || '#ffffff';
 
-          // 冰法師：直線射線攻擊
-          if (hero.type.lineAttack) {
-            // 計算英雄到敵人方向
-            const dirX = bestTarget.x - hero.x;
-            const dirY = bestTarget.y - hero.y;
-            const dirLen = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
-            const nx = dirX / dirLen;
-            const ny = dirY / dirLen;
+          // 水法師/火法師：AoE 或單體攻擊
+          const aoeRange = (hero.type.aoeRadius || 0) * T;
+          const hitTargets = [];
 
-            // 射線方向上所有在 range 內的敵人都受到傷害
-            const hitTargets = [];
-            for (const enemy of enemies) {
-              if (!enemy.alive || enemy.hp <= 0) continue;
-              // 計算敵人到射線的距離（點到直線距離）
-              const ex = enemy.x - hero.x;
-              const ey = enemy.y - hero.y;
-              // 投影長度
-              const proj = ex * nx + ey * ny;
-              if (proj < 0 || proj > range) continue;
-              // 垂直距離
-              const perpX = ex - nx * proj;
-              const perpY = ey - ny * proj;
-              const perpDist = Math.sqrt(perpX * perpX + perpY * perpY);
-              // 射線寬度容差：半個格子
-              if (perpDist <= T * 0.5) {
-                hitTargets.push(enemy);
-              }
-            }
-
-            // 對所有命中的敵人造成傷害和元素附著
-            for (const target of hitTargets) {
-              target.hp -= hero.type.damage;
-              target.flashTimer = 100;
-              DK.Elements.applyElement(target, hero.type.element);
-
-              if (DK.Game && DK.Game.effects) {
-                DK.Game.effects.push({
-                  type: 'damage',
-                  x: target.x + (Math.random() - 0.5) * 4,
-                  y: target.y - 8,
-                  text: `-${hero.type.damage}`,
-                  color: dmgColor,
-                  duration: 800,
-                  timer: 0,
-                });
-              }
-            }
-
-            // 冰霜射線投射物效果
-            if (DK.Game && DK.Game.effects) {
-              const rayEndX = hero.x + nx * range;
-              const rayEndY = hero.y + ny * range;
-              DK.Game.effects.push({
-                type: 'ice_ray',
-                x: hero.x,
-                y: hero.y - 4,
-                targetX: rayEndX,
-                targetY: rayEndY,
-                duration: 400,
-                timer: 0,
-              });
-            }
-          } else {
-            // 水法師/火法師：AoE 或單體攻擊
-            const aoeRange = (hero.type.aoeRadius || 0) * T;
-            const hitTargets = [];
-
-            if (aoeRange > 0) {
+          if (aoeRange > 0) {
               for (const enemy of enemies) {
                 if (!enemy.alive || enemy.hp <= 0) continue;
                 const dx = enemy.x - bestTarget.x;
@@ -560,8 +481,8 @@ DK.Heroes = {
               hitTargets.push(bestTarget);
             }
 
-            // 對所有命中目標施加傷害 + 元素
-            for (const target of hitTargets) {
+          // 對所有命中目標施加傷害 + 元素
+          for (const target of hitTargets) {
               target.hp -= hero.type.damage;
               target.flashTimer = 100;
               DK.Elements.applyElement(target, hero.type.element);
@@ -617,7 +538,6 @@ DK.Heroes = {
                 }
               }
             }
-          }
         } else {
           hero.attacking = false;
           hero.target = null;
@@ -670,8 +590,6 @@ DK.Heroes = {
       // 根據英雄類型分派渲染
       if (hero.type.id === 'fire_mage') {
         this.renderFireMage(ctx, hero, x, y, time);
-      } else if (hero.type.id === 'ice_mage') {
-        this.renderIceMage(ctx, hero, x, y, time);
       } else {
         this.renderWaterMage(ctx, hero, x, y, time);
       }
@@ -686,8 +604,6 @@ DK.Heroes = {
         // 根據英雄元素選擇光環顏色
         if (hero.type.id === 'fire_mage') {
           this.renderSelectionRing(ctx, x, y, time, 'rgba(255,102,34,');
-        } else if (hero.type.id === 'ice_mage') {
-          this.renderSelectionRing(ctx, x, y, time, 'rgba(136,204,255,');
         } else {
           this.renderSelectionRing(ctx, x, y, time);
         }
@@ -949,134 +865,6 @@ DK.Heroes = {
     }
   },
 
-  renderIceMage(ctx, hero, x, y, time) {
-    const PA = DK.PixelArt;
-    const C = DK.COLORS;
-    const f = hero.animFrame;
-    const attacking = hero.attacking && hero.attackTimer > hero.type.attackCooldown * 0.7;
-
-    // === SKADI: Ice Goddess with silver hair and crystal staff ===
-
-    // Shadow
-    PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.25)');
-
-    // Feet
-    if (hero.moving) {
-      if (f < 2) {
-        PA.pixel(ctx, x - 1, y + 3, '#2a2a3a');
-        PA.pixel(ctx, x + 1, y + 3, '#2a2a3a');
-      } else {
-        PA.pixel(ctx, x - 2, y + 3, '#2a2a3a');
-        PA.pixel(ctx, x + 2, y + 3, '#2a2a3a');
-      }
-    } else {
-      PA.pixel(ctx, x - 1, y + 3, '#2a2a3a');
-      PA.pixel(ctx, x + 1, y + 3, '#2a2a3a');
-    }
-
-    // Dress lower (silver-blue, flowing)
-    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_ICE_ROBE_DARK);
-    PA.rect(ctx, x - 4, y + 2, 9, 1, C.HERO_ICE_ROBE_DARK);
-    PA.pixel(ctx, x - 3, y + 2, C.HERO_ICE_ROBE);
-    PA.pixel(ctx, x + 3, y + 2, C.HERO_ICE_ROBE);
-
-    // Dress upper (fitted)
-    PA.rect(ctx, x - 2, y - 2, 5, 3, C.HERO_ICE_ROBE);
-    PA.rect(ctx, x - 2, y - 3, 5, 1, C.HERO_ICE_ROBE_LIGHT);
-    // Waist sash
-    PA.rect(ctx, x - 2, y, 5, 1, '#5a7a8a');
-    PA.pixel(ctx, x, y, '#aaddff'); // ice gem
-
-    // Dress fold
-    PA.pixel(ctx, x - 1, y + 1, C.HERO_ICE_ROBE_DARK);
-    PA.pixel(ctx, x + 1, y + 1, C.HERO_ICE_ROBE_DARK);
-
-    // Fur collar/shawl
-    PA.rect(ctx, x - 3, y - 3, 7, 1, '#c8c8d8');
-    PA.pixel(ctx, x - 4, y - 3, '#b0b0c0');
-    PA.pixel(ctx, x + 4, y - 3, '#b0b0c0');
-    PA.pixel(ctx, x - 3, y - 3, '#d8d8e8'); // fur highlight
-
-    // Arms
-    const armOffset = hero.moving ? (f % 2) : 0;
-    PA.pixel(ctx, x - 3, y - 1 + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x - 4, y + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 3, y - 1 - armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 4, y - armOffset, C.HERO_SKIN);
-
-    // Neck
-    PA.pixel(ctx, x, y - 3, C.HERO_SKIN);
-
-    // Head
-    PA.rect(ctx, x - 2, y - 7, 5, 4, C.HERO_SKIN);
-    PA.pixel(ctx, x - 1, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x + 1, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x + 2, y - 5, '#e0c8b0');
-
-    // Silver-white long hair
-    PA.rect(ctx, x - 3, y - 8, 1, 6, '#aab0c0');
-    PA.rect(ctx, x + 3, y - 8, 1, 6, '#aab0c0');
-    PA.pixel(ctx, x - 2, y - 8, '#bbc0d0');
-    PA.pixel(ctx, x + 2, y - 8, '#bbc0d0');
-    PA.pixel(ctx, x - 1, y - 9, '#ccd0e0');
-    PA.pixel(ctx, x, y - 9, '#ccd0e0');
-    PA.pixel(ctx, x + 1, y - 9, '#ccd0e0');
-    // Hair ice crystal sparkle
-    const sparkle = Math.sin((time || 0) / 300);
-    if (sparkle > 0.5) PA.pixel(ctx, x - 3, y - 5, '#ffffff');
-    if (sparkle < -0.5) PA.pixel(ctx, x + 3, y - 6, '#ffffff');
-
-    // Silver tiara
-    PA.pixel(ctx, x - 1, y - 9, '#d0d8e8');
-    PA.pixel(ctx, x, y - 10, '#e0e8f8');
-    PA.pixel(ctx, x + 1, y - 9, '#d0d8e8');
-    // Tiara gem
-    PA.pixel(ctx, x, y - 10, '#88ccff');
-
-    // Eyes (icy blue)
-    PA.pixel(ctx, x - 1, y - 6, '#88ccff');
-    PA.pixel(ctx, x + 1, y - 6, '#88ccff');
-    PA.pixel(ctx, x - 1, y - 7, '#bbddff');
-
-    // Nose
-    PA.pixel(ctx, x, y - 5, '#e8ccb4');
-
-    // Lips
-    PA.pixel(ctx, x, y - 4, '#cc8888');
-
-    // Light source
-    PA.pixel(ctx, x - 2, y - 7, PA.lighten(C.HERO_SKIN, 10));
-    PA.pixel(ctx, x + 2, y - 5, PA.darken(C.HERO_SKIN, 8));
-
-    // Crystal ice staff (right side)
-    PA.rect(ctx, x + 5, y - 8, 1, 10, '#8090a0');
-    // Ice crystal top
-    PA.pixel(ctx, x + 5, y - 9, '#88ccff');
-    PA.pixel(ctx, x + 4, y - 10, '#aaddff');
-    PA.pixel(ctx, x + 5, y - 10, '#ccddff');
-    PA.pixel(ctx, x + 6, y - 10, '#aaddff');
-    PA.pixel(ctx, x + 5, y - 11, '#eef0ff');
-    // Crystal glow
-    if (attacking) {
-      PA.pixel(ctx, x + 4, y - 11, '#88ccff');
-      PA.pixel(ctx, x + 6, y - 11, '#88ccff');
-      PA.pixel(ctx, x + 5, y - 12, '#ffffff');
-    }
-
-    // Ice aura when attacking
-    if (attacking) {
-      const t = (time || 0) / 150;
-      for (let i = 0; i < 5; i++) {
-        const angle = t + (i * Math.PI * 2) / 5;
-        const r = 6;
-        const px = Math.round(x + Math.cos(angle) * r);
-        const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
-        PA.pixel(ctx, px, py, 'rgba(136,204,255,0.6)');
-      }
-    }
-  },
-
   renderSelectionRing(ctx, x, y, time, colorPrefix) {
     const PA = DK.PixelArt;
     const t = (time || 0) / 300;
@@ -1103,7 +891,6 @@ DK.Heroes = {
     const rangeColorMap = {
       water: 'rgba(68,136,255,0.3)',
       fire: 'rgba(255,102,34,0.3)',
-      ice: 'rgba(136,204,255,0.3)',
     };
     ctx.strokeStyle = rangeColorMap[hero.type.element] || 'rgba(68,136,255,0.3)';
     ctx.lineWidth = 0.5;
@@ -1123,7 +910,6 @@ DK.Heroes = {
     const elementColors = {
       water: [68, 136, 255],
       fire: [255, 102, 34],
-      ice: [136, 204, 255],
     };
     const rgb = elementColors[hero.type.element] || elementColors.water;
     const alpha = (line.timer / line.duration) * 0.6;
@@ -1154,12 +940,10 @@ DK.Heroes = {
     const auraColors = {
       water: `rgba(68,136,255,${0.15 * pulse})`,
       fire: `rgba(255,102,34,${0.15 * pulse})`,
-      ice: `rgba(136,204,255,${0.15 * pulse})`,
     };
     const borderColors = {
       water: `rgba(68,136,255,${0.2 * pulse})`,
       fire: `rgba(255,102,34,${0.2 * pulse})`,
-      ice: `rgba(136,204,255,${0.2 * pulse})`,
     };
 
     const fillColor = auraColors[hero.type.element] || auraColors.water;

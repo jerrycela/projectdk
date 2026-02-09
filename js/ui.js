@@ -333,9 +333,9 @@ DK.UI = {
     }
 
     // Check game area click (place trap) - apply camera offset
-    // Only allow trap placement in planning or invasion phases
+    // Allow trap placement in planning, breach, and invasion phases
     if (my < DK.CONFIG.UI_TOP && this.selectedTrap && DK.Game &&
-        (DK.Game.state === 'planning' || DK.Game.state === 'invasion')) {
+        (DK.Game.state === 'planning' || DK.Game.state === 'breach' || DK.Game.state === 'invasion')) {
       const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
       const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
 
@@ -867,7 +867,6 @@ DK.UI = {
       const elementColors = {
         water: { badge: '#1a3388', border: '#3355cc', icon: '#4488ff', iconLight: '#88ccff', selected: '#4488ff' },
         fire:  { badge: '#882211', border: '#cc4433', icon: '#ff6622', iconLight: '#ffaa44', selected: '#ff6622' },
-        ice:   { badge: '#336688', border: '#55aacc', icon: '#88ccff', iconLight: '#aaddff', selected: '#88ccff' },
       };
       const ec = elementColors[heroType.element] || elementColors.water;
 
@@ -1000,10 +999,6 @@ DK.UI = {
       ctx.fillStyle = '#8a6030';
       ctx.fillText('緩速60%', statsCX - 10, statsY);
       ctx.fillText('🛢', statsCX + 24, statsY);
-    } else if (btn.trap.damage === 0 && btn.trap.element === 'ice') {
-      // wind_trap: 推力 + 冰
-      ctx.fillStyle = C.ELEMENT_ICE;
-      ctx.fillText('推力+冰❄', statsCX, statsY);
     } else if (btn.trap.damage === 0 && btn.trap.pushForce) {
       // push_trap: 推力 + 方向箭頭
       ctx.fillStyle = '#aaa0b0';
@@ -1775,14 +1770,12 @@ DK.UI = {
     const elementNames = {
       electric: '雷電',
       fire: '火焰',
-      ice: '冰霜',
       wind: '風',
       physical: '物理',
     };
     const elementColors = {
       electric: '#ffdd44',
       fire: '#ff6622',
-      ice: '#88ccff',
       wind: '#88aacc',
       physical: '#ccbbaa',
     };

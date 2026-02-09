@@ -31,14 +31,6 @@ DK.Elements = {
       color: '#ff6622',
       particleColor: '#ffaa44',
     },
-    frozen_mark: {
-      id: 'frozen_mark',
-      name: '冰凍印記',
-      duration: 3000,
-      color: '#88ccff',
-      particleColor: '#aaddff',
-      slowAmount: 0.8, // 移速×0.8 = -20%
-    },
     oiled: {
       id: 'oiled',
       name: '油污',
@@ -101,7 +93,7 @@ DK.Elements = {
     }
 
     // No reaction — apply base status for elements that have one
-    const elementStatusMap = { water: 'wet', fire: 'burning', ice: 'frozen_mark' };
+    const elementStatusMap = { water: 'wet', fire: 'burning' };
     const baseStatus = elementStatusMap[element];
     if (baseStatus) {
       this.addStatus(enemy, baseStatus);
@@ -166,26 +158,6 @@ DK.Elements = {
           duration: 400,
           timer: 0,
         });
-      } else if (effectId === 'frozen_mark') {
-        DK.Game.effects.push({
-          type: 'reaction_text',
-          x: enemy.x,
-          y: enemy.y - 12,
-          text: '冰凍印記',
-          color: '#88ccff',
-          duration: 800,
-          timer: 0,
-        });
-        DK.Game.effects.push({
-          type: 'ice_splash',
-          x: enemy.x,
-          y: enemy.y,
-          duration: 400,
-          timer: 0,
-        });
-        // 套用減速效果
-        enemy.slowFactor = def.slowAmount;
-        enemy.slowTimer = def.duration;
       } else if (effectId === 'oiled') {
         DK.Game.effects.push({
           type: 'reaction_text',
@@ -723,27 +695,6 @@ DK.Elements = {
         PA.pixel(ctx, x - 2, y + 3, '#ff6622');
         PA.pixel(ctx, x + 2, y + 3, '#ff6622');
         PA.pixel(ctx, x, y + 4, '#cc4411');
-      } else if (status.id === 'frozen_mark') {
-        // 冰凍印記：冰晶粒子環繞
-        const PA = DK.PixelArt;
-        const t = (time || 0) / 350;
-
-        // 身體微弱藍色光暈
-        const glowAlpha = 0.1 + Math.sin(t * 2) * 0.05;
-        PA.rect(ctx, x - 4, y - 6 + yOffset, 9, 11, `rgba(136,204,255,${glowAlpha})`);
-
-        // 冰晶粒子環繞（淺藍色小菱形）
-        for (let i = 0; i < 6; i++) {
-          const angle = t + (i * Math.PI * 2) / 6;
-          const radius = 5 + Math.sin(t * 1.5 + i) * 1;
-          const px = Math.round(x + Math.cos(angle) * radius);
-          const py = Math.round(y - 2 + yOffset + Math.sin(angle) * radius * 0.6);
-          // 小菱形（3像素）
-          PA.pixel(ctx, px, py - 1, '#aaddff');
-          PA.pixel(ctx, px - 1, py, '#88ccff');
-          PA.pixel(ctx, px + 1, py, '#88ccff');
-          PA.pixel(ctx, px, py + 1, '#aaddff');
-        }
       } else if (status.id === 'oiled') {
         // 油污：深褐色油滴向下滴落
         const PA = DK.PixelArt;

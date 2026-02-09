@@ -40,11 +40,6 @@ DK.CONFIG = {
   // FPS
   TARGET_FPS: 60,
 
-  // Minecart
-  MINECART_SPEED: 1.5,        // 格/秒
-  MINECART_DAMAGE: 25,
-  MINECART_KNOCKBACK: 2,      // 擊退格數
-
   // Barricade
   BARRICADE_HP: 100,
   BARRICADE_MAX: 5,
@@ -183,20 +178,10 @@ DK.COLORS = {
   ELEMENT_FIRE: '#ff6622',
   ELEMENT_FIRE_LIGHT: '#ffaa44',
 
-  // Ice element
-  ELEMENT_ICE: '#88ccff',
-  ELEMENT_ICE_LIGHT: '#aaddff',
-  ELEMENT_ICE_DARK: '#4488cc',
-
   // Heroes - Baal (Fire Goddess)
   HERO_FIRE_ROBE: '#882020',     // 巴爾深紅禮服
   HERO_FIRE_ROBE_DARK: '#5a1010',// 巴爾暗面
   HERO_FIRE_ROBE_LIGHT: '#aa3030',// 巴爾亮面
-
-  // Heroes - Skadi (Ice Goddess)
-  HERO_ICE_ROBE: '#6688aa',      // 斯卡蒂銀藍禮服
-  HERO_ICE_ROBE_DARK: '#445a78', // 斯卡蒂暗面
-  HERO_ICE_ROBE_LIGHT: '#88aacc',// 斯卡蒂亮面
 };
 
 // Trap definitions

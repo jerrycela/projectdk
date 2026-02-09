@@ -35,7 +35,7 @@ window.DK = window.DK || {};
   disableSmoothing(offCtx);
 
   // Initialize game
-  DK.Game.init();
+  // (Game init will be called by startGame() after user clicks Start button)
 
   // Input handling - mousedown/mouseup for drag-to-scroll camera
   uiCanvas.addEventListener('mousedown', (e) => {
@@ -145,7 +145,6 @@ window.DK = window.DK || {};
 
     DK.Traps.render(offCtx);
     renderBarricades(offCtx, DK.Game.time);
-    renderMinecarts(offCtx);
     DK.Enemies.render(offCtx, DK.Game.time);
     if (DK.Heroes) DK.Heroes.render(offCtx, DK.Game.time);
     renderEffects(offCtx);
@@ -526,45 +525,6 @@ window.DK = window.DK || {};
     }
   }
 
-  function renderIceRay(ctx, PA, effect, progress) {
-    // 直線冰霜射線 - upgraded to 15 steps + progressive width + endpoint crystals
-    const rayProgress = Math.min(1, progress * 2);
-    const dx = effect.targetX - effect.x;
-    const dy = effect.targetY - effect.y;
-    const totalLen = Math.sqrt(dx * dx + dy * dy) || 1;
-    const perpX = -dy / totalLen;
-    const perpY = dx / totalLen;
-    const steps = 15;
-    const maxStep = Math.round(steps * rayProgress);
-
-    for (let i = 0; i <= maxStep; i++) {
-      const t = i / steps;
-      const rpx = Math.round(effect.x + dx * t);
-      const rpy = Math.round(effect.y + dy * t);
-      const color = Math.random() > 0.3 ? '#88ccff' : '#aaddff';
-      PA.pixel(ctx, rpx, rpy, color);
-      // Progressive width ice crystals: wider as i increases
-      const spreadRange = Math.floor(i / 4) + 1;
-      if (i % 2 === 0 && Math.random() > 0.4) {
-        const sOff = Math.round((Math.random() - 0.5) * spreadRange * 2);
-        PA.pixel(ctx, rpx + Math.round(perpX * sOff),
-                 rpy + Math.round(perpY * sOff), '#ffffff');
-      }
-    }
-    // Endpoint ice crystal condensation
-    if (rayProgress > 0.7) {
-      const endX = Math.round(effect.x + dx);
-      const endY = Math.round(effect.y + dy);
-      PA.pixel(ctx, endX, endY, '#ffffff');
-      PA.pixel(ctx, endX + 1, endY - 1, '#aaddff');
-      PA.pixel(ctx, endX - 1, endY + 1, '#88ccff');
-    }
-    // 起點光暈
-    if (rayProgress < 0.5) {
-      PA.pixel(ctx, Math.round(effect.x), Math.round(effect.y), '#ffffff');
-    }
-  }
-
   function renderOilIgniteBurst(ctx, PA, effect, progress) {
     // 油燃引爆 — 橘紅色火焰從中心爆發
     const burstMaxR = (effect.radius || 16) * 1.2;
@@ -675,36 +635,6 @@ window.DK = window.DK || {};
         const dpy = Math.round(effect.y - fireSplashP * 5 + Math.sin(dAngle) * 2);
         const dpx = Math.round(effect.x + Math.cos(dAngle) * dR);
         PA.pixel(ctx, dpx, dpy, '#ffcc44');
-      }
-    }
-  }
-
-  function renderIceSplash(ctx, PA, effect, progress) {
-    // 冰霜飛濺 - 首次掛上 frozen_mark 時的視覺效果
-    const iceSplashP = progress;
-    const iceSplashR = 2 + iceSplashP * 5;
-    const iceSplashFade = 1 - iceSplashP;
-
-    if (iceSplashFade > 0.1) {
-      // 擴散的冰晶環
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.4) {
-        const r = iceSplashR * (0.8 + Math.random() * 0.2);
-        const spx = Math.round(effect.x + Math.cos(angle) * r);
-        const spy = Math.round(effect.y + Math.sin(angle) * r * 0.5);
-        const color = Math.random() > 0.5 ? '#88ccff' : '#aaddff';
-        PA.pixel(ctx, spx, spy, color);
-      }
-      // 中心冰核
-      if (iceSplashP < 0.3) {
-        PA.circle(ctx, Math.round(effect.x), Math.round(effect.y), 2, '#ffffff');
-      }
-      // 飄散冰晶
-      for (let i = 0; i < 4; i++) {
-        const dAngle = (i / 4) * Math.PI * 2 + iceSplashP * 3;
-        const dR = iceSplashR * 0.6;
-        const dpy = Math.round(effect.y - iceSplashP * 4 + Math.sin(dAngle) * 2);
-        const dpx = Math.round(effect.x + Math.cos(dAngle) * dR);
-        PA.pixel(ctx, dpx, dpy, '#ccddff');
       }
     }
   }
@@ -1270,70 +1200,6 @@ window.DK = window.DK || {};
     }
   }
 
-  // === Minecart Renderer ===
-
-  function renderMinecarts(ctx) {
-    if (!DK.Game.minecarts) return;
-
-    for (const cart of DK.Game.minecarts) {
-      const x = Math.round(cart.x);
-      const y = Math.round(cart.y);
-
-      // 礦車車體（約 12x10 像素，像素風格）
-      // 車斗底部（深棕）
-      ctx.fillStyle = '#3a2010';
-      ctx.fillRect(x - 6, y - 3, 12, 6);
-
-      // 車斗側板（棕色）
-      ctx.fillStyle = '#5a3820';
-      ctx.fillRect(x - 6, y - 5, 12, 2);  // 上邊
-      ctx.fillRect(x - 7, y - 5, 1, 8);   // 左邊
-      ctx.fillRect(x + 6, y - 5, 1, 8);   // 右邊
-
-      // 車斗高光（左上光源）
-      ctx.fillStyle = '#7a5838';
-      ctx.fillRect(x - 5, y - 5, 4, 1);   // 上邊高光
-      ctx.fillRect(x - 6, y - 4, 1, 3);   // 左邊高光
-
-      // 礦石內容（灰色石頭，略微凸出車斗）
-      ctx.fillStyle = '#555566';
-      ctx.fillRect(x - 4, y - 6, 3, 2);
-      ctx.fillStyle = '#666677';
-      ctx.fillRect(x, y - 7, 3, 3);
-      ctx.fillStyle = '#444455';
-      ctx.fillRect(x + 2, y - 5, 2, 1);
-
-      // 車輪（2 個）
-      ctx.fillStyle = '#222233';
-      ctx.fillRect(x - 5, y + 3, 3, 3);   // 左輪
-      ctx.fillRect(x + 2, y + 3, 3, 3);   // 右輪
-      // 輪軸高光
-      ctx.fillStyle = '#444455';
-      ctx.fillRect(x - 4, y + 4, 1, 1);
-      ctx.fillRect(x + 3, y + 4, 1, 1);
-    }
-  }
-
-  function renderMinecartHit(ctx, PA, effect, progress) {
-    const alpha = 1 - progress;
-    const radius = 4 + progress * 8;
-
-    // 碰撞火花
-    ctx.fillStyle = `rgba(255,200,100,${alpha * 0.5})`;
-    ctx.beginPath();
-    ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 碎石飛散
-    for (let i = 0; i < 4; i++) {
-      const angle = (i / 4) * Math.PI * 2 + progress * 2;
-      const dist = progress * 12;
-      const px = effect.x + Math.cos(angle) * dist;
-      const py = effect.y + Math.sin(angle) * dist;
-      ctx.fillStyle = `rgba(150,120,80,${alpha})`;
-      ctx.fillRect(Math.round(px), Math.round(py), 2, 2);
-    }
-  }
 
   // === Main renderEffects dispatcher ===
 
@@ -1353,11 +1219,9 @@ window.DK = window.DK || {};
         case 'water_splash': renderWaterSplash(ctx, PA, effect, progress); break;
         case 'push_wave': renderPushWave(ctx, PA, effect, progress); break;
         case 'abyss_fall': renderAbyssFall(ctx, PA, effect, progress); break;
-        case 'ice_ray': renderIceRay(ctx, PA, effect, progress); break;
         case 'oil_ignite_burst': renderOilIgniteBurst(ctx, PA, effect, progress); break;
         case 'oil_splash': renderOilSplash(ctx, PA, effect, progress); break;
         case 'fire_splash': renderFireSplash(ctx, PA, effect, progress); break;
-        case 'ice_splash': renderIceSplash(ctx, PA, effect, progress); break;
         case 'fire_nova': renderFireNova(ctx, PA, effect, progress); break;
         case 'burn_status': renderBurnStatus(ctx, PA, effect, progress); break;
         case 'blizzard_zone': renderBlizzardZone(ctx, PA, effect, progress); break;
@@ -1366,7 +1230,6 @@ window.DK = window.DK || {};
         case 'gold_sparkle': renderGoldSparkle(ctx, PA, effect, progress); break;
         case 'hero_deploy': renderHeroDeploy(ctx, PA, effect, progress); break;
         case 'hero_recall': renderHeroRecall(ctx, PA, effect, progress); break;
-        case 'minecart_hit': renderMinecartHit(ctx, PA, effect, progress); break;
         case 'wall_break': renderWallBreak(ctx, PA, effect, progress); break;
         case 'barricade_shatter': {
           if (progress > 1) break;

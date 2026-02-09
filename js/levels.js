@@ -31,7 +31,7 @@ DK.LEVELS = [
       { enemies: [{ type: 'GOBLIN', count: 4 }, { type: 'SKELETON', count: 2 }] },
     ],
 
-    startingGold: 200,
+    startingGold: 1000,
     dungeonHeartHP: 50,
 
     tutorial: {
@@ -105,7 +105,7 @@ DK.LEVELS = [
       { enemies: [{ type: 'SKELETON', count: 4 }, { type: 'ORC', count: 1 }] },
     ],
 
-    startingGold: 250,
+    startingGold: 1200,
     dungeonHeartHP: 60,
 
     tutorial: {
@@ -130,6 +130,14 @@ DK.LEVELS = [
           message: '試著在水坑旁邊放置一個電擊陷阱。',
           nextTrigger: 'condition',
           condition: { type: 'trapPlaced', trapType: 'shock', count: 1 },
+        },
+        {
+          id: 'start-wave',
+          trigger: 'afterStep:place-shock',
+          message: '很好！現在點擊「開始波次」按鈕，\n看看水坑與電擊的組合效果！',
+          highlight: { type: 'ui', element: 'waveButton' },
+          nextTrigger: 'condition',
+          condition: { type: 'waveStarted', wave: 1 },
         },
       ],
     },
@@ -163,7 +171,7 @@ DK.LEVELS = [
       { enemies: [{ type: 'ORC', count: 3 }, { type: 'TROLL', count: 1 }] },
     ],
 
-    startingGold: 300,
+    startingGold: 1500,
     dungeonHeartHP: 70,
 
     tutorial: {
@@ -222,7 +230,7 @@ DK.LEVELS = [
       { enemies: [{ type: 'TROLL', count: 3 }, { type: 'DARK_KNIGHT', count: 1 }] },
     ],
 
-    startingGold: 400,
+    startingGold: 2000,
     dungeonHeartHP: 80,
 
     tutorial: {

@@ -397,8 +397,8 @@ DK.Enemies = {
 
       // Slow indicator
       if (enemy.slowTimer > 0) {
-        DK.PixelArt.pixel(ctx, x - 1, y - 7, DK.COLORS.ELEMENT_ICE);
-        DK.PixelArt.pixel(ctx, x + 1, y - 7, DK.COLORS.ELEMENT_ICE);
+        DK.PixelArt.pixel(ctx, x - 1, y - 7, '#88aacc');
+        DK.PixelArt.pixel(ctx, x + 1, y - 7, '#88aacc');
       }
 
       // Elemental status indicators
