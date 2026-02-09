@@ -143,11 +143,17 @@ window.DK = window.DK || {};
       }
     }
 
+    // Layer 1+2 裝飾（地面/牆壁基礎裝飾）
+    renderDecorations(2);
+
     DK.Traps.render(offCtx);
     renderBarricades(offCtx, DK.Game.time);
     DK.Enemies.render(offCtx, DK.Game.time);
     if (DK.Heroes) DK.Heroes.render(offCtx, DK.Game.time);
     renderEffects(offCtx);
+
+    // Layer 3 裝飾（牆壁前景裝飾）
+    renderDecorations(3);
 
     offCtx.restore();
     // === Camera offset end ===
@@ -986,6 +992,38 @@ window.DK = window.DK || {};
       const fillW = Math.ceil(barW * hpPercent);
       PA.rect(ctx, barX, barY + 1, fillW, 2, hpPercent > 0.3 ? '#ff4444' : '#ff0000');
       PA.rect(ctx, barX, barY, fillW, 1, hpPercent > 0.3 ? '#ff8888' : '#ff4444');
+    }
+  }
+
+  // === Decoration Renderer ===
+
+  function renderDecorations(layerFilter = null) {
+    if (!DK.Map.decorations) return;
+
+    const camera = DK.Game.camera || { x: 0, y: 0 };
+
+    // 按 layer 排序（1 → 2 → 3）
+    const sorted = [...DK.Map.decorations].sort((a, b) => a.layer - b.layer);
+
+    for (const deco of sorted) {
+      // Layer 過濾：
+      // layerFilter = 2 → 只渲染 layer 1 和 2
+      // layerFilter = 3 → 只渲染 layer 3
+      if (layerFilter !== null) {
+        if (layerFilter === 2 && deco.layer > 2) continue;
+        if (layerFilter === 3 && deco.layer !== 3) continue;
+      }
+
+      const screenX = deco.col * DK.CONFIG.TILE_SIZE - camera.x;
+      const screenY = deco.row * DK.CONFIG.TILE_SIZE - camera.y;
+
+      // 只渲染 viewport 內的
+      if (screenX < -DK.CONFIG.TILE_SIZE || screenX > DK.CONFIG.GAME_WIDTH ||
+          screenY < -DK.CONFIG.TILE_SIZE || screenY > DK.CONFIG.GAME_HEIGHT) {
+        continue;
+      }
+
+      DK.PixelArt.drawDecoration(deco.type, deco.variant, screenX, screenY, offCtx);
     }
   }
 
