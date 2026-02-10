@@ -115,11 +115,28 @@ DK.COLORS = {
   ELEMENT_ELECTRIC_LIGHT: '#ffff88',
   ELEMENT_REACTION: '#ffffff',
 
-  // Heroes (Dungeon Deities - Female)
-  HERO_ROBE: '#1a4488',         // 利維坦深藍禮服
-  HERO_ROBE_DARK: '#0e2a5a',    // 利維坦暗面
-  HERO_ROBE_LIGHT: '#2a5aaa',   // 利維坦亮面
+  // Heroes (Dungeon Deities - Female) - 金髮魔王女神風格
+  // === 金髮漸層（兩位英雄共用）===
+  HERO_HAIR_DARK: '#aa8844',    // 金髮陰影
+  HERO_HAIR_MID: '#ddaa55',     // 金髮主色
+  HERO_HAIR_LIGHT: '#ffcc77',   // 金髮高光
+
+  // === 皇冠（金色 + 紅寶石）===
+  HERO_CROWN_GOLD: '#ffcc00',   // 金色皇冠
+  HERO_CROWN_GEM: '#cc0000',    // 紅寶石
+
+  // === 利維坦（水法師）深藍紫禮服 ===
+  HERO_ROBE: '#3a4a8a',         // 深藍紫禮服主色
+  HERO_ROBE_DARK: '#2a3a6a',    // 深藍紫陰影
+  HERO_ROBE_LIGHT: '#5a6aaa',   // 深藍紫高光
+
+  // === 通用裝飾 ===
   HERO_SKIN: '#f0dcc8',         // 女神膚色（白皙）
+  HERO_GEM_WATER: '#88ccff',    // 利維坦水晶寶石
+  HERO_PEARL: '#ffffff',        // 利維坦珍珠
+  HERO_SILVER: '#aaccee',       // 利維坦銀飾
+  HERO_GOLD: '#ffd700',         // 金色裝飾
+  HERO_FUR_WHITE: '#ffffff',    // 白色毛皮
   HERO_SELECTED: '#44ff44',
 
   // Electric trap
@@ -178,10 +195,11 @@ DK.COLORS = {
   ELEMENT_FIRE: '#ff6622',
   ELEMENT_FIRE_LIGHT: '#ffaa44',
 
-  // Heroes - Baal (Fire Goddess)
-  HERO_FIRE_ROBE: '#882020',     // 巴爾深紅禮服
-  HERO_FIRE_ROBE_DARK: '#5a1010',// 巴爾暗面
-  HERO_FIRE_ROBE_LIGHT: '#aa3030',// 巴爾亮面
+  // === 巴爾（火法師）深紅紫禮服 ===
+  HERO_FIRE_ROBE: '#6a3a5a',     // 深紅紫禮服主色（魔王風格）
+  HERO_FIRE_ROBE_DARK: '#4a2a3a',// 深紅紫陰影
+  HERO_FIRE_ROBE_LIGHT: '#8a5a7a',// 深紅紫高光
+  HERO_GEM_FIRE: '#ffaa44',      // 巴爾火焰寶石
 };
 
 // Trap definitions

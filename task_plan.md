@@ -1,60 +1,53 @@
-# Task Plan: 有機環境設計 — 裝飾物系統
+# Task Plan: 英雄視覺改善 — 金髮魔王女神風格
 
 ## Goal
-為 40×26 地圖建立 3 層裝飾物系統，讓環境有聚落感和戰略引導。先實作水牢區作為試點。
+將利維坦（水法師）和巴爾（火法師）從暗沉配色改為明亮的金髮魔王女神風格，提升辨識度和視覺吸引力。
 
-## Design Doc
-docs/plans/2026-02-09-organic-environment-design.md
-
-## Current Phase
-Phase 1: 裝飾物渲染系統 + 水牢區試點
+## 參考設計
+- 金黃色長髮
+- 金色皇冠
+- 深紫色系服裝（水=藍紫，火=紅紫）
+- 白色毛皮裝飾
+- 保持現有 16×16 像素風格
 
 ## Phases
 
-### Phase 1: 裝飾物渲染系統 + 水牢區試點
-- [x] pixelart.js: 新增 drawDecoration() 函式，8 種裝飾物 × 2 變體 = 16 種
-- [x] map.js: 新增 decorations 陣列，水牢區 37 個裝飾物
-- [x] main.js: 新增 renderDecorations() 函式，分層渲染（Layer 1-2, Layer 3）
-- [ ] 測試：瀏覽器中查看水牢區效果
-- **Status:** complete (待測試)
+### Phase 1: 配色常數定義 ⏳ in_progress
+**檔案**: `js/config.js`
+- [ ] 定義金髮漸層色（HERO_HAIR_DARK/MID/LIGHT）
+- [ ] 定義金色皇冠色（HERO_CROWN_GOLD）
+- [ ] 調整服裝色為深紫系（保留元素區分）
+- [ ] 定義白色毛皮色（HERO_FUR_WHITE）
 
-### Phase 2: 擴展到其他區域（待定）
-- [ ] 熔岩祭壇環境配置
-- [ ] 西側入口走廊環境配置
-- [ ] 東側入口走廊環境配置
-- [ ] 荒草庭院環境配置
-- [ ] 地心聖域環境配置
-- **Status:** pending
+### Phase 2: 水法師視覺改造 ⏱️ pending
+**檔案**: `js/heroes.js` - `renderWaterMage()`
+- [ ] 頭髮改為金色漸層（替換原本的藍色頭髮）
+- [ ] 增加金色皇冠渲染（在頭頂 y-14~y-13）
+- [ ] 服裝改為深藍紫色
+- [ ] 增加白色毛皮肩飾（2 像素）
 
-## 修改檔案清單
-| 檔案 | 改動 | 說明 |
-|------|------|------|
-| pixelart.js | 新增 | drawDecoration() + 8-10 種裝飾物繪製 |
-| map.js | 新增 | decorations 陣列 + 水牢區配置 |
-| main.js | 新增 | renderDecorations() 函式 |
+### Phase 3: 火法師視覺改造 ⏱️ pending
+**檔案**: `js/heroes.js` - `renderFireMage()`
+- [ ] 頭髮改為金色漸層（與水法師一致）
+- [ ] 增加金色皇冠渲染
+- [ ] 服裝改為深紅紫色
+- [ ] 增加白色毛皮肩飾
+- [ ] 保留火焰特效閃爍
 
-## 水牢區裝飾物清單（試點）
-**位置：** row 7-9, col 4-11
+### Phase 4: 視覺測試 ⏱️ pending
+- [ ] 啟動遊戲測試
+- [ ] 檢查辨識度（在暗背景下是否清晰）
+- [ ] 檢查對比度
+- [ ] 微調配色（如需要）
 
-### Layer 1: 地板裝飾
-- crack_small × 8-10 個
-- moss × 6-8 個
-- water_puddle × 4-6 個
-- bloodstain × 3-5 個
+## 成功標準
+- [ ] 英雄在暗色背景下清晰可見
+- [ ] 金髮 + 皇冠成為視覺焦點
+- [ ] 保持原有像素藝術風格
+- [ ] 符合「魔王女神」氣質
 
-### Layer 2: 小型物件
-- rock_medium × 8-10 個（水池邊）
-- bone_pile × 2-3 個
-
-### Layer 3: 牆壁裝飾
-- wall_moss × 5-7 個
-- chain × 3-4 個
-
-**總計約 40-50 個裝飾物**
-
-## Errors Encountered
-| Error | Attempt | Resolution |
-|-------|---------|------------|
+## 預計時間
+30-45 分鐘
 
 ---
-*Updated: 2026-02-09*
+*Updated: 2026-02-09 14:35*

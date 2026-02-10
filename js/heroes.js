@@ -11,11 +11,11 @@ DK.HERO_TYPES = {
     description: '海之女神，水系範圍魔法附加潮濕',
     cost: 80,
     hp: 150,
-    damage: 10,
+    damage: 30,
     range: 3,
-    aoeRadius: 1.5,
-    attackCooldown: 1500,
-    moveSpeed: 1.0,
+    aoeRadius: 2.5,
+    attackCooldown: 1800,
+    moveSpeed: 0.75,
     element: 'water',
     icon: 'water_mage',
     auraRange: 2,
@@ -26,11 +26,11 @@ DK.HERO_TYPES = {
     description: '焰之女神，火球命中施加灼印',
     cost: 90,
     hp: 130,
-    damage: 15,
+    damage: 40,
     range: 3,
-    aoeRadius: 1.0,
-    attackCooldown: 1800,
-    moveSpeed: 1.0,
+    aoeRadius: 1.2,
+    attackCooldown: 2000,
+    moveSpeed: 0.75,
     element: 'fire',
     icon: 'fire_mage',
     auraRange: 2,
@@ -372,11 +372,37 @@ DK.Heroes = {
       // 跳過死亡英雄
       if (!hero.alive) continue;
 
-      // Animation
+      // Animation (walk cycle + idle actions)
       hero.animTimer += dt;
-      if (hero.animTimer > 300) {
+      if (hero.animTimer > 400) { // Slowed from 300ms to 400ms for more elegant movement
         hero.animFrame = (hero.animFrame + 1) % 4;
         hero.animTimer = 0;
+      }
+
+      // Idle animation system (3-5 seconds random actions)
+      if (!hero.idleActionTimer) hero.idleActionTimer = 0;
+      if (!hero.idleAction) hero.idleAction = 'none';
+      if (!hero.idleActionProgress) hero.idleActionProgress = 0;
+
+      if (!hero.moving && !hero.attacking) {
+        hero.idleActionTimer += dt;
+        if (hero.idleActionTimer > 3000 + Math.random() * 2000) {
+          // Trigger random idle action
+          const actions = ['tilt_head', 'fix_hair', 'adjust_dress'];
+          hero.idleAction = actions[Math.floor(Math.random() * actions.length)];
+          hero.idleActionProgress = 0;
+          hero.idleActionTimer = 0;
+        }
+      }
+
+      // Progress idle action
+      if (hero.idleAction !== 'none') {
+        hero.idleActionProgress += dt;
+        const actionDuration = hero.idleAction === 'fix_hair' ? 1000 : 800;
+        if (hero.idleActionProgress > actionDuration) {
+          hero.idleAction = 'none';
+          hero.idleActionProgress = 0;
+        }
       }
 
       // AI 狀態機更新（在移動邏輯之前）
@@ -578,10 +604,18 @@ DK.Heroes = {
       const x = Math.round(hero.x);
       let y = Math.round(hero.y);
 
-      // 待機呼吸動畫：英雄不攻擊且不移動時，輕微上下浮動
-      if (!hero.attackLine && !hero.moving) {
+      // Vertical float animation (flying effect)
+      if (hero.moving) {
+        // Walking: gentle floating (4 frames cycle)
+        const floatPattern = [0, -0.5, 0, -1]; // More pronounced float
+        y += floatPattern[hero.animFrame];
+      } else if (!hero.attackLine) {
+        // Idle: breathing
         const breathOffset = Math.sin((time || 0) * 0.003) * 0.5;
         y += Math.round(breathOffset);
+      } else if (hero.attacking) {
+        // Attacking: casting pose - body lean back slightly
+        y -= 1;
       }
 
       // 光環渲染
@@ -622,117 +656,234 @@ DK.Heroes = {
     const f = hero.animFrame;
     const attacking = hero.attacking && hero.attackTimer > hero.type.attackCooldown * 0.7;
 
-    // === LEVIATHAN: Sea Goddess with flowing blue hair and trident ===
+    // === LEVIATHAN: Sea Goddess - Enhanced 12×12 core, flowing details ===
 
-    // Shadow
-    PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.25)');
+    // Animation offsets for dress sway and hair flow
+    let dressSwayX = 0;
+    let hairFlowX = 0;
+    let weaponExtendX = 0;
+    let bodyLeanX = 0;
+
+    if (hero.moving) {
+      // Walking: dress sways side to side, hair flows backward
+      const swayPattern = [0, -1, 0, 1]; // Dress sway left-right
+      dressSwayX = swayPattern[f];
+      hairFlowX = 1 + (f === 3 ? 1 : 0); // Hair flows back more on frame 3
+    }
+
+    if (attacking) {
+      // Casting pose: weapon extends forward, body leans back, hair flies back
+      weaponExtendX = 2;
+      bodyLeanX = -1;
+      hairFlowX = 2;
+    }
+
+    // Idle actions
+    if (hero.idleAction === 'tilt_head') {
+      const progress = hero.idleActionProgress / 800;
+      const tiltOffset = Math.sin(progress * Math.PI) * 1;
+      x += Math.round(tiltOffset);
+    } else if (hero.idleAction === 'fix_hair') {
+      // Hair fixing animation (hand moves to hair)
+      const progress = hero.idleActionProgress / 1000;
+      if (progress > 0.3 && progress < 0.7) {
+        hairFlowX += 1; // Hair moves as hand touches it
+      }
+    } else if (hero.idleAction === 'adjust_dress') {
+      // Dress adjustment (subtle sway)
+      const progress = hero.idleActionProgress / 800;
+      dressSwayX += Math.sin(progress * Math.PI * 2) * 0.5;
+    }
+
+    // Shadow (wider)
+    PA.rect(ctx, x - 5, y + 5, 10, 2, 'rgba(0,0,0,0.25)');
 
     // Feet (elegant, under dress)
     if (hero.moving) {
       if (f < 2) {
-        PA.pixel(ctx, x - 1, y + 3, '#2a2040');
-        PA.pixel(ctx, x + 1, y + 3, '#2a2040');
+        PA.rect(ctx, x - 2, y + 4, 2, 1, '#2a2040');
+        PA.rect(ctx, x + 1, y + 4, 2, 1, '#2a2040');
       } else {
-        PA.pixel(ctx, x - 2, y + 3, '#2a2040');
-        PA.pixel(ctx, x + 2, y + 3, '#2a2040');
+        PA.rect(ctx, x - 3, y + 4, 2, 1, '#2a2040');
+        PA.rect(ctx, x + 2, y + 4, 2, 1, '#2a2040');
       }
     } else {
-      PA.pixel(ctx, x - 1, y + 3, '#2a2040');
-      PA.pixel(ctx, x + 1, y + 3, '#2a2040');
+      PA.rect(ctx, x - 2, y + 4, 2, 1, '#2a2040');
+      PA.rect(ctx, x + 1, y + 4, 2, 1, '#2a2040');
     }
 
-    // Dress lower (flowing, elegant)
-    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_ROBE_DARK);
-    PA.rect(ctx, x - 4, y + 2, 9, 1, C.HERO_ROBE_DARK);
-    // Dress hem shimmer
-    PA.pixel(ctx, x - 3, y + 2, C.HERO_ROBE_LIGHT);
-    PA.pixel(ctx, x + 3, y + 2, C.HERO_ROBE);
+    // Dress lower (flowing, elegant with pleats) - with sway animation
+    const dressX = x + Math.round(dressSwayX);
+    PA.rect(ctx, dressX - 5, y + 1, 11, 3, C.HERO_ROBE_DARK);
+    PA.rect(ctx, dressX - 6, y + 3, 13, 1, C.HERO_ROBE_DARK);
+    // Dress hem shimmer and pleats
+    PA.pixel(ctx, dressX - 5, y + 3, C.HERO_ROBE_LIGHT);
+    PA.pixel(ctx, dressX - 3, y + 3, C.HERO_ROBE_LIGHT);
+    PA.pixel(ctx, dressX, y + 3, C.HERO_ROBE);
+    PA.pixel(ctx, dressX + 3, y + 3, C.HERO_ROBE_LIGHT);
+    PA.pixel(ctx, dressX + 5, y + 3, C.HERO_ROBE);
+    // Pleating shadows
+    PA.pixel(ctx, dressX - 2, y + 2, C.HERO_ROBE_DARK);
+    PA.pixel(ctx, dressX + 1, y + 2, C.HERO_ROBE_DARK);
 
-    // Dress upper (fitted bodice)
-    PA.rect(ctx, x - 2, y - 2, 5, 3, C.HERO_ROBE);
-    PA.rect(ctx, x - 2, y - 3, 5, 1, C.HERO_ROBE_LIGHT);
-    // Waist sash
-    PA.rect(ctx, x - 2, y, 5, 1, '#2a6aaa');
-    PA.pixel(ctx, x, y, '#5aaadd'); // gem on sash
+    // Dress upper (fitted bodice with lace detail)
+    PA.rect(ctx, x - 3, y - 3, 7, 4, C.HERO_ROBE);
+    PA.rect(ctx, x - 3, y - 4, 7, 1, C.HERO_ROBE_LIGHT);
+    // Lace pattern
+    PA.pixel(ctx, x - 2, y - 4, C.HERO_SILVER);
+    PA.pixel(ctx, x + 2, y - 4, C.HERO_SILVER);
+
+    // Waist sash with gem
+    PA.rect(ctx, x - 3, y, 7, 2, '#2a6aaa');
+    PA.rect(ctx, x - 1, y, 3, 1, C.HERO_GOLD); // gold belt
+    PA.pixel(ctx, x, y, C.HERO_GEM_WATER); // water crystal center
+    PA.pixel(ctx, x - 1, y + 1, C.HERO_GEM_WATER); // water drop gems
+    PA.pixel(ctx, x + 1, y + 1, C.HERO_GEM_WATER);
 
     // Dress fold shadows
-    PA.pixel(ctx, x - 1, y + 1, C.HERO_ROBE_DARK);
-    PA.pixel(ctx, x + 1, y + 1, C.HERO_ROBE_DARK);
+    PA.pixel(ctx, x - 2, y + 1, C.HERO_ROBE_DARK);
+    PA.pixel(ctx, x + 2, y + 1, C.HERO_ROBE_DARK);
+    PA.pixel(ctx, x - 3, y - 2, C.HERO_ROBE_DARK);
+    PA.pixel(ctx, x + 3, y - 2, C.HERO_ROBE_DARK);
 
-    // Shoulders (slim)
-    PA.pixel(ctx, x - 3, y - 3, C.HERO_ROBE);
-    PA.pixel(ctx, x + 3, y - 3, C.HERO_ROBE);
+    // Shoulders with WHITE FUR decoration + silver straps
+    PA.rect(ctx, x - 4, y - 4, 2, 1, C.HERO_ROBE);
+    PA.rect(ctx, x + 3, y - 4, 2, 1, C.HERO_ROBE);
+    PA.pixel(ctx, x - 4, y - 4, C.HERO_FUR_WHITE); // White fur left
+    PA.pixel(ctx, x + 4, y - 4, C.HERO_FUR_WHITE); // White fur right
+    PA.pixel(ctx, x - 4, y - 5, C.HERO_SILVER);
+    PA.pixel(ctx, x + 4, y - 5, C.HERO_SILVER);
 
     // Arms (slim, feminine)
     const armOffset = hero.moving ? (f % 2) : 0;
-    PA.pixel(ctx, x - 3, y - 1 + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x - 4, y + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 3, y - 1 - armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 4, y - armOffset, C.HERO_SKIN);
+    PA.rect(ctx, x - 5, y - 2 + armOffset, 1, 2, C.HERO_SKIN);
+    PA.pixel(ctx, x - 6, y + armOffset, C.HERO_SKIN);
+    PA.rect(ctx, x + 5, y - 2 - armOffset, 1, 2, C.HERO_SKIN);
+    PA.pixel(ctx, x + 6, y - armOffset, C.HERO_SKIN);
 
     // Neck
-    PA.pixel(ctx, x, y - 3, C.HERO_SKIN);
+    PA.rect(ctx, x - 1, y - 5, 3, 1, C.HERO_SKIN);
 
-    // Head (elegant, feminine face)
-    PA.rect(ctx, x - 2, y - 7, 5, 4, C.HERO_SKIN);
-    PA.pixel(ctx, x - 1, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x + 1, y - 8, C.HERO_SKIN);
-    // Face shading
-    PA.pixel(ctx, x + 2, y - 5, '#e0c8b0');
-    PA.pixel(ctx, x + 2, y - 4, '#e0c8b0');
+    // Pearl necklace
+    PA.pixel(ctx, x - 1, y - 5, C.HERO_PEARL);
+    PA.pixel(ctx, x, y - 5, C.HERO_PEARL);
+    PA.pixel(ctx, x + 1, y - 5, C.HERO_PEARL);
 
-    // Long flowing blue hair
-    PA.rect(ctx, x - 3, y - 8, 1, 6, '#1a3a88');  // left hair
-    PA.rect(ctx, x + 3, y - 8, 1, 6, '#1a3a88');  // right hair
-    PA.pixel(ctx, x - 2, y - 8, '#1a3a88');
-    PA.pixel(ctx, x + 2, y - 8, '#1a3a88');
-    PA.pixel(ctx, x - 1, y - 9, '#2a4a99');  // top hair
-    PA.pixel(ctx, x, y - 9, '#2a4a99');
-    PA.pixel(ctx, x + 1, y - 9, '#2a4a99');
-    // Hair tips gradient to aqua
-    PA.pixel(ctx, x - 3, y - 3, '#4488cc');
-    PA.pixel(ctx, x + 3, y - 3, '#4488cc');
+    // Head (elegant, feminine face) -瓜子臉
+    PA.rect(ctx, x - 3, y - 10, 7, 5, C.HERO_SKIN);
+    PA.rect(ctx, x - 2, y - 11, 5, 1, C.HERO_SKIN);
+    PA.pixel(ctx, x - 1, y - 12, C.HERO_SKIN);
+    PA.pixel(ctx, x, y - 12, C.HERO_SKIN);
+    PA.pixel(ctx, x + 1, y - 12, C.HERO_SKIN);
 
-    // Eyes (large, luminous blue)
-    PA.pixel(ctx, x - 1, y - 6, '#66bbff');
-    PA.pixel(ctx, x + 1, y - 6, '#66bbff');
-    // Eye highlight
-    PA.pixel(ctx, x - 1, y - 7, '#aaddff');
+    // Face shading (cheek contouring)
+    PA.pixel(ctx, x + 3, y - 8, '#e0c8b0');
+    PA.pixel(ctx, x + 3, y - 7, '#e0c8b0');
+    PA.pixel(ctx, x - 3, y - 8, '#e0c8b0');
+    PA.pixel(ctx, x + 2, y - 6, '#e8d0b8');
 
-    // Nose (tiny)
-    PA.pixel(ctx, x, y - 5, '#e8ccb4');
+    // Chin highlight
+    PA.pixel(ctx, x, y - 6, PA.lighten(C.HERO_SKIN, 8));
 
-    // Lips (small, pink)
-    PA.pixel(ctx, x, y - 4, '#dd8888');
+    // Long flowing GOLDEN hair (3 layers) - with flow animation
+    const hairX = x + Math.round(hairFlowX);
+    const bodyX = x + Math.round(bodyLeanX);
+    // Inner layer (deep gold, close to face)
+    PA.rect(ctx, bodyX - 4, y - 11, 2, 8, C.HERO_HAIR_DARK);
+    PA.rect(ctx, bodyX + 3, y - 11, 2, 8, C.HERO_HAIR_DARK);
+    // Middle layer (medium gold) - flows more
+    PA.rect(ctx, hairX - 5, y - 10, 1, 7, C.HERO_HAIR_MID);
+    PA.rect(ctx, hairX + 5, y - 10, 1, 7, C.HERO_HAIR_MID);
+    PA.pixel(ctx, bodyX - 3, y - 12, C.HERO_HAIR_MID);
+    PA.pixel(ctx, bodyX + 3, y - 12, C.HERO_HAIR_MID);
+    // Outer layer (bright gold at tips) - flows most
+    PA.pixel(ctx, hairX - 5, y - 4, C.HERO_HAIR_MID);
+    PA.pixel(ctx, hairX - 5, y - 3, C.HERO_HAIR_LIGHT);
+    PA.pixel(ctx, hairX + 5, y - 4, C.HERO_HAIR_MID);
+    PA.pixel(ctx, hairX + 5, y - 3, C.HERO_HAIR_LIGHT);
+    // Top hair
+    PA.rect(ctx, bodyX - 2, y - 13, 5, 1, C.HERO_HAIR_MID);
+    PA.pixel(ctx, bodyX - 1, y - 14, C.HERO_HAIR_LIGHT);
+    PA.pixel(ctx, bodyX, y - 14, C.HERO_HAIR_LIGHT);
+    PA.pixel(ctx, bodyX + 1, y - 14, C.HERO_HAIR_LIGHT);
 
-    // Light source
-    PA.pixel(ctx, x - 2, y - 7, PA.lighten(C.HERO_SKIN, 10));
-    PA.pixel(ctx, x + 2, y - 5, PA.darken(C.HERO_SKIN, 8));
+    // === GOLDEN CROWN (3-point design) ===
+    PA.pixel(ctx, bodyX - 2, y - 14, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX - 1, y - 15, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX, y - 16, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX, y - 15, C.HERO_CROWN_GEM); // Red gem center
+    PA.pixel(ctx, bodyX + 1, y - 15, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX + 2, y - 14, C.HERO_CROWN_GOLD);
 
-    // Trident (right side)
-    PA.rect(ctx, x + 5, y - 8, 1, 10, '#4a7aaa');  // shaft
-    // Trident head
-    PA.pixel(ctx, x + 4, y - 10, '#66aadd');
-    PA.pixel(ctx, x + 5, y - 11, '#88ccff');
-    PA.pixel(ctx, x + 6, y - 10, '#66aadd');
-    PA.pixel(ctx, x + 5, y - 10, '#aaddff'); // center prong
+    // Eyes (3×4px, luminous with pupils)
+    // Left eye
+    PA.rect(ctx, x - 2, y - 9, 2, 3, '#f0e0d8'); // white
+    PA.rect(ctx, x - 2, y - 9, 2, 2, '#3366aa'); // pupil
+    PA.pixel(ctx, x - 2, y - 9, '#66bbff'); // iris highlight
+    PA.pixel(ctx, x - 2, y - 10, '#aaddff'); // top highlight
+    // Right eye
+    PA.rect(ctx, x + 1, y - 9, 2, 3, '#f0e0d8');
+    PA.rect(ctx, x + 1, y - 9, 2, 2, '#3366aa');
+    PA.pixel(ctx, x + 1, y - 9, '#66bbff');
+    PA.pixel(ctx, x + 1, y - 10, '#aaddff');
+    // Eyelids
+    PA.pixel(ctx, x - 2, y - 10, PA.darken(C.HERO_SKIN, 5));
+    PA.pixel(ctx, x + 1, y - 10, PA.darken(C.HERO_SKIN, 5));
+
+    // Nose (delicate)
+    PA.pixel(ctx, x, y - 8, '#e8ccb4');
+    PA.pixel(ctx, x, y - 7, '#e0c0ac');
+
+    // Lips (3×2px, double lips with highlight)
+    // Upper lip
+    PA.rect(ctx, x - 1, y - 6, 3, 1, '#cc6666');
+    // Lower lip
+    PA.rect(ctx, x - 1, y - 5, 3, 1, '#ee8888');
+    // Lip highlight
+    PA.pixel(ctx, x, y - 6, '#ffaaaa');
+    PA.pixel(ctx, x, y - 5, '#ffcccc');
+
+    // Forehead highlight
+    PA.pixel(ctx, x - 1, y - 11, PA.lighten(C.HERO_SKIN, 10));
+    PA.pixel(ctx, x + 1, y - 11, PA.lighten(C.HERO_SKIN, 10));
+
+    // Water crystal earrings (animated sway)
+    const earringOffset = hero.moving ? Math.sin(time / 200) * 0.5 : 0;
+    PA.pixel(ctx, x - 4, y - 9 + earringOffset, C.HERO_GEM_WATER);
+    PA.pixel(ctx, x - 4, y - 8 + earringOffset, C.HERO_SILVER);
+    PA.pixel(ctx, x + 4, y - 9 + earringOffset, C.HERO_GEM_WATER);
+    PA.pixel(ctx, x + 4, y - 8 + earringOffset, C.HERO_SILVER);
+
+    // Enhanced trident (right side) - with casting extension
+    const weaponX = x + Math.round(weaponExtendX);
+    PA.rect(ctx, weaponX + 7, y - 11, 2, 15, '#4a7aaa');  // thicker shaft
+    PA.pixel(ctx, weaponX + 8, y - 10, C.HERO_GOLD); // gold grip detail
+    PA.pixel(ctx, weaponX + 8, y - 8, C.HERO_GOLD);
+    // Trident head with spiral detail
+    PA.pixel(ctx, weaponX + 6, y - 14, '#66aadd');
+    PA.pixel(ctx, weaponX + 7, y - 15, '#88ccff');
+    PA.pixel(ctx, weaponX + 8, y - 16, C.HERO_GEM_WATER); // water crystal tip
+    PA.pixel(ctx, weaponX + 9, y - 15, '#88ccff');
+    PA.pixel(ctx, weaponX + 10, y - 14, '#66aadd');
+    PA.pixel(ctx, weaponX + 8, y - 15, '#aaddff'); // center prong
+    PA.pixel(ctx, weaponX + 8, y - 14, C.HERO_SILVER); // spiral pattern
     // Trident crystal glow
-    PA.pixel(ctx, x + 5, y - 12, '#bbddff');
+    PA.pixel(ctx, weaponX + 8, y - 17, '#bbddff');
     if (attacking) {
-      PA.pixel(ctx, x + 4, y - 11, '#66bbff');
-      PA.pixel(ctx, x + 6, y - 11, '#66bbff');
-      PA.pixel(ctx, x + 5, y - 13, '#ffffff');
+      PA.pixel(ctx, weaponX + 7, y - 16, '#66bbff');
+      PA.pixel(ctx, weaponX + 9, y - 16, '#66bbff');
+      PA.pixel(ctx, weaponX + 8, y - 18, '#ffffff');
+      PA.pixel(ctx, weaponX + 8, y - 19, C.HERO_GEM_WATER);
     }
 
-    // Water aura when attacking
+    // Water aura when attacking (larger radius)
     if (attacking) {
       const t = (time || 0) / 150;
-      for (let i = 0; i < 5; i++) {
-        const angle = t + (i * Math.PI * 2) / 5;
-        const r = 6;
+      for (let i = 0; i < 8; i++) {
+        const angle = t + (i * Math.PI * 2) / 8;
+        const r = 9;
         const px = Math.round(x + Math.cos(angle) * r);
-        const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
+        const py = Math.round(y - 4 + Math.sin(angle) * r * 0.5);
         PA.pixel(ctx, px, py, 'rgba(68,136,255,0.6)');
       }
     }
@@ -744,122 +895,229 @@ DK.Heroes = {
     const f = hero.animFrame;
     const attacking = hero.attacking && hero.attackTimer > hero.type.attackCooldown * 0.7;
 
-    // === BAAL: Fire Goddess with flame crown and burning scepter ===
+    // === BAAL: Fire Goddess - Enhanced 12×12 core, flame details ===
 
-    // Shadow
-    PA.rect(ctx, x - 3, y + 4, 7, 1, 'rgba(0,0,0,0.25)');
+    // Animation offsets for dress sway and hair flow
+    let dressSwayX = 0;
+    let hairFlowX = 0;
+    let weaponExtendX = 0;
+    let bodyLeanX = 0;
+
+    if (hero.moving) {
+      // Walking: dress sways side to side, hair flows backward (with flame flutter)
+      const swayPattern = [0, -1, 0, 1];
+      dressSwayX = swayPattern[f];
+      hairFlowX = 1 + (f === 3 ? 1 : 0);
+    }
+
+    if (attacking) {
+      // Casting pose: weapon extends forward, body leans back, hair flies back dramatically
+      weaponExtendX = 2;
+      bodyLeanX = -1;
+      hairFlowX = 2;
+    }
+
+    // Idle actions
+    if (hero.idleAction === 'tilt_head') {
+      const progress = hero.idleActionProgress / 800;
+      const tiltOffset = Math.sin(progress * Math.PI) * 1;
+      x += Math.round(tiltOffset);
+    } else if (hero.idleAction === 'fix_hair') {
+      const progress = hero.idleActionProgress / 1000;
+      if (progress > 0.3 && progress < 0.7) {
+        hairFlowX += 1;
+      }
+    } else if (hero.idleAction === 'adjust_dress') {
+      const progress = hero.idleActionProgress / 800;
+      dressSwayX += Math.sin(progress * Math.PI * 2) * 0.5;
+    }
+
+    // Shadow (wider)
+    PA.rect(ctx, x - 5, y + 5, 10, 2, 'rgba(0,0,0,0.25)');
 
     // Feet
     if (hero.moving) {
       if (f < 2) {
-        PA.pixel(ctx, x - 1, y + 3, '#2a1010');
-        PA.pixel(ctx, x + 1, y + 3, '#2a1010');
+        PA.rect(ctx, x - 2, y + 4, 2, 1, '#2a1010');
+        PA.rect(ctx, x + 1, y + 4, 2, 1, '#2a1010');
       } else {
-        PA.pixel(ctx, x - 2, y + 3, '#2a1010');
-        PA.pixel(ctx, x + 2, y + 3, '#2a1010');
+        PA.rect(ctx, x - 3, y + 4, 2, 1, '#2a1010');
+        PA.rect(ctx, x + 2, y + 4, 2, 1, '#2a1010');
       }
     } else {
-      PA.pixel(ctx, x - 1, y + 3, '#2a1010');
-      PA.pixel(ctx, x + 1, y + 3, '#2a1010');
+      PA.rect(ctx, x - 2, y + 4, 2, 1, '#2a1010');
+      PA.rect(ctx, x + 1, y + 4, 2, 1, '#2a1010');
     }
 
-    // Dress lower (dark crimson, flowing)
-    PA.rect(ctx, x - 3, y + 1, 7, 2, C.HERO_FIRE_ROBE_DARK);
-    PA.rect(ctx, x - 4, y + 2, 9, 1, C.HERO_FIRE_ROBE_DARK);
-    PA.pixel(ctx, x - 3, y + 2, C.HERO_FIRE_ROBE);
-    PA.pixel(ctx, x + 3, y + 2, C.HERO_FIRE_ROBE);
+    // Dress lower (dark crimson, flowing with flame edges) - with sway animation
+    const dressX = x + Math.round(dressSwayX);
+    const flicker = Math.sin((time || 0) / 120);
+    PA.rect(ctx, dressX - 5, y + 1, 11, 3, C.HERO_FIRE_ROBE_DARK);
+    PA.rect(ctx, dressX - 6, y + 3, 13, 1, C.HERO_FIRE_ROBE_DARK);
+    // Flame-like hem pattern (animated flicker)
+    PA.pixel(ctx, dressX - 5, y + 3, flicker > 0 ? C.HERO_FIRE_ROBE : C.HERO_FIRE_ROBE_LIGHT);
+    PA.pixel(ctx, dressX - 2, y + 3, C.HERO_FIRE_ROBE_LIGHT);
+    PA.pixel(ctx, dressX, y + 3, flicker > 0.3 ? '#ff6622' : C.HERO_FIRE_ROBE);
+    PA.pixel(ctx, dressX + 2, y + 3, C.HERO_FIRE_ROBE_LIGHT);
+    PA.pixel(ctx, dressX + 5, y + 3, flicker > 0 ? C.HERO_FIRE_ROBE : C.HERO_FIRE_ROBE_LIGHT);
+    // Pleating shadows
+    PA.pixel(ctx, dressX - 2, y + 2, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, dressX + 1, y + 2, C.HERO_FIRE_ROBE_DARK);
 
-    // Dress upper (fitted, off-shoulder)
-    PA.rect(ctx, x - 2, y - 2, 5, 3, C.HERO_FIRE_ROBE);
-    PA.rect(ctx, x - 2, y - 3, 5, 1, C.HERO_FIRE_ROBE_LIGHT);
-    // Waist ornament
-    PA.rect(ctx, x - 2, y, 5, 1, '#6a2020');
-    PA.pixel(ctx, x, y, '#ff6622'); // flame gem
+    // Dress upper (fitted, off-shoulder with flame patterns)
+    PA.rect(ctx, x - 3, y - 3, 7, 4, C.HERO_FIRE_ROBE);
+    PA.rect(ctx, x - 3, y - 4, 7, 1, C.HERO_FIRE_ROBE_LIGHT);
+    // Flame embroidery pattern
+    PA.pixel(ctx, x - 2, y - 3, '#ff6622');
+    PA.pixel(ctx, x + 2, y - 3, '#ff6622');
+    PA.pixel(ctx, x, y - 2, C.HERO_GEM_FIRE);
+
+    // Waist ornament with flame gem (animated)
+    PA.rect(ctx, x - 3, y, 7, 2, '#6a2020');
+    PA.rect(ctx, x - 1, y, 3, 1, C.HERO_GOLD); // gold belt
+    PA.pixel(ctx, x, y, flicker > 0.5 ? '#ffffff' : C.HERO_GEM_FIRE); // flame crystal (flickering)
+    PA.pixel(ctx, x - 1, y + 1, '#ff6622'); // flame shape gems
+    PA.pixel(ctx, x + 1, y + 1, '#ff6622');
 
     // Dress fold
-    PA.pixel(ctx, x - 1, y + 1, C.HERO_FIRE_ROBE_DARK);
-    PA.pixel(ctx, x + 1, y + 1, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, x - 2, y + 1, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, x + 2, y + 1, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, x - 3, y - 2, C.HERO_FIRE_ROBE_DARK);
+    PA.pixel(ctx, x + 3, y - 2, C.HERO_FIRE_ROBE_DARK);
 
-    // Bare shoulders (off-shoulder dress)
-    PA.pixel(ctx, x - 3, y - 3, C.HERO_SKIN);
-    PA.pixel(ctx, x + 3, y - 3, C.HERO_SKIN);
+    // Bare shoulders with WHITE FUR decoration + gold accents
+    PA.rect(ctx, x - 4, y - 4, 2, 1, C.HERO_SKIN);
+    PA.rect(ctx, x + 3, y - 4, 2, 1, C.HERO_SKIN);
+    PA.pixel(ctx, x - 4, y - 4, C.HERO_FUR_WHITE); // White fur left
+    PA.pixel(ctx, x + 4, y - 4, C.HERO_FUR_WHITE); // White fur right
+    PA.pixel(ctx, x - 4, y - 5, C.HERO_GOLD);
+    PA.pixel(ctx, x + 4, y - 5, C.HERO_GOLD);
 
     // Arms
     const armOffset = hero.moving ? (f % 2) : 0;
-    PA.pixel(ctx, x - 3, y - 1 + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x - 4, y + armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 3, y - 1 - armOffset, C.HERO_SKIN);
-    PA.pixel(ctx, x + 4, y - armOffset, C.HERO_SKIN);
+    PA.rect(ctx, x - 5, y - 2 + armOffset, 1, 2, C.HERO_SKIN);
+    PA.pixel(ctx, x - 6, y + armOffset, C.HERO_SKIN);
+    PA.rect(ctx, x + 5, y - 2 - armOffset, 1, 2, C.HERO_SKIN);
+    PA.pixel(ctx, x + 6, y - armOffset, C.HERO_SKIN);
 
     // Neck
-    PA.pixel(ctx, x, y - 3, C.HERO_SKIN);
+    PA.rect(ctx, x - 1, y - 5, 3, 1, C.HERO_SKIN);
 
-    // Head
-    PA.rect(ctx, x - 2, y - 7, 5, 4, C.HERO_SKIN);
-    PA.pixel(ctx, x - 1, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x + 1, y - 8, C.HERO_SKIN);
-    PA.pixel(ctx, x + 2, y - 5, '#e0c8b0');
+    // Flame necklace (animated)
+    PA.pixel(ctx, x - 1, y - 5, flicker > 0 ? '#ff6622' : '#cc4400');
+    PA.pixel(ctx, x, y - 5, flicker > 0.3 ? C.HERO_GEM_FIRE : '#ff6622');
+    PA.pixel(ctx, x + 1, y - 5, flicker > 0 ? '#ff6622' : '#cc4400');
 
-    // Dark red flowing hair
-    PA.rect(ctx, x - 3, y - 8, 1, 6, '#5a1010');
-    PA.rect(ctx, x + 3, y - 8, 1, 6, '#5a1010');
-    PA.pixel(ctx, x - 2, y - 8, '#6a2020');
-    PA.pixel(ctx, x + 2, y - 8, '#6a2020');
-    PA.pixel(ctx, x - 1, y - 9, '#7a2020');
-    PA.pixel(ctx, x, y - 9, '#7a2020');
-    PA.pixel(ctx, x + 1, y - 9, '#7a2020');
-    // Hair flame tips (animated)
-    const flicker = Math.sin((time || 0) / 120);
-    PA.pixel(ctx, x - 3, y - 3, flicker > 0 ? '#cc4422' : '#aa3322');
-    PA.pixel(ctx, x + 3, y - 3, flicker > 0 ? '#aa3322' : '#cc4422');
+    // Head (elegant, feminine face) - 瓜子臉
+    PA.rect(ctx, x - 3, y - 10, 7, 5, C.HERO_SKIN);
+    PA.rect(ctx, x - 2, y - 11, 5, 1, C.HERO_SKIN);
+    PA.pixel(ctx, x - 1, y - 12, C.HERO_SKIN);
+    PA.pixel(ctx, x, y - 12, C.HERO_SKIN);
+    PA.pixel(ctx, x + 1, y - 12, C.HERO_SKIN);
 
-    // Flame crown
-    PA.pixel(ctx, x - 1, y - 10, '#ff6622');
-    PA.pixel(ctx, x, y - 11, '#ffaa44');
-    PA.pixel(ctx, x + 1, y - 10, '#ff6622');
-    // Crown flame flicker
-    if (flicker > 0.3) PA.pixel(ctx, x, y - 12, '#ffdd66');
-    PA.pixel(ctx, x - 2, y - 9, '#cc4400');
-    PA.pixel(ctx, x + 2, y - 9, '#cc4400');
+    // Face shading (cheek contouring)
+    PA.pixel(ctx, x + 3, y - 8, '#e0c8b0');
+    PA.pixel(ctx, x + 3, y - 7, '#e0c8b0');
+    PA.pixel(ctx, x - 3, y - 8, '#e0c8b0');
+    PA.pixel(ctx, x + 2, y - 6, '#e8d0b8');
 
-    // Eyes (fiery red-orange)
-    PA.pixel(ctx, x - 1, y - 6, '#ff4422');
-    PA.pixel(ctx, x + 1, y - 6, '#ff4422');
-    PA.pixel(ctx, x - 1, y - 7, '#ffaa66');
+    // Chin highlight (warm glow from fire)
+    PA.pixel(ctx, x, y - 6, '#fff0e8');
 
-    // Nose
-    PA.pixel(ctx, x, y - 5, '#e8ccb4');
+    // Long flowing GOLDEN hair (3 layers) - with flow animation (same as water mage)
+    const hairX = x + Math.round(hairFlowX);
+    const bodyX = x + Math.round(bodyLeanX);
+    // Inner layer (deep gold, close to face)
+    PA.rect(ctx, bodyX - 4, y - 11, 2, 8, C.HERO_HAIR_DARK);
+    PA.rect(ctx, bodyX + 3, y - 11, 2, 8, C.HERO_HAIR_DARK);
+    // Middle layer (medium gold) - flows more
+    PA.rect(ctx, hairX - 5, y - 10, 1, 7, C.HERO_HAIR_MID);
+    PA.rect(ctx, hairX + 5, y - 10, 1, 7, C.HERO_HAIR_MID);
+    PA.pixel(ctx, bodyX - 3, y - 12, C.HERO_HAIR_MID);
+    PA.pixel(ctx, bodyX + 3, y - 12, C.HERO_HAIR_MID);
+    // Outer layer (bright gold at tips with subtle flame flicker)
+    PA.pixel(ctx, hairX - 5, y - 4, C.HERO_HAIR_MID);
+    PA.pixel(ctx, hairX - 5, y - 3, flicker > 0.3 ? C.HERO_HAIR_LIGHT : C.HERO_HAIR_MID);
+    PA.pixel(ctx, hairX + 5, y - 4, C.HERO_HAIR_MID);
+    PA.pixel(ctx, hairX + 5, y - 3, flicker > 0.3 ? C.HERO_HAIR_LIGHT : C.HERO_HAIR_MID);
+    // Top hair
+    PA.rect(ctx, bodyX - 2, y - 13, 5, 1, C.HERO_HAIR_MID);
+    PA.pixel(ctx, bodyX - 1, y - 14, C.HERO_HAIR_LIGHT);
+    PA.pixel(ctx, bodyX, y - 14, C.HERO_HAIR_LIGHT);
+    PA.pixel(ctx, bodyX + 1, y - 14, C.HERO_HAIR_LIGHT);
 
-    // Lips
-    PA.pixel(ctx, x, y - 4, '#cc4444');
+    // === GOLDEN CROWN with FLAME GEM (enhanced flame flicker) ===
+    PA.pixel(ctx, bodyX - 2, y - 14, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX - 1, y - 15, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX, y - 16, C.HERO_CROWN_GOLD);
+    // Flame gem (flickering)
+    PA.pixel(ctx, bodyX, y - 15, flicker > 0.5 ? '#ffdd66' : C.HERO_GEM_FIRE);
+    if (flicker > 0.3) PA.pixel(ctx, bodyX, y - 17, C.HERO_GEM_FIRE); // Flame tip
+    PA.pixel(ctx, bodyX + 1, y - 15, C.HERO_CROWN_GOLD);
+    PA.pixel(ctx, bodyX + 2, y - 14, C.HERO_CROWN_GOLD);
 
-    // Light source
-    PA.pixel(ctx, x - 2, y - 7, PA.lighten(C.HERO_SKIN, 10));
-    PA.pixel(ctx, x + 2, y - 5, PA.darken(C.HERO_SKIN, 8));
+    // Eyes (3×4px, fiery with pupils)
+    // Left eye
+    PA.rect(ctx, x - 2, y - 9, 2, 3, '#f0e0d8'); // white
+    PA.rect(ctx, x - 2, y - 9, 2, 2, '#cc2200'); // fiery pupil
+    PA.pixel(ctx, x - 2, y - 9, '#ff4422'); // iris highlight
+    PA.pixel(ctx, x - 2, y - 10, '#ffaa66'); // top highlight
+    // Right eye
+    PA.rect(ctx, x + 1, y - 9, 2, 3, '#f0e0d8');
+    PA.rect(ctx, x + 1, y - 9, 2, 2, '#cc2200');
+    PA.pixel(ctx, x + 1, y - 9, '#ff4422');
+    PA.pixel(ctx, x + 1, y - 10, '#ffaa66');
+    // Eyelids
+    PA.pixel(ctx, x - 2, y - 10, PA.darken(C.HERO_SKIN, 5));
+    PA.pixel(ctx, x + 1, y - 10, PA.darken(C.HERO_SKIN, 5));
 
-    // Flame scepter (right side)
-    PA.rect(ctx, x + 5, y - 7, 1, 9, '#4a2010');
-    // Flame on top
-    PA.pixel(ctx, x + 5, y - 8, '#ff4400');
-    PA.pixel(ctx, x + 5, y - 9, '#ff6622');
-    PA.pixel(ctx, x + 4, y - 9, '#ffaa44');
-    PA.pixel(ctx, x + 6, y - 9, '#ffaa44');
-    PA.pixel(ctx, x + 5, y - 10, '#ffdd66');
+    // Nose (delicate)
+    PA.pixel(ctx, x, y - 8, '#e8ccb4');
+    PA.pixel(ctx, x, y - 7, '#e0c0ac');
+
+    // Lips (3×2px, double lips with highlight)
+    // Upper lip
+    PA.rect(ctx, x - 1, y - 6, 3, 1, '#aa3333');
+    // Lower lip
+    PA.rect(ctx, x - 1, y - 5, 3, 1, '#dd6666');
+    // Lip highlight
+    PA.pixel(ctx, x, y - 6, '#ff8888');
+    PA.pixel(ctx, x, y - 5, '#ffaaaa');
+
+    // Forehead highlight (warm from flame)
+    PA.pixel(ctx, x - 1, y - 11, '#fff0e8');
+    PA.pixel(ctx, x + 1, y - 11, '#fff0e8');
+
+    // Enhanced flame scepter (right side) - with casting extension
+    const weaponX = x + Math.round(weaponExtendX);
+    PA.rect(ctx, weaponX + 7, y - 10, 2, 14, '#4a2010');  // thicker shaft
+    // Gold spiral grip
+    PA.pixel(ctx, weaponX + 8, y - 9, C.HERO_GOLD);
+    PA.pixel(ctx, weaponX + 8, y - 7, C.HERO_GOLD);
+    PA.pixel(ctx, weaponX + 8, y - 5, C.HERO_GOLD);
+    // Multi-layer flame crystal on top
+    PA.pixel(ctx, weaponX + 8, y - 11, '#ff4400');
+    PA.pixel(ctx, weaponX + 8, y - 12, '#ff6622');
+    PA.pixel(ctx, weaponX + 7, y - 13, C.HERO_GEM_FIRE);
+    PA.pixel(ctx, weaponX + 8, y - 14, C.HERO_GEM_FIRE);
+    PA.pixel(ctx, weaponX + 9, y - 13, C.HERO_GEM_FIRE);
+    PA.pixel(ctx, weaponX + 8, y - 15, '#ffdd66');
+    if (flicker > 0) PA.pixel(ctx, weaponX + 8, y - 13, '#ffffff');
     if (attacking) {
-      PA.pixel(ctx, x + 5, y - 11, '#ffffff');
-      PA.pixel(ctx, x + 4, y - 10, '#ff6622');
-      PA.pixel(ctx, x + 6, y - 10, '#ff6622');
+      PA.pixel(ctx, weaponX + 8, y - 16, '#ffffff');
+      PA.pixel(ctx, weaponX + 7, y - 15, '#ff6622');
+      PA.pixel(ctx, weaponX + 9, y - 15, '#ff6622');
+      PA.pixel(ctx, weaponX + 8, y - 17, C.HERO_GEM_FIRE);
     }
 
-    // Fire aura when attacking
+    // Fire aura when attacking (larger radius)
     if (attacking) {
       const t = (time || 0) / 150;
-      for (let i = 0; i < 5; i++) {
-        const angle = t + (i * Math.PI * 2) / 5;
-        const r = 6;
+      for (let i = 0; i < 8; i++) {
+        const angle = t + (i * Math.PI * 2) / 8;
+        const r = 9;
         const px = Math.round(x + Math.cos(angle) * r);
-        const py = Math.round(y - 3 + Math.sin(angle) * r * 0.5);
+        const py = Math.round(y - 4 + Math.sin(angle) * r * 0.5);
         PA.pixel(ctx, px, py, 'rgba(255,102,34,0.6)');
       }
     }
