@@ -966,30 +966,32 @@ DK.Map = {
     const innerShade = rng() > 0.5 ? '#3a2a4e' : '#342448';
     PA.rect(ctx, x + 1, y + 1, 14, 14, innerShade);
 
-    // 核心發光
-    PA.rect(ctx, x + 4, y + 4, 8, 8, '#4a2a5e');
-    PA.rect(ctx, x + 5, y + 5, 6, 6, '#5a3a6e');
-    PA.rect(ctx, x + 6, y + 6, 4, 4, '#6a4a80');
+    // 核心發光（增強版：5層漸進式發光）
+    PA.rect(ctx, x + 3, y + 3, 10, 10, '#4a2a5e'); // 外層
+    PA.rect(ctx, x + 4, y + 4, 8, 8, '#5a3a6e');   // 中外層
+    PA.rect(ctx, x + 5, y + 5, 6, 6, '#6a4a80');   // 中層
+    PA.rect(ctx, x + 6, y + 6, 4, 4, '#8a6aa0');   // 中內層
+    PA.rect(ctx, x + 7, y + 7, 2, 2, '#aa8ac0');   // 核心
 
-    // 中心最亮點
-    PA.pixel(ctx, x + 7, y + 7, '#8a6aa0');
-    PA.pixel(ctx, x + 8, y + 8, '#8a6aa0');
-    PA.pixel(ctx, x + 7, y + 8, '#7a5a90');
-    PA.pixel(ctx, x + 8, y + 7, '#7a5a90');
+    // 中心最亮點（擴大範圍）
+    PA.pixel(ctx, x + 7, y + 7, '#ddbbff');
+    PA.pixel(ctx, x + 8, y + 8, '#ddbbff');
+    PA.pixel(ctx, x + 7, y + 8, '#ccaaee');
+    PA.pixel(ctx, x + 8, y + 7, '#ccaaee');
 
-    // 邊緣發光紋路
+    // 邊緣發光紋路（更明顯）
     for (let i = 2; i < 14; i++) {
-      if (rng() > 0.4) {
-        PA.pixel(ctx, x + i, y + 1, '#4a3a5e');
+      if (rng() > 0.3) {
+        PA.pixel(ctx, x + i, y + 1, '#5a4a6e');
       }
-      if (rng() > 0.4) {
-        PA.pixel(ctx, x + i, y + 14, '#4a3a5e');
+      if (rng() > 0.3) {
+        PA.pixel(ctx, x + i, y + 14, '#5a4a6e');
       }
-      if (rng() > 0.4) {
-        PA.pixel(ctx, x + 1, y + i, '#4a3a5e');
+      if (rng() > 0.3) {
+        PA.pixel(ctx, x + 1, y + i, '#5a4a6e');
       }
-      if (rng() > 0.4) {
-        PA.pixel(ctx, x + 14, y + i, '#4a3a5e');
+      if (rng() > 0.3) {
+        PA.pixel(ctx, x + 14, y + i, '#5a4a6e');
       }
     }
 
@@ -999,11 +1001,12 @@ DK.Map = {
     PA.pixel(ctx, x, y + 15, '#1a0e28');
     PA.pixel(ctx, x + 15, y + 15, '#1a0e28');
 
-    // 散落的能量粒子
-    for (let i = 0; i < 4; i++) {
+    // 散落的能量粒子（增加數量和亮度）
+    for (let i = 0; i < 6; i++) {
       const px = 3 + Math.floor(rng() * 10);
       const py = 3 + Math.floor(rng() * 10);
-      PA.pixel(ctx, x + px, y + py, '#9a7ab0');
+      const brightness = rng() > 0.5 ? '#aa8ac0' : '#9a7ab0';
+      PA.pixel(ctx, x + px, y + py, brightness);
     }
   },
 

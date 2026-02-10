@@ -265,6 +265,23 @@ DK.Editor = {
    * 繪製地磚
    */
   paintTile(col, row) {
+    // 特殊處理：2×2 傳送門自動放置
+    if (this.selectedTile === 'E' || this.selectedTile === 'M') {
+      // 驗證是否有足夠空間放置 2×2
+      if (col + 1 >= this.cols || row + 1 >= this.rows) {
+        console.warn('⚠️ 傳送門需要 2×2 空間，位置超出地圖邊界');
+        return;
+      }
+
+      // 自動放置 2×2 傳送門
+      this.setTile(col, row, this.selectedTile);
+      this.setTile(col + 1, row, this.selectedTile);
+      this.setTile(col, row + 1, this.selectedTile);
+      this.setTile(col + 1, row + 1, this.selectedTile);
+      return;
+    }
+
+    // 一般地磚繪製邏輯
     if (this.brushSize === 1) {
       this.setTile(col, row, this.selectedTile);
     } else {
@@ -547,7 +564,7 @@ DK.Editor = {
         DK.Map.drawOuterTile(ctx, x, y, variant);
         break;
       case 'H': // 地心
-        DK.Map.drawHeartTile(ctx, x, y, variant);
+        DK.Map.drawHeartTile(ctx, x, y, 2); // 使用 variant=2 確保與遊戲內一致
         break;
       case 'E': // 入口傳送門 (2×2 漩渦)
         DK.Map.drawEntrancePortal2x2(ctx, x, y, variant);
