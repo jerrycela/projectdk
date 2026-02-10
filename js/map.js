@@ -110,6 +110,10 @@ DK.Map = {
   // 已開洞口列表
   breachHoles: [],
 
+  // 傳送門列表（Portal System - 關卡編輯器支援）
+  // 每個 portal: { id, col, row, type, waves }
+  portals: [],
+
   // 距離場：distanceField[row][col] = 到地心距離 (-1 = 不可達)
   distanceField: null,
 
@@ -262,6 +266,63 @@ DK.Map = {
     this.barricades = [...this.barricades.slice(0, idx), ...this.barricades.slice(idx + 1)];
     this.recomputeFields();
     return true;
+  },
+
+  /** === Portal System Functions === */
+
+  /** 檢查該格是否有傳送門 */
+  hasPortal(col, row) {
+    return this.portals.some(p => p.col === col && p.row === row);
+  },
+
+  /** 取得該格的傳送門物件 */
+  getPortalAt(col, row) {
+    return this.portals.find(p => p.col === col && p.row === row) || null;
+  },
+
+  /**
+   * 驗證該格是否可放置傳送門
+   * @returns {valid: boolean, errors: string[]}
+   */
+  isValidPortalSlot(col, row) {
+    const errors = [];
+
+    // 邊界檢查
+    const cols = this.layout[0].length;
+    const rows = this.layout.length;
+    if (col < 0 || col >= cols || row < 0 || row >= rows) {
+      errors.push('位置超出地圖範圍');
+      return { valid: false, errors };
+    }
+
+    // 取得地磚類型
+    const tile = this.getTile(col, row);
+
+    // 只能放在地板 (.) 或外圍 (O) 上
+    if (tile !== '.' && tile !== 'O') {
+      errors.push(`此位置是 "${tile}"，傳送門只能放在地板 (.) 或外圍 (O) 上`);
+    }
+
+    // 檢查是否已有傳送門
+    if (this.hasPortal(col, row)) {
+      errors.push('此位置已有傳送門');
+    }
+
+    // 檢查是否與其他物件重疊
+    if (this.isHeart(col, row)) {
+      errors.push('不能放在地心上');
+    }
+
+    if (this.hasBarricade(col, row)) {
+      errors.push('此位置已有路障');
+    }
+
+    // 檢查陷阱重疊（如果陷阱系統已載入）
+    if (DK.Traps && DK.Traps.getTrapAt && DK.Traps.getTrapAt(col, row)) {
+      errors.push('此位置已有陷阱');
+    }
+
+    return { valid: errors.length === 0, errors };
   },
 
   /** 對路障造成傷害，回傳 true 表示被摧毀 */

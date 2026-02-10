@@ -358,3 +358,239 @@ small {
 ::-webkit-scrollbar-thumb:hover {
   background: #6a5e8e;
 }
+
+/* === Phase 2: Modal 樣式 === */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: #1e1a2e;
+  border: 2px solid #4a3e6e;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 2px solid #4a3e6e;
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  color: #ffd700;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: #e8e0d0;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #ff4444;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 2px solid #4a3e6e;
+}
+
+.btn-primary {
+  background: #ffd700;
+  color: #12101e;
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background: #ffaa44;
+}
+
+/* === Phase 2: 傳送門列表 === */
+.portal-item {
+  background: #2d2d44;
+  border: 2px solid #4a3e6e;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.portal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.portal-header h4 {
+  font-size: 14px;
+  color: #ffd700;
+  margin: 0;
+}
+
+.portal-coord {
+  font-size: 12px;
+  color: #8a8070;
+}
+
+.portal-info {
+  font-size: 13px;
+  color: #e8e0d0;
+  margin-bottom: 10px;
+}
+
+.portal-info p {
+  margin: 4px 0;
+}
+
+.portal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.portal-actions button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.btn-edit {
+  background: #4a3e6e;
+}
+
+.btn-copy {
+  background: #3e4a6e;
+}
+
+.btn-delete {
+  background: #6e3e3e;
+}
+
+.btn-delete:hover {
+  background: #8e4e4e;
+}
+
+/* === Phase 2: 波次編輯 === */
+.wave-item {
+  background: #2d2d44;
+  border: 2px solid #4a3e6e;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.wave-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.wave-header h3 {
+  font-size: 16px;
+  color: #ffd700;
+  margin: 0;
+}
+
+.wave-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-icon {
+  background: #4a3e6e;
+  border: 1px solid #6a5e8e;
+  color: #e8e0d0;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 32px;
+}
+
+.btn-icon:hover {
+  background: #6a5e8e;
+}
+
+/* === Phase 2: 敵人配置 === */
+.enemy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.enemy-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #3e3e5a;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.enemy-item select,
+.enemy-item input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.enemy-item select {
+  flex: 2;
+}
+
+.enemy-item input[type="number"] {
+  max-width: 80px;
+}
+
+.enemy-item .btn-icon {
+  flex-shrink: 0;
+  padding: 6px;
+}
+
+.btn-add-enemy,
+.btn-add-wave {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: #3e6e4a;
+  color: #e8e0d0;
+  border: 1px solid #5e8e6a;
+}
+
+.btn-add-enemy:hover,
+.btn-add-wave:hover {
+  background: #5e8e6a;
+}

@@ -67,10 +67,20 @@ DK.Editor = {
       DK.EditorStorage.init();
     }
 
-    // 6. 設置事件監聽
+    // 6. 初始化傳送門系統（由 editor-portal.js 處理）
+    if (DK.EditorPortal && DK.EditorPortal.init) {
+      DK.EditorPortal.init();
+    }
+
+    // 7. 初始化波次編輯器（由 editor-wave.js 處理）
+    if (DK.EditorWave && DK.EditorWave.init) {
+      DK.EditorWave.init();
+    }
+
+    // 8. 設置事件監聽
     this.setupEventListeners();
 
-    // 7. 啟動渲染循環
+    // 9. 啟動渲染循環
     this.startRenderLoop();
 
     console.log('✅ 編輯器初始化完成');
