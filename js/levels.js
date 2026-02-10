@@ -273,9 +273,21 @@ DK.LEVELS = [
 DK.LevelManager = {
   currentLevelIndex: 4,  // 臨時修改：直接載入 Level 5（40×26 大地圖）
   currentLevel: null,
+  isTestMode: false,  // 測試模式標記
 
   init() {
-    this.loadLevel(4);  // 臨時修改：直接載入 Level 5
+    // 檢查 URL 參數是否為測試模式
+    const urlParams = new URLSearchParams(window.location.search);
+    const testMode = urlParams.get('test');
+
+    if (testMode === '1') {
+      console.log('🧪 進入測試模式...');
+      this.isTestMode = true;
+      this.loadTestLevel();
+    } else {
+      // 正常模式：載入預設關卡
+      this.loadLevel(4);  // 臨時修改：直接載入 Level 5
+    }
   },
 
   loadLevel(index) {
@@ -327,5 +339,79 @@ DK.LevelManager = {
 
   getCurrentLevelIndex() {
     return this.currentLevelIndex;
+  },
+
+  /**
+   * 載入測試關卡（從 localStorage）
+   */
+  loadTestLevel() {
+    console.log('📦 載入測試關卡...');
+
+    try {
+      // 1. 從 localStorage 讀取測試關卡
+      const testLevelData = localStorage.getItem('dk_test_level');
+      if (!testLevelData) {
+        alert('❌ 找不到測試關卡資料\n\n請先在編輯器中點擊「測試」按鈕。');
+        // 回到正常模式
+        this.isTestMode = false;
+        this.loadLevel(4);
+        return false;
+      }
+
+      // 2. 解析 JSON
+      const level = JSON.parse(testLevelData);
+      console.log('✅ 測試關卡資料已讀取:', level);
+
+      // 3. 設定為當前關卡
+      this.currentLevel = level;
+      this.currentLevelIndex = -1;  // 測試模式沒有 index
+
+      // 4. 覆寫遊戲配置
+      if (level.startingGold) {
+        DK.CONFIG.STARTING_GOLD = level.startingGold;
+      }
+      if (level.dungeonHeartHP) {
+        DK.CONFIG.DUNGEON_HEART_HP = level.dungeonHeartHP;
+      }
+
+      // 5. 轉換 portals 為 waves（向下相容）
+      // 編輯器使用 portals 格式，遊戲使用 waves 格式
+      if (level.portals && level.portals.length > 0) {
+        // 合併所有傳送門的波次
+        const allWaves = [];
+        level.portals.forEach(portal => {
+          if (portal.waves && portal.waves.length > 0) {
+            allWaves.push(...portal.waves);
+          }
+        });
+
+        // 設定為遊戲波次
+        if (allWaves.length > 0) {
+          DK.WAVES = JSON.parse(JSON.stringify(allWaves));
+          console.log(`✅ 已載入 ${allWaves.length} 個波次`);
+        }
+      } else if (level.waves) {
+        // 如果是舊格式（直接使用 waves）
+        DK.WAVES = JSON.parse(JSON.stringify(level.waves));
+      }
+
+      // 6. 在控制台顯示測試關卡資訊
+      console.log('🎮 測試關卡已載入:');
+      console.log(`  名稱: ${level.name}`);
+      console.log(`  地圖尺寸: ${level.layout[0].length}×${level.layout.length}`);
+      console.log(`  傳送門: ${level.portals?.length || 0} 個`);
+      console.log(`  波次: ${DK.WAVES?.length || 0} 波`);
+      console.log(`  起始金幣: ${level.startingGold}`);
+      console.log(`  地心生命: ${level.dungeonHeartHP}`);
+
+      return true;
+    } catch (e) {
+      console.error('❌ 載入測試關卡失敗:', e);
+      alert(`❌ 載入測試關卡失敗：\n\n${e.message}\n\n將回到正常模式。`);
+      // 回到正常模式
+      this.isTestMode = false;
+      this.loadLevel(4);
+      return false;
+    }
   },
 };

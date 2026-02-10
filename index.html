@@ -7,6 +7,24 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- 測試工具列（僅測試模式顯示） -->
+  <div id="test-toolbar" class="test-toolbar" style="display: none;">
+    <div class="test-toolbar-left">
+      <span class="test-label">🧪 測試模式</span>
+      <span id="testLevelName" class="test-level-name">載入中...</span>
+    </div>
+    <div class="test-toolbar-center">
+      <span id="testStats" class="test-stats">
+        波次: 0/0 | 敵人: 0 | 金幣: 0 | 地心: 100
+      </span>
+    </div>
+    <div class="test-toolbar-right">
+      <button id="btnTestRestart" class="test-btn" title="重新開始測試">🔄 重新開始</button>
+      <button id="btnTestEditor" class="test-btn" title="返回編輯器">✏️ 編輯器</button>
+      <button id="btnTestClose" class="test-btn test-btn-close" title="關閉測試">✕ 關閉</button>
+    </div>
+  </div>
+
   <div id="game-container">
     <canvas id="game-canvas"></canvas>
     <canvas id="ui-canvas"></canvas>
@@ -22,6 +40,7 @@
   <script src="js/heroes.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/test-toolbar.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

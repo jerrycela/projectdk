@@ -225,6 +225,109 @@ DK.EditorStorage = {
   },
 
   /**
+   * 測試前驗證（更嚴格的規則）
+   * @returns {valid: boolean, errors: string[], warnings: string[]}
+   */
+  validateForTesting(level) {
+    const errors = [];
+    const warnings = [];
+
+    // 1. 基礎驗證（重用 validate 函式）
+    const basicValidation = this.validate(level);
+    if (!basicValidation.valid) {
+      errors.push(...basicValidation.errors);
+    }
+
+    // 2. 傳送門檢查
+    if (!level.portals || level.portals.length === 0) {
+      errors.push('至少需要一個傳送門才能產生敵人');
+    } else {
+      // 檢查所有傳送門都有波次配置
+      const portalsWithoutWaves = level.portals.filter(p => !p.waves || p.waves.length === 0);
+      if (portalsWithoutWaves.length > 0) {
+        errors.push(`有 ${portalsWithoutWaves.length} 個傳送門沒有配置波次`);
+      }
+
+      // 檢查所有波次都有敵人
+      level.portals.forEach((portal, portalIndex) => {
+        if (portal.waves) {
+          portal.waves.forEach((wave, waveIndex) => {
+            if (!wave.enemies || wave.enemies.length === 0) {
+              errors.push(`傳送門 ${portalIndex + 1} 的波次 ${waveIndex + 1} 沒有敵人配置`);
+            } else {
+              // 檢查敵人配置完整性
+              wave.enemies.forEach((enemy, enemyIndex) => {
+                if (!enemy.type) {
+                  errors.push(`傳送門 ${portalIndex + 1} 波次 ${waveIndex + 1} 敵人 ${enemyIndex + 1} 缺少類型`);
+                }
+                if (!enemy.count || enemy.count <= 0) {
+                  errors.push(`傳送門 ${portalIndex + 1} 波次 ${waveIndex + 1} 敵人 ${enemyIndex + 1} 數量必須大於 0`);
+                }
+              });
+            }
+          });
+        }
+      });
+
+      // 統計總敵人數（警告檢查）
+      const totalEnemies = level.portals.reduce((sum, p) => {
+        return sum + (p.waves || []).reduce((wSum, w) => {
+          return wSum + (w.enemies || []).reduce((eSum, e) => eSum + (e.count || 0), 0);
+        }, 0);
+      }, 0);
+
+      if (totalEnemies === 0) {
+        errors.push('關卡沒有任何敵人');
+      } else if (totalEnemies < 5) {
+        warnings.push('敵人數量過少（少於 5 個），關卡可能太簡單');
+      } else if (totalEnemies > 200) {
+        warnings.push('敵人數量過多（超過 200 個），可能影響效能');
+      }
+    }
+
+    // 3. 路徑檢查（檢查地心周圍至少有一個可達的地板）
+    if (level.layout) {
+      const layoutStr = level.layout.join('');
+      const heartCount = (layoutStr.match(/H/g) || []).length;
+      if (heartCount === 0) {
+        errors.push('缺少地心 (H)');
+      } else if (heartCount > 4) {
+        errors.push('地心格子數量異常（H 格應為 2x2 = 4 格）');
+      }
+    }
+
+    // 4. 地圖尺寸檢查
+    if (level.layout) {
+      const rows = level.layout.length;
+      const cols = level.layout[0].length;
+
+      if (rows < 10 || cols < 10) {
+        warnings.push('地圖尺寸過小，建議至少 10x10');
+      } else if (rows > 50 || cols > 50) {
+        warnings.push('地圖尺寸過大（超過 50x50），可能影響效能');
+      }
+    }
+
+    // 5. 起始金幣與難度平衡警告
+    if (level.startingGold && level.portals) {
+      const totalWaves = level.portals.reduce((sum, p) => sum + (p.waves?.length || 0), 0);
+      const avgGoldPerWave = level.startingGold / Math.max(1, totalWaves);
+
+      if (avgGoldPerWave < 50) {
+        warnings.push('起始金幣相對於波次數量偏少，難度可能過高');
+      } else if (avgGoldPerWave > 500) {
+        warnings.push('起始金幣相對於波次數量過多，難度可能過低');
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
+  },
+
+  /**
    * 匯出 JSON
    */
   exportJSON() {

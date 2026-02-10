@@ -93,6 +93,11 @@ window.DK = window.DK || {};
     // Update
     DK.Game.update(dt);
 
+    // Update test toolbar stats
+    if (DK.TestToolbar && DK.TestToolbar.updateStats) {
+      DK.TestToolbar.updateStats();
+    }
+
     // 開始畫面：只渲染標題畫面
     if (DK.Game.state === 'start') {
       gameCtx.clearRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);

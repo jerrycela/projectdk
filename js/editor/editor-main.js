@@ -405,7 +405,70 @@ DK.Editor = {
    * 測試關卡
    */
   testLevel() {
-    alert('🧪 測試模式將在 Phase 3 實作');
+    console.log('🧪 準備測試關卡...');
+
+    // 1. 取得當前關卡資料
+    const level = DK.EditorStorage.getCurrentLevelData();
+
+    // 2. 使用測試專用驗證
+    const validation = DK.EditorStorage.validateForTesting(level);
+
+    // 顯示錯誤（阻止測試）
+    if (!validation.valid) {
+      alert(`❌ 無法測試關卡：\n\n${validation.errors.join('\n')}\n\n請修正後再試。`);
+      return;
+    }
+
+    // 顯示警告（不阻止測試）
+    if (validation.warnings && validation.warnings.length > 0) {
+      const warningMsg = `⚠️ 關卡警告：\n\n${validation.warnings.join('\n')}\n\n仍要繼續測試嗎？`;
+      if (!confirm(warningMsg)) {
+        return;
+      }
+    }
+
+    // 3. 統計資訊
+    const totalWaves = level.portals.reduce((sum, p) => sum + (p.waves?.length || 0), 0);
+    const totalEnemies = level.portals.reduce((sum, p) => {
+      return sum + (p.waves || []).reduce((wSum, w) => {
+        return wSum + (w.enemies || []).reduce((eSum, e) => eSum + (e.count || 0), 0);
+      }, 0);
+    }, 0);
+
+    // 4. 確認對話框
+    const confirmMsg = `🧪 測試關卡配置：
+
+關卡名稱: ${level.name}
+傳送門: ${level.portals.length} 個
+總波次: ${totalWaves} 波
+總敵人: ${totalEnemies} 個
+起始金幣: ${level.startingGold}
+地心生命: ${level.dungeonHeartHP}
+
+確定要開始測試嗎？`;
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    // 6. 儲存到 localStorage
+    try {
+      localStorage.setItem('dk_test_level', JSON.stringify(level));
+      console.log('✅ 測試關卡已儲存到 localStorage');
+    } catch (e) {
+      alert(`❌ 無法儲存測試關卡：${e.message}`);
+      return;
+    }
+
+    // 7. 開啟遊戲測試視窗
+    const gameUrl = 'index.html?test=1';
+    const testWindow = window.open(gameUrl, '_blank', 'width=1200,height=800');
+
+    if (!testWindow) {
+      alert('❌ 無法開啟測試視窗\n\n請允許瀏覽器彈出視窗，或手動開啟 index.html?test=1');
+    } else {
+      console.log('✅ 測試視窗已開啟');
+    }
   },
 
   /**
