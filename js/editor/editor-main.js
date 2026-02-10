@@ -588,17 +588,17 @@ DK.Editor = {
       case 'B': // 路障
         DK.Map.drawBreakableWallTile(ctx, x, y, variant);
         break;
-      case 'T': // 火把
-        DK.Map.drawTorchTile(ctx, x, y);
+      case 'T': // 火把（使用座標為基礎的變體）
+        DK.Map.drawTorchTile(ctx, x, y, (x / 16 + y / 16 * 13) % 3);
         break;
-      case 'C': // 寶箱
-        DK.Map.drawChestTile(ctx, x, y);
+      case 'C': // 寶箱（使用座標為基礎的變體）
+        DK.Map.drawChestTile(ctx, x, y, (x / 16 + y / 16 * 13) % 3);
         break;
-      case 'L': // 石柱
-        DK.Map.drawPillarTile(ctx, x, y);
+      case 'L': // 石柱（使用座標為基礎的變體）
+        DK.Map.drawPillarTile(ctx, x, y, (x / 16 + y / 16 * 13) % 3);
         break;
-      case 'S': // 骸骨
-        DK.Map.drawSkullTile(ctx, x, y);
+      case 'S': // 骸骨（使用座標為基礎的變體）
+        DK.Map.drawSkullTile(ctx, x, y, (x / 16 + y / 16 * 13) % 3);
         break;
       case 'U': // 符文
         DK.Map.drawRuneTile(ctx, x, y);
