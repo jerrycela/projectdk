@@ -38,6 +38,7 @@ DK.Editor = {
   },
 
   // === 渲染 ===
+  tileCache: null,         // 地磚快取（預渲染的 canvas）
   animationFrame: null,
 
   /**
@@ -52,27 +53,30 @@ DK.Editor = {
     // 2. 創建空白地圖
     this.createEmptyLevel();
 
-    // 3. 初始化 UI（由 editor-ui.js 處理）
+    // 3. 初始化地磚快取
+    this.initTileCache();
+
+    // 4. 初始化 UI（由 editor-ui.js 處理）
     if (DK.EditorUI && DK.EditorUI.init) {
       DK.EditorUI.init();
     }
 
-    // 4. 初始化工具（由 editor-tools.js 處理）
+    // 5. 初始化工具（由 editor-tools.js 處理）
     if (DK.EditorTools && DK.EditorTools.init) {
       DK.EditorTools.init();
     }
 
-    // 5. 初始化存儲（由 editor-storage.js 處理）
+    // 6. 初始化存儲（由 editor-storage.js 處理）
     if (DK.EditorStorage && DK.EditorStorage.init) {
       DK.EditorStorage.init();
     }
 
-    // 6. 初始化傳送門系統（由 editor-portal.js 處理）
+    // 7. 初始化傳送門系統（由 editor-portal.js 處理）
     if (DK.EditorPortal && DK.EditorPortal.init) {
       DK.EditorPortal.init();
     }
 
-    // 7. 初始化波次編輯器（由 editor-wave.js 處理）
+    // 8. 初始化波次編輯器（由 editor-wave.js 處理）
     if (DK.EditorWave && DK.EditorWave.init) {
       DK.EditorWave.init();
     }
@@ -150,6 +154,13 @@ DK.Editor = {
     };
 
     this.isDirty = false;
+
+    // 重建地磚快取（如果已初始化）
+    if (this.tileCache !== null) {
+      this.clearTileCache();
+      this.initTileCache();
+    }
+
     console.log('✅ 空白關卡創建完成');
   },
 
@@ -526,6 +537,41 @@ DK.Editor = {
   },
 
   /**
+   * 初始化地磚快取系統（預渲染常用地磚）
+   */
+  initTileCache() {
+    if (!DK.Map) return;
+
+    this.tileCache = {};
+    const T = 16; // 原始地磚大小
+
+    // 快取所有基本地磚類型（使用 variant 0）
+    const basicTiles = ['W', '.', 'O', 'B', 'A', 'P', 'G', 'H', 'D'];
+
+    basicTiles.forEach(tileId => {
+      const canvas = document.createElement('canvas');
+      canvas.width = T;
+      canvas.height = T;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+
+      // 使用 renderTile() 繪製到快取 canvas
+      this.renderTile(ctx, tileId, 0, 0);
+      this.tileCache[tileId] = canvas;
+    });
+
+    console.log(`✅ 地磚快取初始化完成（${Object.keys(this.tileCache).length} 種地磚）`);
+  },
+
+  /**
+   * 清空地磚快取（地圖尺寸變更時）
+   */
+  clearTileCache() {
+    this.tileCache = null;
+    console.log('🗑️ 地磚快取已清空');
+  },
+
+  /**
    * 渲染地圖
    */
   renderMap() {
@@ -538,8 +584,13 @@ DK.Editor = {
         const x = col * tileSize;
         const y = row * tileSize;
 
-        // 根據地磚類型繪製
-        this.renderTile(ctx, tile, x, y);
+        // 優先使用快取（基本地磚類型）
+        if (this.tileCache && this.tileCache[tile]) {
+          ctx.drawImage(this.tileCache[tile], x, y);
+        } else {
+          // 裝飾物和特殊地磚每次重新繪製（因為有變體）
+          this.renderTile(ctx, tile, x, y);
+        }
       }
     }
   },
