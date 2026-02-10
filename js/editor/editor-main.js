@@ -253,7 +253,7 @@ DK.Editor = {
     if (this.selectedTool === 'paint') {
       this.paintTile(col, row);
     } else if (this.selectedTool === 'erase') {
-      this.setTile(col, row, '.');
+      this.eraseTile(col, row);
     } else if (this.selectedTool === 'picker') {
       this.pickTile(col, row);
     } else if (this.selectedTool === 'portal-place') {
@@ -284,11 +284,27 @@ DK.Editor = {
         return;
       }
 
+      // 檢查 2×2 區域是否可用（必須是空地板或相同類型傳送門）
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 2; dx++) {
+          const checkCol = col + dx;
+          const checkRow = row + dy;
+          const existingTile = this.getTile(checkCol, checkRow);
+
+          // 允許覆蓋：地板、相同類型傳送門
+          if (existingTile !== '.' && existingTile !== this.selectedTile) {
+            console.warn(`⚠️ 傳送門放置失敗：(${checkCol}, ${checkRow}) 已被 '${existingTile}' 佔用`);
+            return;
+          }
+        }
+      }
+
       // 自動放置 2×2 傳送門
       this.setTile(col, row, this.selectedTile);
       this.setTile(col + 1, row, this.selectedTile);
       this.setTile(col, row + 1, this.selectedTile);
       this.setTile(col + 1, row + 1, this.selectedTile);
+      console.log(`✅ 2×2 傳送門已放置於 (${col}, ${row})`);
       return;
     }
 
@@ -304,6 +320,67 @@ DK.Editor = {
         }
       }
     }
+  },
+
+  /**
+   * 刪除地磚（智能處理 2×2 傳送門）
+   */
+  eraseTile(col, row) {
+    const tile = this.getTile(col, row);
+
+    // 檢查是否為傳送門
+    if (tile === 'E' || tile === 'M') {
+      // 尋找 2×2 傳送門的錨點（左上角）
+      const anchor = this.findPortalAnchor(col, row, tile);
+
+      if (anchor) {
+        // 刪除整個 2×2 傳送門
+        this.setTile(anchor.col, anchor.row, '.');
+        this.setTile(anchor.col + 1, anchor.row, '.');
+        this.setTile(anchor.col, anchor.row + 1, '.');
+        this.setTile(anchor.col + 1, anchor.row + 1, '.');
+        console.log(`🗑️ 刪除 2×2 傳送門於 (${anchor.col}, ${anchor.row})`);
+      } else {
+        // 無法識別為完整 2×2，只刪除單格
+        this.setTile(col, row, '.');
+        console.log(`🗑️ 刪除單格傳送門於 (${col}, ${row})`);
+      }
+    } else {
+      // 一般地磚刪除
+      this.setTile(col, row, '.');
+    }
+  },
+
+  /**
+   * 尋找傳送門錨點（左上角）
+   */
+  findPortalAnchor(col, row, portalType) {
+    // 檢查所有可能的錨點位置（左上、左、上、當前）
+    const candidates = [
+      { col: col - 1, row: row - 1 }, // 左上
+      { col: col - 1, row: row },     // 左
+      { col: col, row: row - 1 },     // 上
+      { col: col, row: row }          // 當前
+    ];
+
+    for (const candidate of candidates) {
+      const c = candidate.col;
+      const r = candidate.row;
+
+      // 檢查是否為有效的 2×2 傳送門錨點
+      if (c >= 0 && r >= 0 && c + 1 < this.cols && r + 1 < this.rows) {
+        if (
+          this.getTile(c, r) === portalType &&
+          this.getTile(c + 1, r) === portalType &&
+          this.getTile(c, r + 1) === portalType &&
+          this.getTile(c + 1, r + 1) === portalType
+        ) {
+          return { col: c, row: r };
+        }
+      }
+    }
+
+    return null; // 無法識別為完整 2×2
   },
 
   /**
