@@ -153,6 +153,7 @@ window.DK = window.DK || {};
 
     DK.Traps.render(offCtx);
     renderBarricades(offCtx, DK.Game.time);
+    if (DK.Doors) DK.Doors.render(offCtx);
     DK.Enemies.render(offCtx, DK.Game.time);
     if (DK.Heroes) DK.Heroes.render(offCtx, DK.Game.time);
     renderEffects(offCtx);
@@ -1295,6 +1296,36 @@ window.DK = window.DK || {};
             ctx.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 2, 2);
             // 較亮碎片
             ctx.fillStyle = `rgba(122,122,142,${bsAlpha * 0.7})`;
+            ctx.fillRect(Math.round(fx), Math.round(fy), 1, 1);
+          }
+          break;
+        }
+        case 'door_shatter': {
+          if (progress > 1) break;
+
+          // 6-8 個門碎片飛散（門比路障碎片更多更大）
+          const dsFragments = [
+            { dx: -4, dy: -5, r: 0.3 },
+            { dx: 5, dy: -4, r: 0.5 },
+            { dx: -3, dy: 4, r: 0.7 },
+            { dx: 4, dy: 3, r: 0.4 },
+            { dx: -6, dy: -1, r: 0.6 },
+            { dx: 2, dy: -6, r: 0.2 },
+            { dx: -2, dy: 2, r: 0.8 },
+            { dx: 1, dy: 5, r: 0.35 },
+          ];
+
+          const dsAlpha = 1 - progress;
+          for (const frag of dsFragments) {
+            const fx = effect.x + frag.dx * progress * 10;
+            const fy = effect.y + frag.dy * progress * 10 + progress * progress * 5; // 重力
+
+            // 門碎片：混合木質、金屬、魔法顏色
+            // 主色（褐色木質）
+            ctx.fillStyle = `rgba(106,80,64,${dsAlpha})`;
+            ctx.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 3, 3);
+            // 高光（金屬/魔法光澤）
+            ctx.fillStyle = `rgba(170,68,255,${dsAlpha * 0.5})`;
             ctx.fillRect(Math.round(fx), Math.round(fy), 1, 1);
           }
           break;

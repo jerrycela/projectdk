@@ -237,6 +237,60 @@ DK.Enemies = {
         // 封路模式：用 distanceFieldThrough 導航（忽略路障的距離場）
         const nextStep = DK.Map.getNextStepThrough ? DK.Map.getNextStepThrough(curCol, curRow) : null;
 
+        // 優先檢查門（門比路障更高級）
+        if (nextStep && DK.Doors && DK.Doors.getDoorAt(nextStep.col, nextStep.row)) {
+          const door = DK.Doors.getDoorAt(nextStep.col, nextStep.row);
+
+          // 只有鎖上的門需要攻擊，開啟的門直接通過
+          if (door && !door.isOpen) {
+            // 下一步是門 → 停下攻擊
+            if (!enemy._attackingDoor) {
+              enemy._attackingDoor = { col: nextStep.col, row: nextStep.row };
+              enemy._doorAttackTimer = 0;
+            }
+
+            // 累計攻擊計時器
+            enemy._doorAttackTimer = (enemy._doorAttackTimer || 0) + dt;
+            const attackInterval = 1000; // 每秒攻擊一次
+
+            if (enemy._doorAttackTimer >= attackInterval) {
+              enemy._doorAttackTimer -= attackInterval;
+              const damage = enemy.type.heartDamage || 10;
+              DK.Doors.damageNearestDoor(nextStep.col, nextStep.row, damage);
+
+              // 傷害數字特效
+              if (DK.Game.effects) {
+                DK.Game.effects.push({
+                  type: 'damage',
+                  x: nextStep.col * T + T / 2,
+                  y: nextStep.row * T - 4,
+                  text: `-${damage}`,
+                  color: '#ff8844',
+                  duration: 600,
+                  timer: 0,
+                });
+              }
+
+              // 檢查門是否被破壞
+              if (door.hp <= 0) {
+                // 門被摧毀 → 碎裂特效
+                if (DK.Game.effects) {
+                  DK.Game.effects.push({
+                    type: 'door_shatter',
+                    x: nextStep.col * T + T / 2,
+                    y: nextStep.row * T + T / 2,
+                    timer: 0,
+                    duration: 500,
+                  });
+                }
+                enemy._attackingDoor = null;
+                enemy._doorAttackTimer = 0;
+              }
+            }
+            continue; // 攻擊門時不移動
+          }
+        }
+
         if (nextStep && DK.Map.hasBarricade(nextStep.col, nextStep.row)) {
           // 下一步是路障 → 停下攻擊
           if (!enemy._attackingBarricade) {

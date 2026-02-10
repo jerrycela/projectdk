@@ -2335,16 +2335,126 @@ DK.Map = {
     PA.rect(ctx, x + 6, y + 12, 4, 1, '#5a5a6e');
   },
 
-  /** 門 (D) - 木門 */
-  drawDoorTile(ctx, x, y) {
+  /** 門 (D) - 支援三種門類型 */
+  drawDoorTile(ctx, x, y, doorType = 'wooden', isLocked = true) {
     const PA = DK.PixelArt;
     this.drawFloorTile(ctx, x, y, 0);
+
+    if (doorType === 'wooden') {
+      this.drawWoodenDoor(ctx, x, y, isLocked);
+    } else if (doorType === 'iron') {
+      this.drawIronDoor(ctx, x, y, isLocked);
+    } else if (doorType === 'magic') {
+      this.drawMagicDoor(ctx, x, y, isLocked);
+    }
+  },
+
+  /** 木門：褐色木紋 + 鐵鉸鏈 + 門把 */
+  drawWoodenDoor(ctx, x, y, isLocked) {
+    const PA = DK.PixelArt;
+
+    // 門框（深灰色）
     PA.rect(ctx, x + 3, y + 2, 10, 12, '#4a4a5e');
+
+    // 木板紋理（褐色）
     PA.rect(ctx, x + 5, y + 3, 6, 10, '#5a4030');
     PA.rect(ctx, x + 6, y + 4, 4, 8, '#6a5040');
+
+    // 木紋橫條
     PA.rect(ctx, x + 5, y + 6, 6, 1, '#4a3020');
     PA.rect(ctx, x + 5, y + 9, 6, 1, '#4a3020');
+
+    // 鐵鉸鏈（4個像素）
+    PA.pixel(ctx, x + 5, y + 4, '#3a3a4e');
+    PA.pixel(ctx, x + 5, y + 5, '#3a3a4e');
+    PA.pixel(ctx, x + 5, y + 11, '#3a3a4e');
+    PA.pixel(ctx, x + 5, y + 12, '#3a3a4e');
+
+    // 門把（金色）
     PA.pixel(ctx, x + 9, y + 8, '#ffd700');
     PA.pixel(ctx, x + 9, y + 9, '#ffaa00');
+
+    // 鎖定狀態：鎖頭圖示
+    if (isLocked) {
+      PA.rect(ctx, x + 7, y + 7, 2, 2, '#ffd700'); // 鎖體
+      PA.pixel(ctx, x + 7, y + 6, '#ffd700'); // 鎖環
+      PA.pixel(ctx, x + 8, y + 6, '#ffd700');
+    }
+  },
+
+  /** 鐵門：灰色金屬 + 鉚釘 + 厚重感 */
+  drawIronDoor(ctx, x, y, isLocked) {
+    const PA = DK.PixelArt;
+
+    // 門框（黑色）
+    PA.rect(ctx, x + 3, y + 2, 10, 12, '#2a2a3e');
+
+    // 鐵板（灰色金屬）
+    PA.rect(ctx, x + 5, y + 3, 6, 10, '#5a5a6e');
+    PA.rect(ctx, x + 6, y + 4, 4, 8, '#6a6a7e');
+
+    // 邊緣陰影（厚重感）
+    PA.rect(ctx, x + 5, y + 3, 1, 10, '#4a4a5e');
+    PA.rect(ctx, x + 5, y + 3, 6, 1, '#4a4a5e');
+
+    // 鉚釘裝飾（8個點）
+    PA.pixel(ctx, x + 6, y + 5, '#7a7a8e');
+    PA.pixel(ctx, x + 9, y + 5, '#7a7a8e');
+    PA.pixel(ctx, x + 6, y + 8, '#7a7a8e');
+    PA.pixel(ctx, x + 9, y + 8, '#7a7a8e');
+    PA.pixel(ctx, x + 6, y + 11, '#7a7a8e');
+    PA.pixel(ctx, x + 9, y + 11, '#7a7a8e');
+
+    // 門把（鐵環）
+    PA.pixel(ctx, x + 9, y + 8, '#9a9aae');
+    PA.pixel(ctx, x + 10, y + 8, '#9a9aae');
+
+    // 鎖定狀態：鐵鏈纏繞
+    if (isLocked) {
+      // 對角線鐵鏈
+      PA.pixel(ctx, x + 6, y + 5, '#8a8a9e');
+      PA.pixel(ctx, x + 7, y + 6, '#8a8a9e');
+      PA.pixel(ctx, x + 7, y + 8, '#8a8a9e');
+      PA.pixel(ctx, x + 8, y + 9, '#8a8a9e');
+      PA.pixel(ctx, x + 9, y + 10, '#8a8a9e');
+    }
+  },
+
+  /** 魔法門：紫色能量 + 符文 + 粒子效果 */
+  drawMagicDoor(ctx, x, y, isLocked) {
+    const PA = DK.PixelArt;
+
+    // 門框（深紫色）
+    PA.rect(ctx, x + 3, y + 2, 10, 12, '#4a2a5e');
+
+    // 能量紋理（紫色漸層）
+    PA.rect(ctx, x + 5, y + 3, 6, 10, '#7a2acc');
+    PA.rect(ctx, x + 6, y + 4, 4, 8, '#aa44ff');
+
+    // 符文圖案（中心 8×8px）
+    PA.pixel(ctx, x + 7, y + 6, '#ddbbff'); // 上
+    PA.pixel(ctx, x + 8, y + 6, '#ddbbff');
+    PA.pixel(ctx, x + 6, y + 8, '#ddbbff'); // 左
+    PA.pixel(ctx, x + 9, y + 8, '#ddbbff'); // 右
+    PA.pixel(ctx, x + 7, y + 10, '#ddbbff'); // 下
+    PA.pixel(ctx, x + 8, y + 10, '#ddbbff');
+    PA.pixel(ctx, x + 7, y + 8, '#ffffff'); // 中心
+    PA.pixel(ctx, x + 8, y + 8, '#ffffff');
+
+    // 能量粒子（4個閃爍點）
+    PA.pixel(ctx, x + 5, y + 5, '#ccaaee');
+    PA.pixel(ctx, x + 10, y + 5, '#ccaaee');
+    PA.pixel(ctx, x + 5, y + 11, '#ccaaee');
+    PA.pixel(ctx, x + 10, y + 11, '#ccaaee');
+
+    // 鎖定狀態：符文發紅光
+    if (isLocked) {
+      PA.pixel(ctx, x + 7, y + 6, '#ff4444');
+      PA.pixel(ctx, x + 8, y + 6, '#ff4444');
+      PA.pixel(ctx, x + 6, y + 8, '#ff4444');
+      PA.pixel(ctx, x + 9, y + 8, '#ff4444');
+      PA.pixel(ctx, x + 7, y + 10, '#ff4444');
+      PA.pixel(ctx, x + 8, y + 10, '#ff4444');
+    }
   }
 };

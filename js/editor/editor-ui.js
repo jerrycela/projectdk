@@ -23,7 +23,9 @@ DK.EditorUI = {
     { id: 'U', name: '符文', color: '#44aaff' },
     { id: 'F', name: '火盆', color: '#ff9922' },
     { id: 'X', name: '水晶', color: '#aa44ff' },
-    { id: 'D', name: '門', color: '#6a5040' }
+    { id: 'D', name: '木門', color: '#6a5040' },
+    { id: 'I', name: '鐵門', color: '#5a5a6e' },
+    { id: 'Z', name: '魔法門', color: '#aa44ff' }
   ],
 
   /**

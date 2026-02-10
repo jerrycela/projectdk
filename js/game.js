@@ -61,6 +61,7 @@ DK.Game = {
     DK.Map.init();
     this.initParticles();
     DK.Traps.init();
+    if (DK.Doors) DK.Doors.init(DK.Map.currentLevel);
     DK.Enemies.init();
     if (DK.Elements) DK.Elements.init();
     if (DK.Heroes) DK.Heroes.init();
@@ -185,6 +186,11 @@ DK.Game = {
 
     // Update traps
     DK.Traps.update(dt, DK.Enemies.active);
+
+    // Update doors
+    if (DK.Doors) {
+      DK.Doors.update(dt);
+    }
 
     // 更新草叢狀態
     if (DK.Map.updateGrass) {

@@ -345,6 +345,34 @@ DK.ENEMY_TYPES = {
   },
 };
 
+// Door types
+DK.DOOR_TYPES = {
+  wooden: {
+    name: '木門',
+    maxHp: 100,
+    defense: 5,
+    cost: 50,
+    color: '#6a5040',
+    lockColor: '#4a3020', // 鎖定狀態顏色
+  },
+  iron: {
+    name: '鐵門',
+    maxHp: 300,
+    defense: 15,
+    cost: 150,
+    color: '#5a5a6e',
+    lockColor: '#3a3a4e',
+  },
+  magic: {
+    name: '魔法門',
+    maxHp: 500,
+    defense: 30,
+    cost: 300,
+    color: '#aa44ff',
+    lockColor: '#7a2acc',
+  },
+};
+
 // Wave definitions
 DK.WAVES = [
   { enemies: [{ type: 'GOBLIN', count: 10 }] },

@@ -660,8 +660,14 @@ DK.Editor = {
       case 'X': // 水晶
         DK.Map.drawCrystalTile(ctx, x, y);
         break;
-      case 'D': // 門
-        DK.Map.drawDoorTile(ctx, x, y);
+      case 'D': // 木門
+        DK.Map.drawDoorTile(ctx, x, y, 'wooden', true);
+        break;
+      case 'I': // 鐵門
+        DK.Map.drawDoorTile(ctx, x, y, 'iron', true);
+        break;
+      case 'Z': // 魔法門
+        DK.Map.drawDoorTile(ctx, x, y, 'magic', true);
         break;
       default:
         // 預設使用地板
