@@ -1220,14 +1220,126 @@ DK.Map = {
     }
   },
 
-  drawEntranceTile(ctx, x, y) {
-    const PA = DK.PixelArt;
-    this.drawFloorTile(ctx, x, y, 0);
+  /**
+   * 2×2 傳送門漩渦系統
+   * 靈感來源：Dungeon Keeper, 魔獸爭霸 3
+   */
 
-    // 綠色入口傳送門（核心增加 1 層漸變）
+  // 檢查指定格子是否為傳送門錨點（左上角）
+  isPortalAnchor(col, row) {
+    const tile = this.getTile(col, row);
+    if (tile !== 'E' && tile !== 'M') return false;
+
+    // 檢查右邊和下邊是否也是相同類型（驗證 2×2 完整性）
+    const rightTile = this.getTile(col + 1, row);
+    const bottomTile = this.getTile(col, row + 1);
+    const bottomRightTile = this.getTile(col + 1, row + 1);
+
+    return (
+      rightTile === tile &&
+      bottomTile === tile &&
+      bottomRightTile === tile
+    );
+  },
+
+  // 繪製漩渦圖案（旋轉的螺旋）
+  drawSwirlPattern(ctx, colorScheme) {
+    const PA = DK.PixelArt;
+    // 繪製 4 條螺旋臂（簡化像素風格）
+    for (let i = 0; i < 4; i++) {
+      const angle = i * Math.PI / 2;
+      const color = i % 2 === 0 ? colorScheme.dark : colorScheme.bright;
+
+      // 每條螺旋臂：從中心向外延伸
+      for (let r = 2; r <= 8; r += 2) {
+        const armAngle = angle + (r / 8) * Math.PI / 4; // 螺旋扭曲
+        const px = Math.cos(armAngle) * r;
+        const py = Math.sin(armAngle) * r;
+        PA.rect(ctx, Math.floor(px), Math.floor(py), 2, 2, color);
+      }
+    }
+  },
+
+  // 繪製完整 2×2 傳送門（含動畫效果）
+  drawPortalFull(ctx, x, y, colorScheme, time) {
+    const PA = DK.PixelArt;
+    const T = 16; // Tile size
+
+    // 1. 繪製地面光暈（4 格範圍，32×32px）
+    ctx.save();
+    const gradient = ctx.createRadialGradient(x + T, y + T, 4, x + T, y + T, T * 1.5);
+    const alpha = 0.4 + 0.2 * Math.sin(time * Math.PI * 2); // 脈動（1 秒週期）
+    gradient.addColorStop(0, colorScheme.glow + Math.floor(alpha * 255).toString(16).padStart(2, '0'));
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, T * 2, T * 2);
+    ctx.restore();
+
+    // 2. 繪製核心漩渦（16×16 中心，旋轉動畫）
+    ctx.save();
+    ctx.translate(x + T, y + T);
+    ctx.rotate(time * Math.PI); // 0.5 秒/圈
+    this.drawSwirlPattern(ctx, colorScheme);
+    ctx.restore();
+
+    // 3. 繪製能量環（脈動）
+    ctx.save();
+    const ringAlpha = 0.3 + 0.4 * Math.sin(time * Math.PI * 2);
+    ctx.strokeStyle = colorScheme.glow + Math.floor(ringAlpha * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + T, y + T, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. 繪製環繞粒子（8 個）
+    for (let i = 0; i < 8; i++) {
+      const particleSpeed = 0.8 + (i % 3) * 0.2; // 每個粒子獨立速度
+      const angle = time * 2 * particleSpeed + i * Math.PI / 4;
+      const radius = 10 + 2 * Math.sin(time * 3 + i);
+      const px = x + T + Math.cos(angle) * radius;
+      const py = y + T + Math.sin(angle) * radius;
+
+      // 粒子漸隱效果
+      const particleAlpha = 0.6 + 0.4 * Math.sin(time * 4 + i);
+      ctx.fillStyle = colorScheme.glow + Math.floor(particleAlpha * 255).toString(16).padStart(2, '0');
+      PA.rect(ctx, Math.floor(px) - 1, Math.floor(py) - 1, 2, 2, ctx.fillStyle);
+    }
+  },
+
+  drawEntranceTile(ctx, x, y, time = 0) {
+    const PA = DK.PixelArt;
+    const col = Math.floor(x / 16);
+    const row = Math.floor(y / 16);
+
+    // 檢查是否為 2×2 傳送門錨點
+    if (this.isPortalAnchor(col, row)) {
+      // 繪製完整 2×2 動畫漩渦
+      const colorScheme = {
+        dark: '#226622',
+        bright: '#44aa44',
+        glow: '#66ff66'
+      };
+      this.drawPortalFull(ctx, x, y, colorScheme, time);
+      return;
+    }
+
+    // 如果不是錨點，檢查是否為 2×2 的其他格（不渲染，由錨點統一處理）
+    const leftTile = this.getTile(col - 1, row);
+    const topTile = this.getTile(col, row - 1);
+    const topLeftTile = this.getTile(col - 1, row - 1);
+
+    if ((leftTile === 'E' && this.isPortalAnchor(col - 1, row)) ||
+        (topTile === 'E' && this.isPortalAnchor(col, row - 1)) ||
+        (topLeftTile === 'E' && this.isPortalAnchor(col - 1, row - 1))) {
+      // 這是 2×2 傳送門的一部分，但不是錨點 → 不渲染
+      return;
+    }
+
+    // 回退：渲染舊版小型傳送門（向後兼容）
+    this.drawFloorTile(ctx, x, y, 0);
     PA.rect(ctx, x + 1, y + 4, 4, 8, '#22662a');
     PA.rect(ctx, x + 2, y + 5, 2, 6, '#44aa44');
-    // 外圈漸變層
     PA.pixel(ctx, x + 1, y + 6, '#338833');
     PA.pixel(ctx, x + 1, y + 9, '#338833');
     PA.pixel(ctx, x + 4, y + 6, '#338833');
@@ -1243,14 +1355,39 @@ DK.Map = {
     PA.pixel(ctx, x + 3, y + 8, '#aaffaa');
   },
 
-  drawExitTile(ctx, x, y) {
+  drawExitTile(ctx, x, y, time = 0) {
     const PA = DK.PixelArt;
-    this.drawFloorTile(ctx, x, y, 0);
+    const col = Math.floor(x / 16);
+    const row = Math.floor(y / 16);
 
-    // 紅色出口傳送門（核心增加 1 層漸變）
+    // 檢查是否為 2×2 傳送門錨點
+    if (this.isPortalAnchor(col, row)) {
+      // 繪製完整 2×2 動畫漩渦（紅色出口配色）
+      const colorScheme = {
+        dark: '#662222',
+        bright: '#aa4444',
+        glow: '#ff6666'
+      };
+      this.drawPortalFull(ctx, x, y, colorScheme, time);
+      return;
+    }
+
+    // 如果不是錨點，檢查是否為 2×2 的其他格（不渲染，由錨點統一處理）
+    const leftTile = this.getTile(col - 1, row);
+    const topTile = this.getTile(col, row - 1);
+    const topLeftTile = this.getTile(col - 1, row - 1);
+
+    if ((leftTile === 'M' && this.isPortalAnchor(col - 1, row)) ||
+        (topTile === 'M' && this.isPortalAnchor(col, row - 1)) ||
+        (topLeftTile === 'M' && this.isPortalAnchor(col - 1, row - 1))) {
+      // 這是 2×2 傳送門的一部分，但不是錨點 → 不渲染
+      return;
+    }
+
+    // 回退：渲染舊版小型傳送門（向後兼容）
+    this.drawFloorTile(ctx, x, y, 0);
     PA.rect(ctx, x + 11, y + 4, 4, 8, '#662222');
     PA.rect(ctx, x + 12, y + 5, 2, 6, '#cc4444');
-    // 外圈漸變層
     PA.pixel(ctx, x + 11, y + 6, '#883333');
     PA.pixel(ctx, x + 11, y + 9, '#883333');
     PA.pixel(ctx, x + 14, y + 6, '#883333');
@@ -1652,6 +1789,7 @@ DK.Map = {
     const PA = DK.PixelArt;
     const T = DK.CONFIG.TILE_SIZE;
     const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
+    const time = (Date.now() / 1000) % 3600; // 動畫時間（秒）
 
     // 第一通道：繪製所有地磚（僅可見範圍）
     for (let r = startRow; r <= endRow; r++) {
@@ -1673,9 +1811,19 @@ DK.Map = {
           const variant = (c * 7 + r * 13) % 6;
           ctx.drawImage(this.tileCache[`heart_${variant}`], x, y);
         } else if (tile === 'E') {
-          ctx.drawImage(this.tileCache['entrance'], x, y);
-        } else if (tile === 'X') {
-          ctx.drawImage(this.tileCache['exit'], x, y);
+          // 入口傳送門：檢查是否為 2×2 錨點（動畫）或單格（靜態）
+          if (this.isPortalAnchor(c, r)) {
+            this.drawEntranceTile(ctx, x, y, time); // 動畫漩渦
+          } else {
+            ctx.drawImage(this.tileCache['entrance'], x, y); // 靜態快取
+          }
+        } else if (tile === 'M') {
+          // 出口傳送門：檢查是否為 2×2 錨點（動畫）或單格（靜態）
+          if (this.isPortalAnchor(c, r)) {
+            this.drawExitTile(ctx, x, y, time); // 動畫漩渦
+          } else {
+            ctx.drawImage(this.tileCache['exit'], x, y); // 靜態快取
+          }
         } else if (tile === 'A') {
           const variant = (c * 11 + r * 17) % 6;
           ctx.drawImage(this.tileCache[`abyss_${variant}`], x, y);
