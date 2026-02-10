@@ -1266,6 +1266,122 @@ DK.Map = {
     PA.pixel(ctx, x + 8, y + 8, '#ff4444');
   },
 
+  /**
+   * 2×2 入口傳送門（綠色漩渦）
+   * 尺寸：32×32px（佔據 2×2 格地磚）
+   */
+  drawEntrancePortal2x2(ctx, x, y, variant = 0) {
+    const PA = DK.PixelArt;
+    const rng = PA.seededRandom(variant * 197 + 43);
+
+    // 底色：深綠色地板
+    PA.rect(ctx, x, y, 32, 32, '#0a1a0a');
+
+    // 外圈漩渦（深綠）
+    PA.rect(ctx, x + 4, y + 4, 24, 24, '#1a3820');
+
+    // 中圈漩渦（綠）
+    PA.rect(ctx, x + 8, y + 8, 16, 16, '#2a5a30');
+
+    // 內圈（亮綠）
+    PA.rect(ctx, x + 11, y + 11, 10, 10, '#44aa44');
+
+    // 核心發光
+    PA.rect(ctx, x + 13, y + 13, 6, 6, '#66ff66');
+    PA.pixel(ctx, x + 15, y + 15, '#aaffaa');
+    PA.pixel(ctx, x + 16, y + 16, '#aaffaa');
+
+    // 螺旋紋理（4 條螺旋臂）
+    const spiralPoints = [
+      // 北臂
+      [15, 5], [16, 6], [17, 7],
+      // 東臂
+      [26, 15], [25, 16], [24, 17],
+      // 南臂
+      [15, 26], [16, 25], [17, 24],
+      // 西臂
+      [5, 15], [6, 16], [7, 17]
+    ];
+
+    spiralPoints.forEach(([px, py]) => {
+      PA.pixel(ctx, x + px, y + py, '#88ff88');
+    });
+
+    // 隨機能量粒子（12 個）
+    for (let i = 0; i < 12; i++) {
+      const px = 10 + Math.floor(rng() * 12);
+      const py = 10 + Math.floor(rng() * 12);
+      const brightness = rng() > 0.5 ? '#aaffaa' : '#88ee88';
+      PA.pixel(ctx, x + px, y + py, brightness);
+    }
+
+    // 邊緣暗化
+    for (let i = 0; i < 32; i++) {
+      PA.pixel(ctx, x + i, y, '#0a0a0a');
+      PA.pixel(ctx, x + i, y + 31, '#0a0a0a');
+      PA.pixel(ctx, x, y + i, '#0a0a0a');
+      PA.pixel(ctx, x + 31, y + i, '#0a0a0a');
+    }
+  },
+
+  /**
+   * 2×2 出口傳送門（紅色漩渦）
+   * 尺寸：32×32px（佔據 2×2 格地磚）
+   */
+  drawExitPortal2x2(ctx, x, y, variant = 0) {
+    const PA = DK.PixelArt;
+    const rng = PA.seededRandom(variant * 199 + 47);
+
+    // 底色：深紅色地板
+    PA.rect(ctx, x, y, 32, 32, '#1a0a0a');
+
+    // 外圈漩渦（深紅）
+    PA.rect(ctx, x + 4, y + 4, 24, 24, '#3a1820');
+
+    // 中圈漩渦（紅）
+    PA.rect(ctx, x + 8, y + 8, 16, 16, '#5a2a30');
+
+    // 內圈（亮紅）
+    PA.rect(ctx, x + 11, y + 11, 10, 10, '#aa4444');
+
+    // 核心發光
+    PA.rect(ctx, x + 13, y + 13, 6, 6, '#ff6666');
+    PA.pixel(ctx, x + 15, y + 15, '#ffaaaa');
+    PA.pixel(ctx, x + 16, y + 16, '#ffaaaa');
+
+    // 螺旋紋理（4 條螺旋臂）
+    const spiralPoints = [
+      // 北臂
+      [15, 5], [16, 6], [17, 7],
+      // 東臂
+      [26, 15], [25, 16], [24, 17],
+      // 南臂
+      [15, 26], [16, 25], [17, 24],
+      // 西臂
+      [5, 15], [6, 16], [7, 17]
+    ];
+
+    spiralPoints.forEach(([px, py]) => {
+      PA.pixel(ctx, x + px, y + py, '#ff8888');
+    });
+
+    // 隨機能量粒子（12 個，紅色）
+    for (let i = 0; i < 12; i++) {
+      const px = 10 + Math.floor(rng() * 12);
+      const py = 10 + Math.floor(rng() * 12);
+      const brightness = rng() > 0.5 ? '#ffaaaa' : '#ff8888';
+      PA.pixel(ctx, x + px, y + py, brightness);
+    }
+
+    // 邊緣暗化
+    for (let i = 0; i < 32; i++) {
+      PA.pixel(ctx, x + i, y, '#0a0a0a');
+      PA.pixel(ctx, x + i, y + 31, '#0a0a0a');
+      PA.pixel(ctx, x, y + i, '#0a0a0a');
+      PA.pixel(ctx, x + 31, y + i, '#0a0a0a');
+    }
+  },
+
   /** 深淵地磚：純黑深洞 + 邊緣岩石碎裂紋理 */
   drawAbyssTile(ctx, x, y, variant) {
     const PA = DK.PixelArt;
@@ -1975,4 +2091,125 @@ DK.Map = {
     const slot = this.wallTrapSlots.find(s => s.col === col && s.row === row);
     return slot ? slot.facing : null;
   },
+  // === 編輯器裝飾地磚 ===
+
+  /** 火把 (T) - 牆上的火把 */
+  drawTorchTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawWallTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 7, y + 8, 2, 5, '#4a3020');
+    PA.pixel(ctx, x + 7, y + 8, '#5a4030');
+    PA.pixel(ctx, x + 6, y + 6, '#ff8800');
+    PA.pixel(ctx, x + 7, y + 5, '#ffaa00');
+    PA.pixel(ctx, x + 8, y + 5, '#ffaa00');
+    PA.pixel(ctx, x + 9, y + 6, '#ff8800');
+    PA.pixel(ctx, x + 7, y + 6, '#ffcc44');
+    PA.pixel(ctx, x + 8, y + 6, '#ffcc44');
+    PA.pixel(ctx, x + 7, y + 7, '#ff9922');
+    PA.pixel(ctx, x + 8, y + 7, '#ff9922');
+  },
+
+  /** 寶箱 (C) - 金幣寶箱 */
+  drawChestTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 4, y + 9, 8, 4, '#4a3020');
+    PA.rect(ctx, x + 5, y + 10, 6, 2, '#5a4030');
+    PA.rect(ctx, x + 4, y + 7, 8, 2, '#6a5040');
+    PA.rect(ctx, x + 5, y + 6, 6, 1, '#7a6050');
+    PA.pixel(ctx, x + 7, y + 9, '#ffd700');
+    PA.pixel(ctx, x + 8, y + 9, '#ffd700');
+    PA.pixel(ctx, x + 7, y + 10, '#ffaa00');
+    PA.pixel(ctx, x + 8, y + 10, '#ffaa00');
+  },
+
+  /** 石柱 (L) - 裝飾石柱 */
+  drawPillarTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 5, y + 2, 6, 12, '#5a5a6e');
+    PA.rect(ctx, x + 6, y + 3, 4, 10, '#6a6a7e');
+    PA.rect(ctx, x + 4, y + 1, 8, 2, '#7a7a8e');
+    PA.rect(ctx, x + 5, y + 2, 6, 1, '#8a8a9e');
+    PA.rect(ctx, x + 4, y + 13, 8, 2, '#4a4a5e');
+    PA.pixel(ctx, x + 6, y + 5, '#9a9aae');
+    PA.pixel(ctx, x + 6, y + 7, '#9a9aae');
+  },
+
+  /** 骸骨 (S) - 骷髏骨頭 */
+  drawSkullTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 6, y + 7, 4, 4, '#d0c8b0');
+    PA.rect(ctx, x + 5, y + 8, 6, 2, '#e0d8c0');
+    PA.pixel(ctx, x + 6, y + 8, '#1a1a1a');
+    PA.pixel(ctx, x + 9, y + 8, '#1a1a1a');
+    PA.pixel(ctx, x + 7, y + 9, '#2a2a2a');
+    PA.pixel(ctx, x + 8, y + 9, '#2a2a2a');
+    PA.rect(ctx, x + 4, y + 11, 3, 1, '#c0b8a0');
+    PA.rect(ctx, x + 9, y + 11, 3, 1, '#c0b8a0');
+  },
+
+  /** 符文 (U) - 發光符文地板 */
+  drawRuneTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.pixel(ctx, x + 8, y + 5, '#44aaff');
+    PA.pixel(ctx, x + 7, y + 6, '#44aaff');
+    PA.pixel(ctx, x + 8, y + 6, '#66ccff');
+    PA.pixel(ctx, x + 9, y + 6, '#44aaff');
+    PA.pixel(ctx, x + 6, y + 7, '#44aaff');
+    PA.pixel(ctx, x + 8, y + 7, '#66ccff');
+    PA.pixel(ctx, x + 10, y + 7, '#44aaff');
+    PA.pixel(ctx, x + 7, y + 8, '#44aaff');
+    PA.pixel(ctx, x + 8, y + 8, '#88eeff');
+    PA.pixel(ctx, x + 9, y + 8, '#44aaff');
+    PA.pixel(ctx, x + 8, y + 9, '#44aaff');
+    PA.pixel(ctx, x + 6, y + 10, '#2288cc');
+    PA.pixel(ctx, x + 10, y + 10, '#2288cc');
+  },
+
+  /** 火盆 (F) - 地板火盆 */
+  drawFirePitTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 5, y + 10, 6, 3, '#3a3a3a');
+    PA.rect(ctx, x + 6, y + 11, 4, 1, '#2a2a2a');
+    PA.pixel(ctx, x + 6, y + 8, '#ff8800');
+    PA.pixel(ctx, x + 7, y + 7, '#ffaa00');
+    PA.pixel(ctx, x + 8, y + 6, '#ffcc44');
+    PA.pixel(ctx, x + 9, y + 7, '#ffaa00');
+    PA.pixel(ctx, x + 10, y + 8, '#ff8800');
+    PA.pixel(ctx, x + 7, y + 9, '#ff9922');
+    PA.pixel(ctx, x + 8, y + 9, '#ffbb33');
+    PA.pixel(ctx, x + 9, y + 9, '#ff9922');
+  },
+
+  /** 水晶 (X) - 發光水晶 */
+  drawCrystalTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 7, y + 6, 2, 6, '#aa44ff');
+    PA.pixel(ctx, x + 8, y + 5, '#cc66ff');
+    PA.pixel(ctx, x + 6, y + 7, '#8833cc');
+    PA.pixel(ctx, x + 9, y + 7, '#8833cc');
+    PA.pixel(ctx, x + 7, y + 8, '#cc88ff');
+    PA.pixel(ctx, x + 8, y + 8, '#ee99ff');
+    PA.pixel(ctx, x + 8, y + 6, '#ffaaff');
+    PA.pixel(ctx, x + 7, y + 9, '#bb66ee');
+    PA.rect(ctx, x + 6, y + 12, 4, 1, '#5a5a6e');
+  },
+
+  /** 門 (D) - 木門 */
+  drawDoorTile(ctx, x, y) {
+    const PA = DK.PixelArt;
+    this.drawFloorTile(ctx, x, y, 0);
+    PA.rect(ctx, x + 3, y + 2, 10, 12, '#4a4a5e');
+    PA.rect(ctx, x + 5, y + 3, 6, 10, '#5a4030');
+    PA.rect(ctx, x + 6, y + 4, 4, 8, '#6a5040');
+    PA.rect(ctx, x + 5, y + 6, 6, 1, '#4a3020');
+    PA.rect(ctx, x + 5, y + 9, 6, 1, '#4a3020');
+    PA.pixel(ctx, x + 9, y + 8, '#ffd700');
+    PA.pixel(ctx, x + 9, y + 9, '#ffaa00');
+  }
 };

@@ -100,8 +100,8 @@ DK.Editor = {
     this.uiCtx = this.uiCanvas.getContext('2d');
     this.uiCtx.imageSmoothingEnabled = false;
 
-    // 設置 Canvas 樣式（3x 縮放）
-    const scale = 3;
+    // 設置 Canvas 樣式（4x 縮放）
+    const scale = 4;
     this.gameCanvas.style.width = `${this.gameCanvas.width * scale}px`;
     this.gameCanvas.style.height = `${this.gameCanvas.height * scale}px`;
     this.uiCanvas.style.width = `${this.uiCanvas.width}px`;
@@ -114,8 +114,8 @@ DK.Editor = {
    * 創建空白關卡
    */
   createEmptyLevel() {
-    this.cols = 20;
-    this.rows = 13;
+    this.cols = 40;
+    this.rows = 26;
     this.layout = [];
 
     // 創建空白地圖（全部填充地板）
@@ -220,8 +220,8 @@ DK.Editor = {
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
 
-    // 計算地磚座標（48px per tile = 16px * 3 scale）
-    const tileSize = 48; // DISPLAY_TILE
+    // 計算地磚座標（64px per tile = 16px * 4 scale）
+    const tileSize = 64; // DISPLAY_TILE
     this.mouse.col = Math.floor(canvasX / tileSize);
     this.mouse.row = Math.floor(canvasY / tileSize);
   },
@@ -245,6 +245,15 @@ DK.Editor = {
       this.setTile(col, row, '.');
     } else if (this.selectedTool === 'picker') {
       this.pickTile(col, row);
+    } else if (this.selectedTool === 'portal-place') {
+      // 傳送門放置
+      if (DK.EditorPortal && DK.EditorPortal.placePortal) {
+        DK.EditorPortal.placePortal(col, row);
+        // 放置後恢復畫筆工具
+        this.selectedTool = 'paint';
+        document.getElementById('statusTool').textContent = '當前工具: 畫筆';
+      }
+      return; // 不需要記錄 lastPaintedCol/Row
     }
 
     this.mouse.lastPaintedCol = col;
@@ -519,27 +528,76 @@ DK.Editor = {
   },
 
   /**
-   * 渲染單個地磚
+   * 渲染單個地磚（使用遊戲真實的像素藝術風格）
    */
   renderTile(ctx, tile, x, y) {
-    const PA = DK.PixelArt;
-    const C = DK.COLORS || {};
+    if (!DK.Map) return;
 
-    // 使用簡化的顏色渲染（Phase 1 簡化版）
-    const colors = {
-      'W': C.WALL_MID || '#2d2d44',
-      '.': C.FLOOR_MID || '#5e5648',
-      'O': C.OUTER || '#050508',
-      'H': C.UI_HP || '#ff4444',
-      'E': '#44aa44', // 傳送門綠色
-      'P': '#2a4a7a', // 水潭藍色
-      'A': '#050508', // 深淵黑色
-      'G': '#2a5a2a', // 草叢綠色
-      'R': '#7a7a8e', // 軌道灰色
-      'B': '#5a5a6e'  // 路障灰色
-    };
+    // 使用固定 variant 0 (編輯器不需要動畫變體)
+    const variant = 0;
 
-    const color = colors[tile] || colors['.'];
-    PA.rect(ctx, x, y, 16, 16, color);
+    switch (tile) {
+      case 'W': // 牆壁
+        DK.Map.drawWallTile(ctx, x, y, variant);
+        break;
+      case '.': // 地板
+        DK.Map.drawFloorTile(ctx, x, y, variant);
+        break;
+      case 'O': // 外圍
+        DK.Map.drawOuterTile(ctx, x, y, variant);
+        break;
+      case 'H': // 地心
+        DK.Map.drawHeartTile(ctx, x, y, variant);
+        break;
+      case 'E': // 入口傳送門 (2×2 漩渦)
+        DK.Map.drawEntrancePortal2x2(ctx, x, y, variant);
+        break;
+      case 'M': // 出口傳送門 (2×2 漩渦)
+        DK.Map.drawExitPortal2x2(ctx, x, y, variant);
+        break;
+      case 'P': // 水潭
+        DK.Map.drawPoolTile(ctx, x, y, variant);
+        break;
+      case 'A': // 深淵
+        DK.Map.drawAbyssTile(ctx, x, y, variant);
+        break;
+      case 'G': // 草叢
+        DK.Map.drawGrassTile(ctx, x, y, variant);
+        break;
+      case 'R': // 軌道
+        // 軌道暫時用地板代替
+        DK.Map.drawFloorTile(ctx, x, y, variant);
+        break;
+      case 'B': // 路障
+        DK.Map.drawBreakableWallTile(ctx, x, y, variant);
+        break;
+      case 'T': // 火把
+        DK.Map.drawTorchTile(ctx, x, y);
+        break;
+      case 'C': // 寶箱
+        DK.Map.drawChestTile(ctx, x, y);
+        break;
+      case 'L': // 石柱
+        DK.Map.drawPillarTile(ctx, x, y);
+        break;
+      case 'S': // 骸骨
+        DK.Map.drawSkullTile(ctx, x, y);
+        break;
+      case 'U': // 符文
+        DK.Map.drawRuneTile(ctx, x, y);
+        break;
+      case 'F': // 火盆
+        DK.Map.drawFirePitTile(ctx, x, y);
+        break;
+      case 'X': // 水晶
+        DK.Map.drawCrystalTile(ctx, x, y);
+        break;
+      case 'D': // 門
+        DK.Map.drawDoorTile(ctx, x, y);
+        break;
+      default:
+        // 預設使用地板
+        DK.Map.drawFloorTile(ctx, x, y, variant);
+    }
   }
 };

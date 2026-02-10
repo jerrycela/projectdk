@@ -8,14 +8,22 @@ DK.EditorUI = {
   tiles: [
     { id: 'W', name: '牆壁', color: '#2d2d44' },
     { id: '.', name: '地板', color: '#5e5648' },
+    { id: 'O', name: '外圍', color: '#050508' },
     { id: 'H', name: '地心', color: '#ff4444' },
-    { id: 'E', name: '傳送門', color: '#44aa44' },
+    { id: 'E', name: '入口傳送門', color: '#44aa44' },
+    { id: 'M', name: '出口傳送門', color: '#ff4444' },
+    { id: 'B', name: '路障', color: '#5a5a6e' },
     { id: 'P', name: '水潭', color: '#2a4a7a' },
     { id: 'A', name: '深淵', color: '#050508' },
     { id: 'G', name: '草叢', color: '#2a5a2a' },
-    { id: 'R', name: '軌道', color: '#7a7a8e' },
-    { id: 'B', name: '路障', color: '#5a5a6e' },
-    { id: 'O', name: '外圍', color: '#050508' }
+    { id: 'T', name: '火把', color: '#ff8800' },
+    { id: 'C', name: '寶箱', color: '#ffd700' },
+    { id: 'L', name: '石柱', color: '#7a7a8e' },
+    { id: 'S', name: '骸骨', color: '#d0c8b0' },
+    { id: 'U', name: '符文', color: '#44aaff' },
+    { id: 'F', name: '火盆', color: '#ff9922' },
+    { id: 'X', name: '水晶', color: '#aa44ff' },
+    { id: 'D', name: '門', color: '#6a5040' }
   ],
 
   /**
@@ -37,7 +45,7 @@ DK.EditorUI = {
   },
 
   /**
-   * 渲染 Tile Palette
+   * 渲染 Tile Palette（使用真實地磚預覽）
    */
   renderTilePalette() {
     const container = document.getElementById('tilePalette');
@@ -51,15 +59,28 @@ DK.EditorUI = {
       btn.dataset.tile = tile.id;
       btn.title = tile.name;
 
-      // 顏色方塊
-      const colorBox = document.createElement('div');
-      colorBox.className = 'tile-color';
-      colorBox.style.backgroundColor = tile.color;
-      btn.appendChild(colorBox);
+      // 創建 canvas 預覽
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      canvas.className = 'tile-preview';
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
 
-      // 符號
-      const label = document.createElement('span');
-      label.textContent = tile.id;
+      // 繪製真實地磚預覽（2倍大小）
+      if (DK.Editor && DK.Editor.renderTile) {
+        ctx.save();
+        ctx.scale(2, 2);
+        DK.Editor.renderTile.call(DK.Editor, ctx, tile.id, 0, 0);
+        ctx.restore();
+      }
+
+      btn.appendChild(canvas);
+
+      // 名稱和符號
+      const label = document.createElement('div');
+      label.className = 'tile-label';
+      label.innerHTML = `<strong>${tile.id}</strong><br><small>${tile.name}</small>`;
       btn.appendChild(label);
 
       // 點擊事件
@@ -180,7 +201,7 @@ DK.EditorUI = {
    */
   render() {
     const ctx = DK.Editor.uiCtx;
-    const tileSize = 48; // DISPLAY_TILE (16 * 3)
+    const tileSize = 64; // DISPLAY_TILE (16 * 4)
 
     // 1. 渲染網格線
     this.renderGrid(ctx, tileSize);
