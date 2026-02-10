@@ -1,0 +1,472 @@
+/**
+ * ProjectDK 關卡編輯器 - 主控制器
+ * 職責：初始化、狀態管理、主渲染循環
+ */
+
+// 確保 DK namespace 存在
+if (typeof DK === 'undefined') {
+  window.DK = {};
+}
+
+DK.Editor = {
+  // === 狀態 ===
+  currentLevel: null,      // 正在編輯的關卡
+  mode: 'tiles',           // 'tiles' | 'portals' | 'waves'
+  selectedTool: 'paint',   // 'paint' | 'fill' | 'erase' | 'picker'
+  selectedTile: 'W',       // 當前選中的地磚類型
+  brushSize: 1,            // 1, 2, 3
+  isDirty: false,          // 是否有未儲存變更
+
+  // === Canvas ===
+  gameCanvas: null,
+  gameCtx: null,
+  uiCanvas: null,
+  uiCtx: null,
+
+  // === 地圖資料 ===
+  layout: [],              // 地圖陣列 [row][col]
+  cols: 20,
+  rows: 13,
+
+  // === 滑鼠狀態 ===
+  mouse: {
+    col: -1,
+    row: -1,
+    isDown: false,
+    lastPaintedCol: -1,
+    lastPaintedRow: -1
+  },
+
+  // === 渲染 ===
+  animationFrame: null,
+
+  /**
+   * 初始化編輯器
+   */
+  init() {
+    console.log('🎮 初始化關卡編輯器...');
+
+    // 1. 初始化 Canvas
+    this.initCanvas();
+
+    // 2. 創建空白地圖
+    this.createEmptyLevel();
+
+    // 3. 初始化 UI（由 editor-ui.js 處理）
+    if (DK.EditorUI && DK.EditorUI.init) {
+      DK.EditorUI.init();
+    }
+
+    // 4. 初始化工具（由 editor-tools.js 處理）
+    if (DK.EditorTools && DK.EditorTools.init) {
+      DK.EditorTools.init();
+    }
+
+    // 5. 初始化存儲（由 editor-storage.js 處理）
+    if (DK.EditorStorage && DK.EditorStorage.init) {
+      DK.EditorStorage.init();
+    }
+
+    // 6. 設置事件監聽
+    this.setupEventListeners();
+
+    // 7. 啟動渲染循環
+    this.startRenderLoop();
+
+    console.log('✅ 編輯器初始化完成');
+  },
+
+  /**
+   * 初始化 Canvas
+   */
+  initCanvas() {
+    // 低解析度地圖 Canvas
+    this.gameCanvas = document.getElementById('game-canvas');
+    this.gameCtx = this.gameCanvas.getContext('2d');
+    this.gameCtx.imageSmoothingEnabled = false;
+
+    // 高解析度 UI Canvas
+    this.uiCanvas = document.getElementById('ui-canvas');
+    this.uiCtx = this.uiCanvas.getContext('2d');
+    this.uiCtx.imageSmoothingEnabled = false;
+
+    // 設置 Canvas 樣式（3x 縮放）
+    const scale = 3;
+    this.gameCanvas.style.width = `${this.gameCanvas.width * scale}px`;
+    this.gameCanvas.style.height = `${this.gameCanvas.height * scale}px`;
+    this.uiCanvas.style.width = `${this.uiCanvas.width}px`;
+    this.uiCanvas.style.height = `${this.uiCanvas.height}px`;
+
+    console.log('✅ Canvas 初始化完成');
+  },
+
+  /**
+   * 創建空白關卡
+   */
+  createEmptyLevel() {
+    this.cols = 20;
+    this.rows = 13;
+    this.layout = [];
+
+    // 創建空白地圖（全部填充地板）
+    for (let row = 0; row < this.rows; row++) {
+      let rowStr = '';
+      for (let col = 0; col < this.cols; col++) {
+        // 邊界填充外圍 'O'
+        if (row === 0 || row === this.rows - 1 || col === 0 || col === this.cols - 1) {
+          rowStr += 'O';
+        } else {
+          rowStr += '.';
+        }
+      }
+      this.layout.push(rowStr);
+    }
+
+    // 在中心放置地心（2x2）
+    const heartRow = Math.floor(this.rows / 2);
+    const heartCol = Math.floor(this.cols / 2);
+    this.setTile(heartCol, heartRow, 'H');
+    this.setTile(heartCol + 1, heartRow, 'H');
+    this.setTile(heartCol, heartRow + 1, 'H');
+    this.setTile(heartCol + 1, heartRow + 1, 'H');
+
+    this.currentLevel = {
+      id: null,
+      name: '新關卡',
+      layout: [...this.layout],
+      portals: [],
+      startingGold: 1000,
+      dungeonHeartHP: 100
+    };
+
+    this.isDirty = false;
+    console.log('✅ 空白關卡創建完成');
+  },
+
+  /**
+   * 設置事件監聽
+   */
+  setupEventListeners() {
+    // Canvas 滑鼠事件
+    this.uiCanvas.addEventListener('mousedown', this.onMouseDown.bind(this));
+    this.uiCanvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+    this.uiCanvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+    this.uiCanvas.addEventListener('mouseleave', this.onMouseLeave.bind(this));
+
+    // 鍵盤快捷鍵
+    document.addEventListener('keydown', this.onKeyDown.bind(this));
+
+    // 按鈕事件
+    document.getElementById('btnSave')?.addEventListener('click', () => this.save());
+    document.getElementById('btnExport')?.addEventListener('click', () => this.exportJSON());
+    document.getElementById('btnTest')?.addEventListener('click', () => this.testLevel());
+    document.getElementById('btnClear')?.addEventListener('click', () => this.clearMap());
+
+    console.log('✅ 事件監聽設置完成');
+  },
+
+  /**
+   * 滑鼠按下
+   */
+  onMouseDown(e) {
+    this.mouse.isDown = true;
+    this.updateMousePosition(e);
+    this.handlePaint();
+  },
+
+  /**
+   * 滑鼠移動
+   */
+  onMouseMove(e) {
+    this.updateMousePosition(e);
+    if (this.mouse.isDown) {
+      this.handlePaint();
+    }
+  },
+
+  /**
+   * 滑鼠放開
+   */
+  onMouseUp(e) {
+    this.mouse.isDown = false;
+    this.mouse.lastPaintedCol = -1;
+    this.mouse.lastPaintedRow = -1;
+  },
+
+  /**
+   * 滑鼠離開
+   */
+  onMouseLeave(e) {
+    this.mouse.col = -1;
+    this.mouse.row = -1;
+    this.mouse.isDown = false;
+  },
+
+  /**
+   * 更新滑鼠位置（轉換為地磚座標）
+   */
+  updateMousePosition(e) {
+    const rect = this.uiCanvas.getBoundingClientRect();
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+
+    // 計算地磚座標（48px per tile = 16px * 3 scale）
+    const tileSize = 48; // DISPLAY_TILE
+    this.mouse.col = Math.floor(canvasX / tileSize);
+    this.mouse.row = Math.floor(canvasY / tileSize);
+  },
+
+  /**
+   * 處理繪製
+   */
+  handlePaint() {
+    const { col, row } = this.mouse;
+
+    // 邊界檢查
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return;
+
+    // 避免重複繪製同一格
+    if (col === this.mouse.lastPaintedCol && row === this.mouse.lastPaintedRow) return;
+
+    // 根據工具類型處理
+    if (this.selectedTool === 'paint') {
+      this.paintTile(col, row);
+    } else if (this.selectedTool === 'erase') {
+      this.setTile(col, row, '.');
+    } else if (this.selectedTool === 'picker') {
+      this.pickTile(col, row);
+    }
+
+    this.mouse.lastPaintedCol = col;
+    this.mouse.lastPaintedRow = row;
+    this.markDirty();
+  },
+
+  /**
+   * 繪製地磚
+   */
+  paintTile(col, row) {
+    if (this.brushSize === 1) {
+      this.setTile(col, row, this.selectedTile);
+    } else {
+      // 多格畫筆（中心對齊）
+      const halfSize = Math.floor(this.brushSize / 2);
+      for (let dy = -halfSize; dy <= halfSize; dy++) {
+        for (let dx = -halfSize; dx <= halfSize; dx++) {
+          this.setTile(col + dx, row + dy, this.selectedTile);
+        }
+      }
+    }
+  },
+
+  /**
+   * 吸管工具
+   */
+  pickTile(col, row) {
+    const tile = this.getTile(col, row);
+    if (tile && tile !== 'O') {
+      this.selectedTile = tile;
+      this.selectedTool = 'paint';
+
+      // 更新 UI（由 editor-ui.js 處理）
+      if (DK.EditorUI && DK.EditorUI.updateTilePalette) {
+        DK.EditorUI.updateTilePalette();
+      }
+    }
+  },
+
+  /**
+   * 設置地磚
+   */
+  setTile(col, row, tile) {
+    // 邊界檢查
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return;
+
+    // 字串轉陣列 → 修改 → 陣列轉字串
+    const chars = this.layout[row].split('');
+    chars[col] = tile;
+    this.layout[row] = chars.join('');
+  },
+
+  /**
+   * 取得地磚
+   */
+  getTile(col, row) {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return null;
+    return this.layout[row][col];
+  },
+
+  /**
+   * 鍵盤快捷鍵
+   */
+  onKeyDown(e) {
+    // Ctrl+S - 儲存
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      this.save();
+    }
+    // Ctrl+T - 測試
+    else if (e.ctrlKey && e.key === 't') {
+      e.preventDefault();
+      this.testLevel();
+    }
+    // Ctrl+Z - Undo
+    else if (e.ctrlKey && e.key === 'z') {
+      e.preventDefault();
+      if (DK.EditorTools && DK.EditorTools.undo) {
+        DK.EditorTools.undo();
+      }
+    }
+    // Ctrl+Y - Redo
+    else if (e.ctrlKey && e.key === 'y') {
+      e.preventDefault();
+      if (DK.EditorTools && DK.EditorTools.redo) {
+        DK.EditorTools.redo();
+      }
+    }
+    // 數字鍵 1-3 - 畫筆大小
+    else if (e.key >= '1' && e.key <= '3') {
+      this.brushSize = parseInt(e.key);
+      if (DK.EditorUI && DK.EditorUI.updateBrushSize) {
+        DK.EditorUI.updateBrushSize();
+      }
+    }
+    // P - 畫筆
+    else if (e.key === 'p' || e.key === 'P') {
+      this.selectedTool = 'paint';
+      if (DK.EditorUI && DK.EditorUI.updateToolButtons) {
+        DK.EditorUI.updateToolButtons();
+      }
+    }
+    // F - 填充
+    else if (e.key === 'f' || e.key === 'F') {
+      this.selectedTool = 'fill';
+      if (DK.EditorUI && DK.EditorUI.updateToolButtons) {
+        DK.EditorUI.updateToolButtons();
+      }
+    }
+    // Q - 吸管
+    else if (e.key === 'q' || e.key === 'Q') {
+      this.selectedTool = 'picker';
+      if (DK.EditorUI && DK.EditorUI.updateToolButtons) {
+        DK.EditorUI.updateToolButtons();
+      }
+    }
+  },
+
+  /**
+   * 標記為未儲存
+   */
+  markDirty() {
+    this.isDirty = true;
+    document.getElementById('statusDirty').style.display = 'inline';
+  },
+
+  /**
+   * 清空地圖
+   */
+  clearMap() {
+    if (!confirm('確定要清空地圖嗎？此操作無法復原。')) return;
+    this.createEmptyLevel();
+  },
+
+  /**
+   * 儲存（使用 localStorage）
+   */
+  save() {
+    if (DK.EditorStorage && DK.EditorStorage.save) {
+      DK.EditorStorage.save();
+      this.isDirty = false;
+      document.getElementById('statusDirty').style.display = 'none';
+      alert('✅ 儲存成功');
+    }
+  },
+
+  /**
+   * 匯出 JSON
+   */
+  exportJSON() {
+    if (DK.EditorStorage && DK.EditorStorage.exportJSON) {
+      DK.EditorStorage.exportJSON();
+    }
+  },
+
+  /**
+   * 測試關卡
+   */
+  testLevel() {
+    alert('🧪 測試模式將在 Phase 3 實作');
+  },
+
+  /**
+   * 渲染循環
+   */
+  startRenderLoop() {
+    const render = () => {
+      this.render();
+      this.animationFrame = requestAnimationFrame(render);
+    };
+    render();
+  },
+
+  /**
+   * 主渲染函式
+   */
+  render() {
+    // 清空 Canvas
+    this.gameCtx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+    this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+
+    // 1. 渲染地圖（使用 PixelArt API）
+    this.renderMap();
+
+    // 2. 渲染 UI（網格線、Hover 高亮）
+    if (DK.EditorUI && DK.EditorUI.render) {
+      DK.EditorUI.render();
+    }
+  },
+
+  /**
+   * 渲染地圖
+   */
+  renderMap() {
+    const ctx = this.gameCtx;
+    const tileSize = 16; // 原始地磚大小
+
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const tile = this.getTile(col, row);
+        const x = col * tileSize;
+        const y = row * tileSize;
+
+        // 根據地磚類型繪製
+        this.renderTile(ctx, tile, x, y);
+      }
+    }
+  },
+
+  /**
+   * 渲染單個地磚
+   */
+  renderTile(ctx, tile, x, y) {
+    const PA = DK.PixelArt;
+    const C = DK.COLORS || {};
+
+    // 使用簡化的顏色渲染（Phase 1 簡化版）
+    const colors = {
+      'W': C.WALL_MID || '#2d2d44',
+      '.': C.FLOOR_MID || '#5e5648',
+      'O': C.OUTER || '#050508',
+      'H': C.UI_HP || '#ff4444',
+      'E': '#44aa44', // 傳送門綠色
+      'P': '#2a4a7a', // 水潭藍色
+      'A': '#050508', // 深淵黑色
+      'G': '#2a5a2a', // 草叢綠色
+      'R': '#7a7a8e', // 軌道灰色
+      'B': '#5a5a6e'  // 路障灰色
+    };
+
+    const color = colors[tile] || colors['.'];
+    PA.rect(ctx, x, y, 16, 16, color);
+  }
+};

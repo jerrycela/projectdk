@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectDK - 關卡編輯器</title>
+  <link rel="stylesheet" href="css/editor.css">
+</head>
+<body>
+  <!-- 標題列 -->
+  <header class="editor-header">
+    <h1>🎮 ProjectDK 關卡編輯器</h1>
+    <div class="header-actions">
+      <span id="levelName">新關卡</span>
+      <button id="btnSave" title="Ctrl+S">💾 儲存</button>
+      <button id="btnExport" title="匯出 JSON">📤 匯出</button>
+      <button id="btnImport" title="匯入 JSON">📥 匯入</button>
+      <button id="btnTest" title="Ctrl+T">🧪 測試</button>
+    </div>
+  </header>
+
+  <!-- 主要內容區 -->
+  <div class="editor-container">
+    <!-- 左側工具列 -->
+    <aside class="tool-panel">
+      <h3>地磚 Palette</h3>
+      <div id="tilePalette" class="tile-palette">
+        <!-- 由 JS 動態生成 -->
+      </div>
+
+      <h3 style="margin-top: 20px;">工具</h3>
+      <div class="tool-buttons">
+        <button id="toolPaint" class="tool-btn active" title="P">🖌️ 畫筆</button>
+        <button id="toolFill" class="tool-btn" title="F">🪣 填充</button>
+        <button id="toolErase" class="tool-btn" title="E">🧹 橡皮擦</button>
+        <button id="toolPicker" class="tool-btn" title="Q">💉 吸管</button>
+      </div>
+
+      <h3 style="margin-top: 20px;">畫筆大小</h3>
+      <div class="brush-size">
+        <button id="brush1" class="brush-btn active" title="1">1×1</button>
+        <button id="brush2" class="brush-btn" title="2">2×2</button>
+        <button id="brush3" class="brush-btn" title="3">3×3</button>
+      </div>
+
+      <h3 style="margin-top: 20px;">編輯</h3>
+      <div class="edit-buttons">
+        <button id="btnUndo" title="Ctrl+Z">↶ Undo</button>
+        <button id="btnRedo" title="Ctrl+Y">↷ Redo</button>
+        <button id="btnClear">🗑️ 清空</button>
+      </div>
+    </aside>
+
+    <!-- 中間 Canvas 編輯區 -->
+    <main class="canvas-area">
+      <div class="canvas-container">
+        <!-- 低解析度地圖 Canvas -->
+        <canvas id="game-canvas" width="320" height="208"></canvas>
+        <!-- 高解析度 UI Canvas -->
+        <canvas id="ui-canvas" width="960" height="624"></canvas>
+      </div>
+
+      <!-- 狀態列 -->
+      <div class="status-bar">
+        <span id="statusTool">當前工具: 畫筆(W)</span>
+        <span id="statusCoord">座標: (0, 0)</span>
+        <span id="statusDirty">未儲存變更</span>
+      </div>
+    </main>
+
+    <!-- 右側面板 -->
+    <aside class="side-panel">
+      <div class="panel-tabs">
+        <button class="tab-btn active" data-tab="params">全局參數</button>
+        <button class="tab-btn" data-tab="portals">傳送門</button>
+      </div>
+
+      <!-- 全局參數 Tab -->
+      <div id="tabParams" class="tab-content active">
+        <h3>關卡參數</h3>
+
+        <label>關卡名稱</label>
+        <input type="text" id="inputLevelName" value="新關卡" maxlength="50">
+
+        <label>起始金幣</label>
+        <input type="number" id="inputGold" value="1000" min="100" max="9999">
+        <small>建議: 300-2000</small>
+
+        <label>地心生命值</label>
+        <input type="number" id="inputHeartHP" value="100" min="50" max="500">
+        <small>建議: 50-200</small>
+
+        <label>地圖尺寸</label>
+        <select id="selectMapSize">
+          <option value="20x13" selected>20×13（預設）</option>
+          <option value="40x26">40×26（大地圖）</option>
+          <option value="custom">自訂</option>
+        </select>
+
+        <div id="customSizeInputs" style="display: none;">
+          <label>寬度（cols）</label>
+          <input type="number" id="inputCols" value="20" min="10" max="60">
+          <label>高度（rows）</label>
+          <input type="number" id="inputRows" value="13" min="10" max="40">
+        </div>
+      </div>
+
+      <!-- 傳送門 Tab -->
+      <div id="tabPortals" class="tab-content">
+        <h3>傳送門管理</h3>
+        <p style="color: #8a8070;">Phase 2 實作中...</p>
+        <div id="portalList">
+          <!-- 由 JS 動態生成 -->
+        </div>
+        <button id="btnAddPortal" disabled>+ 新增傳送門</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 共用 JS（遊戲核心） -->
+  <script src="js/config.js"></script>
+  <script src="js/DK.PixelArt.js"></script>
+
+  <!-- 編輯器 JS -->
+  <script src="js/editor/editor-main.js"></script>
+  <script src="js/editor/editor-tools.js"></script>
+  <script src="js/editor/editor-ui.js"></script>
+  <script src="js/editor/editor-storage.js"></script>
+
+  <!-- 初始化 -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      DK.Editor.init();
+    });
+  </script>
+</body>
+</html>
