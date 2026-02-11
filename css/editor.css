@@ -90,6 +90,8 @@ button.active {
   border-right: 2px solid #4a3e6e; /* UI_BORDER */
   padding: 20px;
   overflow-y: auto;
+  height: calc(100vh - 60px); /* 扣除頂部標題列高度 */
+  max-height: calc(100vh - 60px);
 }
 
 .tool-panel h3 {
@@ -100,45 +102,138 @@ button.active {
   padding-bottom: 5px;
 }
 
-/* Tile Palette */
-.tile-palette {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+/* === 分類工具欄系統 === */
+.category-toolbar {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-bottom: 20px;
+  /* 移除 max-height 限制，讓內容自然擴展，由 .tool-panel 統一控制滾動 */
+}
+
+.category-panel {
+  background: #2d2d44;
+  border: 2px solid #4a3e6e;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #3a3a54;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.category-header:hover {
+  background: #4a4a64;
+}
+
+.category-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.category-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.category-toggle {
+  font-size: 12px;
+  color: #8a8070;
+  transition: transform 0.2s;
+}
+
+.category-tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 6px;
+  background: #2d2d44;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+/* Tile Palette (舊版，保留為向後兼容) */
+.tile-palette {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 20px;
+  /* 移除 max-height 限制，讓內容自然擴展，由 .tool-panel 統一控制滾動 */
 }
 
 .tile-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  padding: 8px;
-  background: #2d2d44;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #3a3a54;
   border: 2px solid #4a3e6e;
   cursor: pointer;
   transition: all 0.2s;
+  border-radius: 4px;
 }
 
 .tile-btn:hover {
   border-color: #6a5e8e;
-  transform: scale(1.05);
+  transform: translateX(2px);
+  background: #4a4a64;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .tile-btn.active {
   border-color: #ffaa44; /* UI_SELECTED */
-  background: #3e3e5a;
+  background: #5a5a74;
+  box-shadow: 0 0 12px rgba(255, 170, 68, 0.5);
+  transform: translateX(2px);
 }
 
-.tile-color {
+.tile-preview {
   width: 32px;
   height: 32px;
   border: 1px solid #4a3e6e;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #1a1828;
 }
 
-.tile-btn span {
-  font-size: 12px;
-  font-weight: bold;
+.tile-label {
+  text-align: left;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.tile-label strong {
+  font-size: 14px;
+  color: #ffd700;
+  display: inline-block;
+  min-width: 20px;
+  margin-right: 8px;
+}
+
+.tile-label small {
+  font-size: 11px;
   color: #e8e0d0;
 }
 
@@ -150,11 +245,46 @@ button.active {
   gap: 8px;
 }
 
-.tool-btn,
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  text-align: left;
+  position: relative;
+}
+
+.tool-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.tool-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.tool-shortcut {
+  font-size: 11px;
+  background: #2d2d44;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #8a8070;
+  border: 1px solid #4a3e6e;
+}
+
+.tool-btn.active .tool-shortcut {
+  background: #12101e;
+  color: #ffaa44;
+  border-color: #ffaa44;
+}
+
 .brush-btn {
   padding: 10px;
   font-size: 13px;
-  text-align: left;
+  text-align: center;
 }
 
 .brush-size {
@@ -181,6 +311,10 @@ button.active {
 
 .canvas-container {
   position: relative;
+  width: 100%;
+  max-width: 2560px;
+  height: auto;
+  aspect-ratio: 2560 / 1664; /* 維持 40:26 比例 */
   border: 3px solid #4a3e6e; /* UI_BORDER */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
@@ -190,6 +324,8 @@ button.active {
   position: absolute;
   top: 0;
   left: 0;
+  width: 100% !important;
+  height: 100% !important;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
@@ -214,7 +350,7 @@ button.active {
   font-size: 14px;
   border-radius: 4px;
   width: 100%;
-  max-width: 960px;
+  max-width: 2560px;
 }
 
 .status-bar span {
@@ -357,6 +493,27 @@ small {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #6a5e8e;
+}
+
+/* 工具面板專用滾動條（更明顯） */
+.tool-panel::-webkit-scrollbar {
+  width: 12px;
+}
+
+.tool-panel::-webkit-scrollbar-track {
+  background: #12101e;
+  border-radius: 6px;
+}
+
+.tool-panel::-webkit-scrollbar-thumb {
+  background: #4a3e6e;
+  border-radius: 6px;
+  border: 2px solid #1e1a2e;
+}
+
+.tool-panel::-webkit-scrollbar-thumb:hover {
+  background: #ffd700;
+  border-color: #12101e;
 }
 
 /* === Phase 2: Modal 樣式 === */
@@ -593,4 +750,110 @@ small {
 .btn-add-enemy:hover,
 .btn-add-wave:hover {
   background: #5e8e6a;
+}
+
+/* === 任務 #3: 工具狀態視覺化增強 === */
+
+/* 工具按鈕增強樣式 */
+.tool-btn {
+  padding: 10px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  position: relative;
+}
+
+.tool-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tool-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.tool-shortcut {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(255, 170, 68, 0.2);
+  border: 1px solid rgba(255, 170, 68, 0.4);
+  border-radius: 3px;
+  color: #ffaa44;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover .tool-shortcut {
+  background: rgba(255, 170, 68, 0.3);
+  border-color: #ffaa44;
+}
+
+.tool-btn.active .tool-shortcut {
+  background: #ffaa44;
+  color: #12101e;
+  border-color: #ffaa44;
+}
+
+/* Hover 時顯示地磚預覽 */
+.tile-hover-preview {
+  position: absolute;
+  top: 8px;
+  left: 100%;
+  margin-left: 12px;
+  background: #1e1a2e;
+  border: 2px solid #ffaa44;
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.tile-hover-preview canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 1px solid #4a3e6e;
+}
+
+.tile-hover-preview-label {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* 游標樣式改善 */
+#ui-canvas {
+  cursor: crosshair;
+}
+
+#ui-canvas.tool-paint {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="6" fill="rgba(255,170,68,0.5)" stroke="%23ffaa44" stroke-width="2"/></svg>') 12 12, crosshair;
+}
+
+#ui-canvas.tool-fill {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect x="8" y="8" width="12" height="12" fill="rgba(255,170,68,0.5)" stroke="%23ffaa44" stroke-width="2"/></svg>') 12 12, crosshair;
+}
+
+#ui-canvas.tool-erase {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><path d="M 10 8 L 16 14 L 14 16 L 8 10 Z" fill="rgba(255,68,68,0.5)" stroke="%23ff4444" stroke-width="2"/></svg>') 12 12, crosshair;
+}
+
+#ui-canvas.tool-picker {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="4" fill="none" stroke="%2344aaff" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="16" stroke="%2344aaff" stroke-width="2"/><line x1="8" y1="12" x2="16" y2="12" stroke="%2344aaff" stroke-width="2"/></svg>') 12 12, crosshair;
 }

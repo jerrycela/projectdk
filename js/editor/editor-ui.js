@@ -28,77 +28,234 @@ DK.EditorUI = {
     { id: 'Z', name: '魔法門', color: '#aa44ff' }
   ],
 
+  // === 分類工具欄結構 ===
+  categories: [
+    {
+      id: 'terrain',
+      icon: '🟫',
+      name: '基礎地形',
+      expanded: true,
+      tiles: ['W', '.', 'O', 'B', 'A']
+    },
+    {
+      id: 'room',
+      icon: '🏠',
+      name: '房間設施',
+      expanded: true,
+      tiles: ['H', 'E', 'M']
+    },
+    {
+      id: 'portal',
+      icon: '🚪',
+      name: '傳送路徑',
+      expanded: false,
+      tiles: ['E', 'M', 'D', 'I', 'Z']
+    },
+    {
+      id: 'decoration',
+      icon: '✨',
+      name: '裝飾物件',
+      expanded: false,
+      tiles: ['T', 'C', 'L', 'S', 'U', 'F', 'X']
+    },
+    {
+      id: 'special',
+      icon: '🌊',
+      name: '特殊地形',
+      expanded: false,
+      tiles: ['P', 'G']
+    },
+    {
+      id: 'defense',
+      icon: '🛡️',
+      name: '防禦設施',
+      expanded: false,
+      tiles: ['D', 'I', 'Z']
+    }
+  ],
+
+  // === 分類展開狀態儲存 ===
+  categoryStates: {},
+
   /**
    * 初始化 UI 系統
    */
   init() {
     console.log('🎨 初始化編輯器 UI...');
 
-    // 1. 渲染 Tile Palette
-    this.renderTilePalette();
+    // 1. 初始化分類狀態
+    this.initCategoryStates();
 
-    // 2. 設置 Tab 切換
+    // 2. 渲染分類工具欄
+    this.renderCategoryToolbar();
+
+    // 3. 設置 Tab 切換
     this.setupTabs();
 
-    // 3. 設置參數輸入事件
+    // 4. 設置參數輸入事件
     this.setupParamInputs();
 
     console.log('✅ 編輯器 UI 初始化完成');
   },
 
   /**
-   * 渲染 Tile Palette（使用真實地磚預覽）
+   * 初始化分類展開狀態（從 localStorage 讀取或使用預設值）
    */
-  renderTilePalette() {
+  initCategoryStates() {
+    const saved = localStorage.getItem('dk_editor_category_states');
+    if (saved) {
+      try {
+        this.categoryStates = JSON.parse(saved);
+      } catch (e) {
+        console.warn('無法讀取分類狀態，使用預設值');
+        this.categoryStates = {};
+      }
+    }
+
+    // 套用預設展開狀態
+    this.categories.forEach(cat => {
+      if (this.categoryStates[cat.id] === undefined) {
+        this.categoryStates[cat.id] = cat.expanded;
+      }
+    });
+  },
+
+  /**
+   * 儲存分類展開狀態
+   */
+  saveCategoryStates() {
+    localStorage.setItem('dk_editor_category_states', JSON.stringify(this.categoryStates));
+  },
+
+  /**
+   * 渲染分類工具欄（替代原 renderTilePalette）
+   */
+  renderCategoryToolbar() {
     const container = document.getElementById('tilePalette');
     if (!container) return;
 
     container.innerHTML = '';
+    container.className = 'category-toolbar';
 
+    // 建立 Tile ID → Tile 物件的快速查找表
+    const tileMap = {};
     this.tiles.forEach(tile => {
-      const btn = document.createElement('button');
-      btn.className = 'tile-btn';
-      btn.dataset.tile = tile.id;
-      btn.title = tile.name;
+      tileMap[tile.id] = tile;
+    });
 
-      // 創建 canvas 預覽
-      const canvas = document.createElement('canvas');
-      canvas.width = 32;
-      canvas.height = 32;
-      canvas.className = 'tile-preview';
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingEnabled = false;
+    // 渲染每個分類
+    this.categories.forEach(category => {
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'category-panel';
+      categoryDiv.dataset.categoryId = category.id;
 
-      // 繪製真實地磚預覽（2倍大小）
-      if (DK.Editor && DK.Editor.renderTile) {
-        ctx.save();
-        ctx.scale(2, 2);
-        DK.Editor.renderTile.call(DK.Editor, ctx, tile.id, 0, 0);
-        ctx.restore();
-      }
+      // 分類標題（可折疊）
+      const header = document.createElement('div');
+      header.className = 'category-header';
+      header.innerHTML = `
+        <span class="category-icon">${category.icon}</span>
+        <span class="category-name">${category.name}</span>
+        <span class="category-toggle">${this.categoryStates[category.id] ? '▼' : '▶'}</span>
+      `;
 
-      btn.appendChild(canvas);
-
-      // 名稱和符號
-      const label = document.createElement('div');
-      label.className = 'tile-label';
-      label.innerHTML = `<strong>${tile.id}</strong><br><small>${tile.name}</small>`;
-      btn.appendChild(label);
-
-      // 點擊事件
-      btn.addEventListener('click', () => {
-        DK.Editor.selectedTile = tile.id;
-        DK.Editor.selectedTool = 'paint';
-        this.updateTilePalette();
-        if (DK.EditorTools && DK.EditorTools.updateToolButtons) {
-          DK.EditorTools.updateToolButtons();
-        }
+      // 點擊標題折疊/展開
+      header.addEventListener('click', () => {
+        this.toggleCategory(category.id);
       });
 
-      container.appendChild(btn);
+      categoryDiv.appendChild(header);
+
+      // 工具按鈕容器
+      const tilesContainer = document.createElement('div');
+      tilesContainer.className = 'category-tiles';
+      if (!this.categoryStates[category.id]) {
+        tilesContainer.style.display = 'none';
+      }
+
+      // 渲染該分類的所有地磚
+      category.tiles.forEach(tileId => {
+        const tile = tileMap[tileId];
+        if (!tile) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'tile-btn';
+        btn.dataset.tile = tile.id;
+        btn.title = tile.name;
+
+        // 創建 canvas 預覽
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        canvas.className = 'tile-preview';
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        // 繪製真實地磚預覽（2倍大小）
+        if (DK.Editor && DK.Editor.renderTile) {
+          ctx.save();
+          ctx.scale(2, 2);
+          DK.Editor.renderTile.call(DK.Editor, ctx, tile.id, 0, 0);
+          ctx.restore();
+        }
+
+        btn.appendChild(canvas);
+
+        // 名稱和符號
+        const label = document.createElement('div');
+        label.className = 'tile-label';
+        label.innerHTML = `<strong>${tile.id}</strong><br><small>${tile.name}</small>`;
+        btn.appendChild(label);
+
+        // 點擊事件
+        btn.addEventListener('click', () => {
+          DK.Editor.selectedTile = tile.id;
+          DK.Editor.selectedTool = 'paint';
+          this.updateTilePalette();
+          if (DK.EditorTools && DK.EditorTools.updateToolButtons) {
+            DK.EditorTools.updateToolButtons();
+          }
+        });
+
+        tilesContainer.appendChild(btn);
+      });
+
+      categoryDiv.appendChild(tilesContainer);
+      container.appendChild(categoryDiv);
     });
 
     this.updateTilePalette();
+  },
+
+  /**
+   * 切換分類展開/折疊
+   */
+  toggleCategory(categoryId) {
+    // 更新狀態
+    this.categoryStates[categoryId] = !this.categoryStates[categoryId];
+    this.saveCategoryStates();
+
+    // 更新 UI
+    const categoryDiv = document.querySelector(`[data-category-id="${categoryId}"]`);
+    if (!categoryDiv) return;
+
+    const tilesContainer = categoryDiv.querySelector('.category-tiles');
+    const toggle = categoryDiv.querySelector('.category-toggle');
+
+    if (this.categoryStates[categoryId]) {
+      tilesContainer.style.display = 'grid';
+      toggle.textContent = '▼';
+    } else {
+      tilesContainer.style.display = 'none';
+      toggle.textContent = '▶';
+    }
+  },
+
+  /**
+   * 渲染 Tile Palette（舊版，保留為向後兼容）
+   */
+  renderTilePalette() {
+    // 已被 renderCategoryToolbar 替代
+    this.renderCategoryToolbar();
   },
 
   /**
@@ -242,19 +399,29 @@ DK.EditorUI = {
   },
 
   /**
-   * 渲染 Hover 高亮
+   * 渲染 Hover 高亮（含實際地磚預覽）
    */
   renderHover(ctx, tileSize) {
     const { col, row } = DK.Editor.mouse;
 
     // 邊界檢查
-    if (col < 0 || col >= DK.Editor.cols || row < 0 || row >= DK.Editor.rows) return;
+    if (col < 0 || col >= DK.Editor.cols || row < 0 || row >= DK.Editor.rows) {
+      this.removeHoverPreview();
+      return;
+    }
 
     // 半透明高亮
     ctx.fillStyle = 'rgba(255, 170, 68, 0.3)'; // UI_SELECTED with alpha
 
     if (DK.Editor.brushSize === 1) {
       ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+
+      // 只在畫筆工具時顯示預覽
+      if (DK.Editor.selectedTool === 'paint') {
+        this.showTilePreview(col, row, tileSize);
+      } else {
+        this.removeHoverPreview();
+      }
     } else {
       // 多格畫筆高亮
       const halfSize = Math.floor(DK.Editor.brushSize / 2);
@@ -267,12 +434,83 @@ DK.EditorUI = {
           }
         }
       }
+      this.removeHoverPreview();
     }
 
     // 邊框
     ctx.strokeStyle = '#ffaa44'; // UI_SELECTED
     ctx.lineWidth = 2;
     ctx.strokeRect(col * tileSize, row * tileSize, tileSize, tileSize);
+  },
+
+  /**
+   * 顯示實際地磚預覽（Hover 時）
+   */
+  showTilePreview(col, row, tileSize) {
+    // 移除舊的預覽
+    this.removeHoverPreview();
+
+    // 創建預覽容器
+    const preview = document.createElement('div');
+    preview.className = 'tile-hover-preview';
+    preview.id = 'tileHoverPreview';
+
+    // 創建預覽 canvas（顯示 64x64 像素，實際繪製 16x16 後放大 4 倍）
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const previewCtx = canvas.getContext('2d');
+    previewCtx.imageSmoothingEnabled = false;
+
+    // 繪製地磚預覽（放大 4 倍）
+    if (DK.Editor && DK.Editor.renderTile) {
+      previewCtx.save();
+      previewCtx.scale(4, 4);
+      DK.Editor.renderTile.call(DK.Editor, previewCtx, DK.Editor.selectedTile, 0, 0);
+      previewCtx.restore();
+    }
+
+    // 加入標籤
+    const label = document.createElement('div');
+    label.className = 'tile-hover-preview-label';
+    const tileName = this.getTileName(DK.Editor.selectedTile);
+    label.textContent = `${DK.Editor.selectedTile} - ${tileName}`;
+
+    preview.appendChild(canvas);
+    preview.appendChild(label);
+
+    // 計算位置（相對於 UI canvas）
+    const uiCanvas = document.getElementById('ui-canvas');
+
+    // 預覽框位置：滑鼠游標右側
+    const x = col * tileSize + tileSize + 12; // 相對於 canvas 的 X
+    const y = row * tileSize + 8; // 相對於 canvas 的 Y
+
+    preview.style.position = 'absolute';
+    preview.style.left = `${x}px`;
+    preview.style.top = `${y}px`;
+
+    // 添加到 canvas 容器
+    const container = uiCanvas.parentElement;
+    container.appendChild(preview);
+  },
+
+  /**
+   * 移除 Hover 預覽
+   */
+  removeHoverPreview() {
+    const preview = document.getElementById('tileHoverPreview');
+    if (preview) {
+      preview.remove();
+    }
+  },
+
+  /**
+   * 取得地磚名稱
+   */
+  getTileName(tileId) {
+    const tile = this.tiles.find(t => t.id === tileId);
+    return tile ? tile.name : '未知';
   },
 
   /**

@@ -37,9 +37,22 @@ DK.Editor = {
     lastPaintedRow: -1
   },
 
+  // === 視角控制 ===
+  camera: {
+    x: 0,              // 視角偏移 X（格數）
+    y: 0,              // 視角偏移 Y（格數）
+    zoom: 1.0,         // 縮放倍率（0.5 - 2.0）
+    isDragging: false, // 是否正在拖曳
+    dragStartX: 0,     // 拖曳起始點 X（螢幕座標）
+    dragStartY: 0,     // 拖曳起始點 Y（螢幕座標）
+    dragStartCameraX: 0,
+    dragStartCameraY: 0
+  },
+
   // === 渲染 ===
   tileCache: null,         // 地磚快取（預渲染的 canvas）
   animationFrame: null,
+  spacePressed: false,     // 空白鍵是否按下
 
   /**
    * 初始化編輯器
@@ -81,10 +94,18 @@ DK.Editor = {
       DK.EditorWave.init();
     }
 
-    // 8. 設置事件監聽
+    // 9. 初始化小地圖（由 editor-minimap.js 處理）
+    if (DK.EditorMinimap && DK.EditorMinimap.init) {
+      DK.EditorMinimap.init();
+    }
+
+    // 10. 設置事件監聽
     this.setupEventListeners();
 
-    // 9. 啟動渲染循環
+    // 11. 設置視角控制
+    this.setupCameraControls();
+
+    // 12. 啟動渲染循環
     this.startRenderLoop();
 
     console.log('✅ 編輯器初始化完成');
@@ -104,13 +125,7 @@ DK.Editor = {
     this.uiCtx = this.uiCanvas.getContext('2d');
     this.uiCtx.imageSmoothingEnabled = false;
 
-    // 設置 Canvas 樣式（4x 縮放）
-    const scale = 4;
-    this.gameCanvas.style.width = `${this.gameCanvas.width * scale}px`;
-    this.gameCanvas.style.height = `${this.gameCanvas.height * scale}px`;
-    this.uiCanvas.style.width = `${this.uiCanvas.width}px`;
-    this.uiCanvas.style.height = `${this.uiCanvas.height}px`;
-
+    // Canvas 樣式現在由 CSS 處理（響應式縮放）
     console.log('✅ Canvas 初始化完成');
   },
 
@@ -176,6 +191,7 @@ DK.Editor = {
 
     // 鍵盤快捷鍵
     document.addEventListener('keydown', this.onKeyDown.bind(this));
+    document.addEventListener('keyup', this.onKeyUp.bind(this));
 
     // 按鈕事件
     document.getElementById('btnSave')?.addEventListener('click', () => this.save());
@@ -187,9 +203,34 @@ DK.Editor = {
   },
 
   /**
+   * 設置視角控制
+   */
+  setupCameraControls() {
+    // 滑鼠滾輪縮放
+    this.uiCanvas.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+
+    console.log('✅ 視角控制設置完成');
+  },
+
+  /**
    * 滑鼠按下
    */
   onMouseDown(e) {
+    // 檢查是否為視角拖曳（中鍵 或 空白鍵+左鍵）
+    const isMiddleButton = e.button === 1;
+    const isSpaceLeftClick = e.button === 0 && this.spacePressed;
+
+    if (isMiddleButton || isSpaceLeftClick) {
+      e.preventDefault();
+      this.camera.isDragging = true;
+      this.camera.dragStartX = e.clientX;
+      this.camera.dragStartY = e.clientY;
+      this.camera.dragStartCameraX = this.camera.x;
+      this.camera.dragStartCameraY = this.camera.y;
+      this.uiCanvas.style.cursor = 'grabbing';
+      return;
+    }
+
     this.mouse.isDown = true;
     this.updateMousePosition(e);
     this.handlePaint();
@@ -199,6 +240,33 @@ DK.Editor = {
    * 滑鼠移動
    */
   onMouseMove(e) {
+    // 處理視角拖曳
+    if (this.camera.isDragging) {
+      const deltaX = e.clientX - this.camera.dragStartX;
+      const deltaY = e.clientY - this.camera.dragStartY;
+
+      // 計算實際顯示比例
+      const rect = this.uiCanvas.getBoundingClientRect();
+      const scaleX = this.uiCanvas.width / rect.width;
+      const scaleY = this.uiCanvas.height / rect.height;
+
+      // 計算新的 camera 位置（考慮縮放和實際顯示比例）
+      const tileSize = 16; // 原始地磚大小
+      const tilesPerCanvasUnit = 1 / (tileSize * 4); // ui canvas 是 4x scale
+
+      this.camera.x = this.camera.dragStartCameraX - (deltaX * scaleX * tilesPerCanvasUnit) / this.camera.zoom;
+      this.camera.y = this.camera.dragStartCameraY - (deltaY * scaleY * tilesPerCanvasUnit) / this.camera.zoom;
+
+      // 邊界限制（計算當前視野可顯示的地磚數量）
+      const viewportCols = this.gameCanvas.width / tileSize / this.camera.zoom;
+      const viewportRows = this.gameCanvas.height / tileSize / this.camera.zoom;
+
+      this.camera.x = Math.max(0, Math.min(this.camera.x, this.cols - viewportCols));
+      this.camera.y = Math.max(0, Math.min(this.camera.y, this.rows - viewportRows));
+
+      return;
+    }
+
     this.updateMousePosition(e);
     if (this.mouse.isDown) {
       this.handlePaint();
@@ -209,6 +277,13 @@ DK.Editor = {
    * 滑鼠放開
    */
   onMouseUp(e) {
+    // 結束視角拖曳
+    if (this.camera.isDragging) {
+      this.camera.isDragging = false;
+      this.uiCanvas.style.cursor = this.spacePressed ? 'grab' : 'default';
+      return;
+    }
+
     this.mouse.isDown = false;
     this.mouse.lastPaintedCol = -1;
     this.mouse.lastPaintedRow = -1;
@@ -221,6 +296,8 @@ DK.Editor = {
     this.mouse.col = -1;
     this.mouse.row = -1;
     this.mouse.isDown = false;
+    this.camera.isDragging = false;
+    this.uiCanvas.style.cursor = 'default';
   },
 
   /**
@@ -231,10 +308,76 @@ DK.Editor = {
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
 
-    // 計算地磚座標（64px per tile = 16px * 4 scale）
-    const tileSize = 64; // DISPLAY_TILE
-    this.mouse.col = Math.floor(canvasX / tileSize);
-    this.mouse.row = Math.floor(canvasY / tileSize);
+    // 計算實際顯示比例（響應式 canvas）
+    const scaleX = this.uiCanvas.width / rect.width;
+    const scaleY = this.uiCanvas.height / rect.height;
+
+    // 轉換為 canvas 內部座標
+    const internalX = canvasX * scaleX;
+    const internalY = canvasY * scaleY;
+
+    // 轉換為地磚座標（考慮 camera 偏移和 zoom）
+    const tileSize = 16; // 原始地磚大小
+    const tilesPerCanvasUnit = 1 / (tileSize * 4); // ui canvas 是 4x scale
+
+    this.mouse.col = Math.floor((internalX * tilesPerCanvasUnit) / this.camera.zoom + this.camera.x);
+    this.mouse.row = Math.floor((internalY * tilesPerCanvasUnit) / this.camera.zoom + this.camera.y);
+  },
+
+  /**
+   * 滑鼠滾輪（縮放）
+   */
+  onWheel(e) {
+    e.preventDefault();
+
+    // 計算縮放變化
+    const deltaZoom = e.deltaY > 0 ? -0.1 : 0.1;
+    const oldZoom = this.camera.zoom;
+    this.camera.zoom = Math.max(0.5, Math.min(2.0, this.camera.zoom + deltaZoom));
+
+    // 如果縮放倍率有變化，調整 camera 位置使滑鼠位置保持不變
+    if (this.camera.zoom !== oldZoom) {
+      const rect = this.uiCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // 計算實際顯示比例
+      const scaleX = this.uiCanvas.width / rect.width;
+      const scaleY = this.uiCanvas.height / rect.height;
+
+      const tileSize = 16;
+      const tilesPerCanvasUnit = 1 / (tileSize * 4);
+
+      // 轉換為 canvas 內部座標
+      const internalX = mouseX * scaleX;
+      const internalY = mouseY * scaleY;
+
+      // 計算滑鼠在地圖上的位置（縮放前）
+      const mapX = (internalX * tilesPerCanvasUnit) / oldZoom + this.camera.x;
+      const mapY = (internalY * tilesPerCanvasUnit) / oldZoom + this.camera.y;
+
+      // 調整 camera 使滑鼠位置不變
+      this.camera.x = mapX - (internalX * tilesPerCanvasUnit) / this.camera.zoom;
+      this.camera.y = mapY - (internalY * tilesPerCanvasUnit) / this.camera.zoom;
+
+      // 邊界限制
+      const viewportCols = this.gameCanvas.width / tileSize / this.camera.zoom;
+      const viewportRows = this.gameCanvas.height / tileSize / this.camera.zoom;
+      this.camera.x = Math.max(0, Math.min(this.camera.x, this.cols - viewportCols));
+      this.camera.y = Math.max(0, Math.min(this.camera.y, this.rows - viewportRows));
+    }
+  },
+
+  /**
+   * 鍵盤按鍵放開
+   */
+  onKeyUp(e) {
+    if (e.code === 'Space') {
+      this.spacePressed = false;
+      if (!this.camera.isDragging) {
+        this.uiCanvas.style.cursor = 'default';
+      }
+    }
   },
 
   /**
@@ -246,8 +389,31 @@ DK.Editor = {
     // 邊界檢查
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return;
 
-    // 避免重複繪製同一格
-    if (col === this.mouse.lastPaintedCol && row === this.mouse.lastPaintedRow) return;
+    // 避免重複繪製（包含 2×2 物件範圍檢查）
+    if (this.selectedTool === 'paint') {
+      const is2x2Tile = this.selectedTile === 'H' || this.selectedTile === 'E' || this.selectedTile === 'M';
+
+      if (is2x2Tile) {
+        // 對於 2×2 物件，檢查是否在上次放置的 2×2 範圍內
+        const lastCol = this.mouse.lastPaintedCol;
+        const lastRow = this.mouse.lastPaintedRow;
+
+        // 如果當前位置在上次放置的左上角 2×2 範圍內，跳過
+        if (lastCol >= 0 && lastRow >= 0) {
+          // 計算上次放置的左上角座標（lastPainted 記錄的是右下角）
+          const lastLeftCol = lastCol - 1;
+          const lastTopRow = lastRow - 1;
+
+          if (col >= lastLeftCol && col <= lastCol &&
+              row >= lastTopRow && row <= lastRow) {
+            return; // 在上次放置的 2×2 範圍內，跳過
+          }
+        }
+      } else {
+        // 普通地磚，檢查是否是同一格
+        if (col === this.mouse.lastPaintedCol && row === this.mouse.lastPaintedRow) return;
+      }
+    }
 
     // 根據工具類型處理
     if (this.selectedTool === 'paint') {
@@ -276,35 +442,46 @@ DK.Editor = {
    * 繪製地磚
    */
   paintTile(col, row) {
-    // 特殊處理：2×2 傳送門自動放置
-    if (this.selectedTile === 'E' || this.selectedTile === 'M') {
+    // 特殊處理：2×2 物件（地城之心、傳送門）自動放置
+    const is2x2Object = this.selectedTile === 'H' || this.selectedTile === 'E' || this.selectedTile === 'M';
+
+    if (is2x2Object) {
       // 驗證是否有足夠空間放置 2×2
       if (col + 1 >= this.cols || row + 1 >= this.rows) {
-        console.warn('⚠️ 傳送門需要 2×2 空間，位置超出地圖邊界');
+        const name = this.selectedTile === 'H' ? '地城之心' : '傳送門';
+        console.warn(`⚠️ ${name}需要 2×2 空間，位置超出地圖邊界`);
         return;
       }
 
-      // 檢查 2×2 區域是否可用（必須是空地板或相同類型傳送門）
+      // 檢查 2×2 區域是否可用（必須是空地板或相同類型物件）
       for (let dy = 0; dy < 2; dy++) {
         for (let dx = 0; dx < 2; dx++) {
           const checkCol = col + dx;
           const checkRow = row + dy;
           const existingTile = this.getTile(checkCol, checkRow);
 
-          // 允許覆蓋：地板、相同類型傳送門
+          // 允許覆蓋：地板、相同類型物件
           if (existingTile !== '.' && existingTile !== this.selectedTile) {
-            console.warn(`⚠️ 傳送門放置失敗：(${checkCol}, ${checkRow}) 已被 '${existingTile}' 佔用`);
+            const name = this.selectedTile === 'H' ? '地城之心' : '傳送門';
+            console.warn(`⚠️ ${name}放置失敗：(${checkCol}, ${checkRow}) 已被 '${existingTile}' 佔用`);
             return;
           }
         }
       }
 
-      // 自動放置 2×2 傳送門
+      // 自動放置 2×2 物件
       this.setTile(col, row, this.selectedTile);
       this.setTile(col + 1, row, this.selectedTile);
       this.setTile(col, row + 1, this.selectedTile);
       this.setTile(col + 1, row + 1, this.selectedTile);
-      console.log(`✅ 2×2 傳送門已放置於 (${col}, ${row})`);
+
+      // 更新 lastPainted 為右下角座標，防止拖曳時在 2×2 範圍內重複放置
+      this.mouse.lastPaintedCol = col + 1;
+      this.mouse.lastPaintedRow = row + 1;
+
+      const name = this.selectedTile === 'H' ? '地城之心' :
+                   this.selectedTile === 'E' ? '入口傳送門' : '出口傳送門';
+      console.log(`✅ 2×2 ${name}已放置於 (${col}, ${row})`);
       return;
     }
 
@@ -323,23 +500,28 @@ DK.Editor = {
   },
 
   /**
-   * 刪除地磚（智能處理 2×2 傳送門）
+   * 刪除地磚（智能處理 2×2 物件：地城之心、傳送門）
    */
   eraseTile(col, row) {
     const tile = this.getTile(col, row);
 
-    // 檢查是否為傳送門
-    if (tile === 'E' || tile === 'M') {
-      // 尋找 2×2 傳送門的錨點（左上角）
-      const anchor = this.findPortalAnchor(col, row, tile);
+    // 檢查是否為 2×2 物件（地城之心或傳送門）
+    const is2x2Object = tile === 'H' || tile === 'E' || tile === 'M';
+
+    if (is2x2Object) {
+      // 尋找 2×2 物件的錨點（左上角）
+      const anchor = this.find2x2Anchor(col, row, tile);
 
       if (anchor) {
-        // 刪除整個 2×2 傳送門
+        // 刪除整個 2×2 物件
         this.setTile(anchor.col, anchor.row, '.');
         this.setTile(anchor.col + 1, anchor.row, '.');
         this.setTile(anchor.col, anchor.row + 1, '.');
         this.setTile(anchor.col + 1, anchor.row + 1, '.');
-        console.log(`🗑️ 刪除 2×2 傳送門於 (${anchor.col}, ${anchor.row})`);
+
+        const name = tile === 'H' ? '地城之心' :
+                     tile === 'E' ? '入口傳送門' : '出口傳送門';
+        console.log(`🗑️ 刪除 2×2 ${name}於 (${anchor.col}, ${anchor.row})`);
       } else {
         // 無法識別為完整 2×2，只刪除單格
         this.setTile(col, row, '.');
@@ -352,9 +534,10 @@ DK.Editor = {
   },
 
   /**
-   * 尋找傳送門錨點（左上角）
+   * 尋找 2×2 物件錨點（左上角）
+   * 適用於：地城之心（H）、入口傳送門（E）、出口傳送門（M）
    */
-  findPortalAnchor(col, row, portalType) {
+  find2x2Anchor(col, row, objectType) {
     // 檢查所有可能的錨點位置（左上、左、上、當前）
     const candidates = [
       { col: col - 1, row: row - 1 }, // 左上
@@ -367,13 +550,13 @@ DK.Editor = {
       const c = candidate.col;
       const r = candidate.row;
 
-      // 檢查是否為有效的 2×2 傳送門錨點
+      // 檢查是否為有效的 2×2 物件錨點
       if (c >= 0 && r >= 0 && c + 1 < this.cols && r + 1 < this.rows) {
         if (
-          this.getTile(c, r) === portalType &&
-          this.getTile(c + 1, r) === portalType &&
-          this.getTile(c, r + 1) === portalType &&
-          this.getTile(c + 1, r + 1) === portalType
+          this.getTile(c, r) === objectType &&
+          this.getTile(c + 1, r) === objectType &&
+          this.getTile(c, r + 1) === objectType &&
+          this.getTile(c + 1, r + 1) === objectType
         ) {
           return { col: c, row: r };
         }
@@ -410,6 +593,11 @@ DK.Editor = {
     const chars = this.layout[row].split('');
     chars[col] = tile;
     this.layout[row] = chars.join('');
+
+    // 通知小地圖更新快取
+    if (DK.EditorMinimap && DK.EditorMinimap.invalidateCache) {
+      DK.EditorMinimap.invalidateCache();
+    }
   },
 
   /**
@@ -424,6 +612,16 @@ DK.Editor = {
    * 鍵盤快捷鍵
    */
   onKeyDown(e) {
+    // 空白鍵 - 啟用拖曳模式
+    if (e.code === 'Space' && !this.spacePressed) {
+      e.preventDefault();
+      this.spacePressed = true;
+      if (!this.camera.isDragging) {
+        this.uiCanvas.style.cursor = 'grab';
+      }
+      return;
+    }
+
     // Ctrl+S - 儲存
     if (e.ctrlKey && e.key === 's') {
       e.preventDefault();
@@ -611,6 +809,11 @@ DK.Editor = {
     if (DK.EditorUI && DK.EditorUI.render) {
       DK.EditorUI.render();
     }
+
+    // 3. 渲染小地圖
+    if (DK.EditorMinimap && DK.EditorMinimap.render) {
+      DK.EditorMinimap.render();
+    }
   },
 
   /**
@@ -623,7 +826,8 @@ DK.Editor = {
     const T = 16; // 原始地磚大小
 
     // 快取所有基本地磚類型（使用 variant 0）
-    const basicTiles = ['W', '.', 'O', 'B', 'A', 'P', 'G', 'H', 'D'];
+    // 注意：'H'（地城之心）和 'E'/'M'（傳送門）是 2×2 物件，不加入快取
+    const basicTiles = ['W', '.', 'O', 'B', 'A', 'P', 'G', 'D'];
 
     basicTiles.forEach(tileId => {
       const canvas = document.createElement('canvas');
@@ -654,12 +858,46 @@ DK.Editor = {
   renderMap() {
     const ctx = this.gameCtx;
     const tileSize = 16; // 原始地磚大小
+    const { x: camX, y: camY, zoom } = this.camera;
 
-    for (let row = 0; row < this.rows; row++) {
-      for (let col = 0; col < this.cols; col++) {
+    // 計算可見範圍
+    const startCol = Math.floor(camX);
+    const startRow = Math.floor(camY);
+    const viewportCols = Math.ceil(this.gameCanvas.width / tileSize / zoom);
+    const viewportRows = Math.ceil(this.gameCanvas.height / tileSize / zoom);
+    const endCol = Math.min(this.cols, startCol + viewportCols + 1);
+    const endRow = Math.min(this.rows, startRow + viewportRows + 1);
+
+    // 儲存原始狀態
+    ctx.save();
+
+    // 應用縮放和平移
+    ctx.scale(zoom, zoom);
+    ctx.translate(-camX * tileSize, -camY * tileSize);
+
+    // 只渲染可見地磚
+    for (let row = startRow; row < endRow; row++) {
+      for (let col = startCol; col < endCol; col++) {
         const tile = this.getTile(col, row);
         const x = col * tileSize;
         const y = row * tileSize;
+
+        // === 2×2 物件檢查 ===
+        // 'H'（地城之心）、'E'（入口傳送門）、'M'（出口傳送門）是 2×2 物件
+        // 只在左上角繪製完整圖形，其他 3 格完全跳過（避免覆蓋）
+        const is2x2Tile = tile === 'H' || tile === 'E' || tile === 'M';
+        if (is2x2Tile) {
+          // 檢查左邊和上面是否是同種地磚
+          const leftTile = this.getTile(col - 1, row);
+          const topTile = this.getTile(col, row - 1);
+
+          // 如果左邊或上面是同種地磚，說明當前格不是左上角
+          // 直接跳過，不繪製任何東西（因為左上角已經繪製了完整的 32×32 圖形）
+          if (leftTile === tile || topTile === tile) {
+            continue;
+          }
+          // 否則當前格是左上角，繪製完整的 2×2 圖形
+        }
 
         // 優先使用快取（基本地磚類型）
         if (this.tileCache && this.tileCache[tile]) {
@@ -670,6 +908,9 @@ DK.Editor = {
         }
       }
     }
+
+    // 恢復狀態
+    ctx.restore();
   },
 
   /**
@@ -691,8 +932,8 @@ DK.Editor = {
       case 'O': // 外圍
         DK.Map.drawOuterTile(ctx, x, y, variant);
         break;
-      case 'H': // 地心
-        DK.Map.drawHeartTile(ctx, x, y, 2); // 使用 variant=2 確保與遊戲內一致
+      case 'H': // 地城之心 (2×2 等距水晶)
+        DK.Map.drawDungeonHeart2x2(ctx, x, y, variant);
         break;
       case 'E': // 入口傳送門 (2×2 漩渦)
         DK.Map.drawEntrancePortal2x2(ctx, x, y, variant);

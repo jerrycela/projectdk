@@ -59,17 +59,17 @@ DK.EditorPortal = {
   },
 
   /**
-   * 嘗試在指定位置放置傳送門
+   * 嘗試在指定位置放置傳送門（2×2 物件）
    */
   placePortal(col, row) {
-    // 1. 檢查位置有效性
-    const validation = this.validatePortalSlot(col, row);
+    // 1. 檢查 2×2 區域有效性
+    const validation = this.validatePortalSlot2x2(col, row);
     if (!validation.valid) {
       alert(`❌ 無法放置傳送門：\n${validation.errors.join('\n')}`);
       return false;
     }
 
-    // 2. 檢查路徑可達性
+    // 2. 檢查路徑可達性（從左上角檢查）
     const pathValid = this.validatePortalPath(col, row);
     if (!pathValid) {
       const confirm = window.confirm('⚠️ 此位置到地心沒有可達路徑！\n\n確定要放置嗎？（可能導致關卡無法通關）');
@@ -97,8 +97,11 @@ DK.EditorPortal = {
     // 5. 加入 portals 陣列
     DK.Editor.currentLevel.portals.push(portal);
 
-    // 6. 更新 layout（設置為 'E'）
+    // 6. 更新 layout（設置 2×2 區域為 'E'）
     DK.Editor.setTile(col, row, 'E');
+    DK.Editor.setTile(col + 1, row, 'E');
+    DK.Editor.setTile(col, row + 1, 'E');
+    DK.Editor.setTile(col + 1, row + 1, 'E');
 
     // 7. 重新渲染列表
     this.renderPortalList();
@@ -111,7 +114,7 @@ DK.EditorPortal = {
       DK.EditorTools.saveHistory();
     }
 
-    console.log(`✅ 傳送門已放置：${id} at (${col}, ${row})`);
+    console.log(`✅ 傳送門已放置：${id} at (${col}, ${row}) [2×2]`);
 
     // 10. 恢復編輯模式
     DK.Editor.mode = 'tiles';
@@ -126,7 +129,7 @@ DK.EditorPortal = {
   },
 
   /**
-   * 驗證傳送門位置
+   * 驗證傳送門位置（單格，向後相容）
    */
   validatePortalSlot(col, row) {
     const errors = [];
@@ -149,6 +152,46 @@ DK.EditorPortal = {
     const existingPortal = this.getPortalAt(col, row);
     if (existingPortal) {
       errors.push('此位置已有傳送門');
+    }
+
+    return { valid: errors.length === 0, errors };
+  },
+
+  /**
+   * 驗證傳送門 2×2 區域
+   */
+  validatePortalSlot2x2(col, row) {
+    const errors = [];
+
+    // 邊界檢查（2×2 需要檢查右下角是否超出）
+    if (col < 0 || col >= DK.Editor.cols - 1 || row < 0 || row >= DK.Editor.rows - 1) {
+      errors.push('2×2 傳送門超出地圖範圍');
+      return { valid: false, errors };
+    }
+
+    // 檢查所有 4 個格子
+    for (let dc = 0; dc < 2; dc++) {
+      for (let dr = 0; dr < 2; dr++) {
+        const c = col + dc;
+        const r = row + dr;
+        const tile = DK.Editor.getTile(c, r);
+
+        // 必須是地板或外圍
+        if (tile !== '.' && tile !== 'O') {
+          errors.push(`位置 (${c},${r}) 是 "${tile}"，傳送門只能放在地板 (.) 或外圍 (O) 上`);
+        }
+
+        // 檢查是否已有傳送門
+        const existingPortal = this.getPortalAt(c, r);
+        if (existingPortal) {
+          errors.push(`位置 (${c},${r}) 已有傳送門`);
+        }
+
+        // 檢查是否有地城之心
+        if (tile === 'H') {
+          errors.push(`位置 (${c},${r}) 已有地城之心`);
+        }
+      }
     }
 
     return { valid: errors.length === 0, errors };
@@ -234,14 +277,18 @@ DK.EditorPortal = {
   },
 
   /**
-   * 取得指定位置的傳送門
+   * 取得指定位置的傳送門（檢查 2×2 範圍）
    */
   getPortalAt(col, row) {
-    return DK.Editor.currentLevel.portals.find(p => p.col === col && p.row === row);
+    return DK.Editor.currentLevel.portals.find(p => {
+      // 檢查 (col, row) 是否在傳送門的 2×2 範圍內
+      return col >= p.col && col < p.col + 2 &&
+             row >= p.row && row < p.row + 2;
+    });
   },
 
   /**
-   * 刪除傳送門
+   * 刪除傳送門（2×2 物件）
    */
   deletePortal(portalId) {
     const portal = DK.Editor.currentLevel.portals.find(p => p.id === portalId);
@@ -254,8 +301,11 @@ DK.EditorPortal = {
     // 1. 從陣列移除
     DK.Editor.currentLevel.portals = DK.Editor.currentLevel.portals.filter(p => p.id !== portalId);
 
-    // 2. 清除 layout 中的 'E'
+    // 2. 清除 layout 中的 2×2 區域 'E'
     DK.Editor.setTile(portal.col, portal.row, '.');
+    DK.Editor.setTile(portal.col + 1, portal.row, '.');
+    DK.Editor.setTile(portal.col, portal.row + 1, '.');
+    DK.Editor.setTile(portal.col + 1, portal.row + 1, '.');
 
     // 3. 重新渲染列表
     this.renderPortalList();
@@ -268,7 +318,7 @@ DK.EditorPortal = {
       DK.EditorTools.saveHistory();
     }
 
-    console.log(`✅ 傳送門已刪除：${portalId}`);
+    console.log(`✅ 傳送門已刪除：${portalId} [2×2]`);
   },
 
   /**
@@ -292,13 +342,13 @@ DK.EditorPortal = {
   },
 
   /**
-   * 執行傳送門複製
+   * 執行傳送門複製（2×2 物件）
    */
   executeCopyPortal(col, row) {
     if (!this.portalToCopy) return;
 
-    // 驗證位置
-    const validation = this.validatePortalSlot(col, row);
+    // 驗證 2×2 位置
+    const validation = this.validatePortalSlot2x2(col, row);
     if (!validation.valid) {
       alert(`❌ 無法放置傳送門：\n${validation.errors.join('\n')}`);
       return;
@@ -314,7 +364,12 @@ DK.EditorPortal = {
     };
 
     DK.Editor.currentLevel.portals.push(newPortal);
+
+    // 放置 2×2 區域
     DK.Editor.setTile(col, row, 'E');
+    DK.Editor.setTile(col + 1, row, 'E');
+    DK.Editor.setTile(col, row + 1, 'E');
+    DK.Editor.setTile(col + 1, row + 1, 'E');
 
     this.renderPortalList();
     DK.Editor.markDirty();
@@ -323,7 +378,7 @@ DK.EditorPortal = {
       DK.EditorTools.saveHistory();
     }
 
-    console.log(`✅ 傳送門已複製：${newPortal.id}`);
+    console.log(`✅ 傳送門已複製：${newPortal.id} [2×2]`);
 
     // 恢復編輯模式
     DK.Editor.mode = 'tiles';

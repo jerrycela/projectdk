@@ -91,8 +91,28 @@ DK.EditorTools = {
       activeBtn.classList.add('active');
     }
 
+    // 更新 Canvas 游標樣式
+    this.updateCanvasCursor();
+
     // 更新狀態列
     this.updateStatusBar();
+  },
+
+  /**
+   * 更新 Canvas 游標樣式
+   */
+  updateCanvasCursor() {
+    const canvas = document.getElementById('ui-canvas');
+    if (!canvas) return;
+
+    // 移除所有工具類別
+    canvas.classList.remove('tool-paint', 'tool-fill', 'tool-erase', 'tool-picker');
+
+    // 根據當前工具添加對應類別
+    const tool = DK.Editor.selectedTool;
+    if (tool) {
+      canvas.classList.add(`tool-${tool}`);
+    }
   },
 
   /**

@@ -23,17 +23,33 @@
   <div class="editor-container">
     <!-- 左側工具列 -->
     <aside class="tool-panel">
-      <h3>地磚 Palette</h3>
-      <div id="tilePalette" class="tile-palette">
-        <!-- 由 JS 動態生成 -->
+      <h3>地磚分類 <small style="color: #8a8070; font-weight: normal;">(點擊折疊)</small></h3>
+      <div id="tilePalette" class="category-toolbar">
+        <!-- 由 JS 動態生成分類工具欄 -->
       </div>
 
       <h3 style="margin-top: 20px;">工具</h3>
       <div class="tool-buttons">
-        <button id="toolPaint" class="tool-btn active" title="P">🖌️ 畫筆</button>
-        <button id="toolFill" class="tool-btn" title="F">🪣 填充</button>
-        <button id="toolErase" class="tool-btn" title="E">🧹 橡皮擦</button>
-        <button id="toolPicker" class="tool-btn" title="Q">💉 吸管</button>
+        <button id="toolPaint" class="tool-btn active" title="P">
+          <span class="tool-icon">🖌️</span>
+          <span class="tool-name">畫筆</span>
+          <span class="tool-shortcut">P</span>
+        </button>
+        <button id="toolFill" class="tool-btn" title="F">
+          <span class="tool-icon">🪣</span>
+          <span class="tool-name">填充</span>
+          <span class="tool-shortcut">F</span>
+        </button>
+        <button id="toolErase" class="tool-btn" title="E">
+          <span class="tool-icon">🧹</span>
+          <span class="tool-name">橡皮擦</span>
+          <span class="tool-shortcut">E</span>
+        </button>
+        <button id="toolPicker" class="tool-btn" title="Q">
+          <span class="tool-icon">💉</span>
+          <span class="tool-name">吸管</span>
+          <span class="tool-shortcut">Q</span>
+        </button>
       </div>
 
       <h3 style="margin-top: 20px;">畫筆大小</h3>
@@ -54,10 +70,10 @@
     <!-- 中間 Canvas 編輯區 -->
     <main class="canvas-area">
       <div class="canvas-container">
-        <!-- 低解析度地圖 Canvas -->
-        <canvas id="game-canvas" width="320" height="208"></canvas>
-        <!-- 高解析度 UI Canvas -->
-        <canvas id="ui-canvas" width="960" height="624"></canvas>
+        <!-- 低解析度地圖 Canvas (40×26 @ 16px) -->
+        <canvas id="game-canvas" width="640" height="416"></canvas>
+        <!-- 高解析度 UI Canvas (40×26 @ 64px, 4x scale) -->
+        <canvas id="ui-canvas" width="2560" height="1664"></canvas>
       </div>
 
       <!-- 狀態列 -->
@@ -119,7 +135,8 @@
 
   <!-- 共用 JS（遊戲核心） -->
   <script src="js/config.js"></script>
-  <script src="js/DK.PixelArt.js"></script>
+  <script src="js/pixelart.js"></script>
+  <script src="js/map.js"></script>
 
   <!-- 編輯器 JS -->
   <script src="js/editor/editor-main.js"></script>
@@ -128,6 +145,7 @@
   <script src="js/editor/editor-storage.js"></script>
   <script src="js/editor/editor-portal.js"></script>
   <script src="js/editor/editor-wave.js"></script>
+  <script src="js/editor/editor-minimap.js"></script>
 
   <!-- 初始化 -->
   <script>
