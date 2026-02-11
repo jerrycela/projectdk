@@ -203,8 +203,7 @@ DK.UI = {
         if (btn.action === 'start_wave') {
           if (DK.Game) {
             if (DK.Game.state === 'planning') {
-              DK.Game.startBreach();
-            } else if (DK.Game.state === 'breach' && DK.Map.breachHoles && DK.Map.breachHoles.length > 0) {
+              // PLANNING → INVASION（直接開始入侵）
               DK.Game.startInvasion();
               // 教學系統：檢測波次開始
               if (DK.Tutorial) {
@@ -249,38 +248,22 @@ DK.UI = {
       const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
       const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
 
-      // Priority 0: Breach phase wall-breaking
-      if (DK.Game.state === 'breach') {
-        if (DK.Map.isBreakable && DK.Map.isBreakable(col, row)) {
-          DK.Map.breakWall(col, row);
-          if (DK.Game.effects) {
-            DK.Game.effects.push({
-              type: 'wall_break',
-              x: col * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
-              y: row * DK.CONFIG.TILE_SIZE + DK.CONFIG.TILE_SIZE / 2,
-              timer: 0, duration: 500,
-            });
+      // 路障放置（planning 階段）
+      if (DK.Game.state === 'planning' && this.selectedBarricadeMode) {
+        // 點擊已有路障 → 移除
+        if (DK.Map.hasBarricade && DK.Map.hasBarricade(col, row)) {
+          DK.Map.removeBarricade(col, row);
+          return true;
+        }
+        // 點擊空地 → 放置
+        if (DK.Map.placeBarricade && DK.Map.placeBarricade(col, row)) {
+          // 教學系統：檢測路障放置
+          if (DK.Tutorial && DK.Map.barricades) {
+            DK.Tutorial.checkCondition('barricadePlaced', { count: DK.Map.barricades.length });
           }
           return true;
         }
-
-        // 路障放置（breach 階段）
-        if (this.selectedBarricadeMode) {
-          // 點擊已有路障 → 移除
-          if (DK.Map.hasBarricade && DK.Map.hasBarricade(col, row)) {
-            DK.Map.removeBarricade(col, row);
-            return true;
-          }
-          // 點擊空地 → 放置
-          if (DK.Map.placeBarricade && DK.Map.placeBarricade(col, row)) {
-            // 教學系統：檢測路障放置
-            if (DK.Tutorial && DK.Map.barricades) {
-              DK.Tutorial.checkCondition('barricadePlaced', { count: DK.Map.barricades.length });
-            }
-            return true;
-          }
-          return true;
-        }
+        return true;
       }
 
       // Priority 1: Click on existing hero to select it
@@ -333,9 +316,9 @@ DK.UI = {
     }
 
     // Check game area click (place trap) - apply camera offset
-    // Allow trap placement in planning, breach, and invasion phases
+    // Allow trap placement in planning and invasion phases
     if (my < DK.CONFIG.UI_TOP && this.selectedTrap && DK.Game &&
-        (DK.Game.state === 'planning' || DK.Game.state === 'breach' || DK.Game.state === 'invasion')) {
+        (DK.Game.state === 'planning' || DK.Game.state === 'invasion')) {
       const col = Math.floor((mx / DK.CONFIG.SCALE + DK.Game.camera.x) / DK.CONFIG.TILE_SIZE);
       const row = Math.floor((my / DK.CONFIG.SCALE + DK.Game.camera.y) / DK.CONFIG.TILE_SIZE);
 
@@ -565,12 +548,8 @@ DK.UI = {
     let hintColor = '#aaa090';
 
     if (game.state === 'planning') {
-      hintText = '部署陷阱和英雄 → 點擊右側按鈕開始破牆';
+      hintText = '部署陷阱和英雄 → 點擊右側按鈕開始入侵';
       hintColor = '#88ddff';
-    } else if (game.state === 'breach') {
-      const holeCount = DK.Map.breachHoles ? DK.Map.breachHoles.length : 0;
-      hintText = `點擊外牆開洞 → 已開 ${holeCount} 個洞 → 點擊右側開始入侵`;
-      hintColor = '#ffaa44';
     } else if (game.state === 'invasion' && game.waveAutoTimer > 0) {
       hintText = `下一波倒數 ${Math.ceil(game.waveAutoTimer / 1000)} 秒`;
       hintColor = '#88ddff';
@@ -751,15 +730,9 @@ DK.UI = {
       let subText = '';
 
       if (game && game.state === 'planning') {
-        buttonText = '開始破牆';
-        buttonColor = '#ffaa44';
-        subText = '部署完成後點擊';
-      } else if (game && game.state === 'breach') {
-        const holeCount = DK.Map.breachHoles ? DK.Map.breachHoles.length : 0;
         buttonText = '開始入侵';
-        buttonColor = holeCount > 0 ? '#ff6644' : C.UI_TEXT_DIM;
-        isEnabled = holeCount > 0;
-        subText = `已開 ${holeCount} 個洞`;
+        buttonColor = '#ff6644';
+        subText = '部署完成後點擊';
       } else if (game && game.state === 'invasion') {
         if (game.waveAutoTimer > 0) {
           buttonText = `下一波 ${Math.ceil(game.waveAutoTimer / 1000)}秒`;
@@ -1139,15 +1112,8 @@ DK.UI = {
     const x = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE;
     const y = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE;
 
-    // Breach phase: highlight breakable walls
-    if (DK.Game && DK.Game.state === 'breach' && DK.Map.isBreakable && DK.Map.isBreakable(col, row)) {
-      ctx.strokeStyle = 'rgba(255,200,100,0.8)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
-      ctx.fillStyle = 'rgba(255,200,100,0.2)';
-      ctx.fillRect(x, y, T, T);
-      return;
-    }
+    // 移除 BREACH 階段的牆壁高亮（已廢除）
+    // Planning 階段：無需高亮牆壁
 
     // Hero deployment hover
     if (this.selectedHeroType) {

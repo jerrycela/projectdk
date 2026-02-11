@@ -11,18 +11,33 @@ DK.LEVELS = [
     // 直線走廊（修正版 - 路徑完全連通）
     layout: [
       'OOOOOOOOOOOOOOOOOOOO',
-      'OWWWWWWWBBWWWWWWWWWO',
-      'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........WW......WO',
-      'OW........HH......WO',
-      'OW........WW......WO',
+      'OWWWWWWWEE..WWWWWWWO',  // 改為 EE..（2×2 傳送門區域）
+      'OW......EE..WW....WO',  // 改為 EE..（2×2 傳送門區域）
+      'OW..........WW....WO',
+      'OW..........WW....WO',
+      'OW..........WW....WO',
+      'OW..........WW....WO',
+      'OW..........WW....WO',
+      'OW..........WW....WO',
+      'OW..........HH....WO',  // HH 是地城之心
+      'OW..........WW....WO',
       'OWWWWWWWWWWWWWWWWWWO',
       'OOOOOOOOOOOOOOOOOOOO',
+    ],
+
+    // 傳送門配置（新增）
+    portals: [
+      {
+        id: 1,
+        col: 8,   // 左上角列位置
+        row: 1,   // 左上角行位置
+        type: 'green',
+        waves: [
+          { enemies: [{ type: 'GOBLIN', count: 3 }] },
+          { enemies: [{ type: 'GOBLIN', count: 5 }] },
+          { enemies: [{ type: 'GOBLIN', count: 4 }, { type: 'SKELETON', count: 2 }] },
+        ]
+      }
     ],
 
     waves: [
@@ -271,7 +286,7 @@ DK.LEVELS = [
 
 // LevelManager
 DK.LevelManager = {
-  currentLevelIndex: 4,  // 臨時修改：直接載入 Level 5（40×26 大地圖）
+  currentLevelIndex: 0,  // 載入 Level 1（測試傳送門系統）
   currentLevel: null,
   isTestMode: false,  // 測試模式標記
 
@@ -286,7 +301,7 @@ DK.LevelManager = {
       this.loadTestLevel();
     } else {
       // 正常模式：載入預設關卡
-      this.loadLevel(4);  // 臨時修改：直接載入 Level 5
+      this.loadLevel(0);  // 載入 Level 1（測試傳送門系統）
     }
   },
 

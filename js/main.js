@@ -117,16 +117,49 @@ window.DK = window.DK || {};
 
     DK.Map.render(offCtx);
 
-    // Breach phase: highlight all breakable walls
-    if (DK.Game.state === 'breach') {
-      renderBreakableWallHighlight(offCtx, DK.Game.time);
-    }
-
     // Render Dungeon Heart (2x2 pulsating crystal)
     renderDungeonHeart(offCtx, DK.Game.time);
 
-    // Breach phase: path preview from holes to heart
-    if (DK.Game.state === 'breach') {
+    // Render Portals (2x2 vortex) in planning/invasion phase
+    if (DK.Game.state === 'planning' || DK.Game.state === 'invasion') {
+      if (DK.Map.portals && DK.Map.portals.length > 0) {
+        const T = DK.CONFIG.TILE_SIZE;
+
+        // 傳送門顏色配置
+        const portalColors = {
+          green: {
+            glow: '#44ff88',
+            bright: '#88ffaa',
+            dark: '#226644'
+          },
+          red: {
+            glow: '#ff4444',
+            bright: '#ff8888',
+            dark: '#662222'
+          },
+          blue: {
+            glow: '#4488ff',
+            bright: '#88aaff',
+            dark: '#224466'
+          }
+        };
+
+        for (const portal of DK.Map.portals) {
+          // 支援新格式（entrance）和舊格式（col/row）
+          const portalCol = portal.entrance ? portal.entrance.x : portal.col;
+          const portalRow = portal.entrance ? portal.entrance.y : portal.row;
+          const x = portalCol * T;
+          const y = portalRow * T;
+          const portalType = portal.type || 'green';
+          const colorScheme = portalColors[portalType] || portalColors.green;
+          // time 參數需要秒數（DK.Game.time 是毫秒）
+          DK.Map.drawPortalFull(offCtx, x, y, colorScheme, DK.Game.time / 1000);
+        }
+      }
+    }
+
+    // Planning/Invasion 階段：顯示路徑預覽（從傳送門到地心）
+    if (DK.Game.state === 'planning' || DK.Game.state === 'invasion') {
       renderPathPreview(offCtx);
     }
 
@@ -1094,8 +1127,11 @@ window.DK = window.DK || {};
   }
 
   // === Breakable Wall Highlight (breach phase) ===
+  // @deprecated BREACH 階段已移除，保留函式以避免錯誤
 
   function renderBreakableWallHighlight(ctx, time) {
+    // 不再使用，保留空函式
+    return;
     const T = DK.CONFIG.TILE_SIZE;
     const pulse = Math.sin(time / 500) * 0.15 + 0.25;
     const range = DK.Map.getVisibleRange ? DK.Map.getVisibleRange() : null;
@@ -1180,8 +1216,8 @@ window.DK = window.DK || {};
       }
     }
 
-    // 路障懸停預覽（breach 階段 + 路障模式）
-    if (DK.Game.state === 'breach' && DK.UI.selectedBarricadeMode && DK.UI.hoveredTile) {
+    // 路障懸停預覽（planning 階段 + 路障模式）
+    if (DK.Game.state === 'planning' && DK.UI.selectedBarricadeMode && DK.UI.hoveredTile) {
       const hc = DK.UI.hoveredTile.col;
       const hr = DK.UI.hoveredTile.row;
       const tile = DK.Map.getTile ? DK.Map.getTile(hc, hr) : null;
@@ -1251,8 +1287,7 @@ window.DK = window.DK || {};
       return;
     }
 
-    // 回退：無快取時使用舊邏輯
-    if (DK.Game.state !== 'breach') return;
+    // 回退：無快取時使用舊邏輯（現在支援 planning/invasion）
     if (!DK.Map.distanceField || !DK.Map.heartPos) return;
     if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) return;
     const T = DK.CONFIG.TILE_SIZE;

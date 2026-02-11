@@ -5,7 +5,7 @@
 window.DK = window.DK || {};
 
 DK.Game = {
-  state: 'start', // 'start' | 'planning' | 'breach' | 'invasion'
+  state: 'start', // 'start' | 'planning' | 'invasion' (BREACH 已移除)
   gold: 0,
   dungeonHeartHP: 0,
   dungeonHeartMaxHP: 0,
@@ -73,17 +73,53 @@ DK.Game = {
     this.init();
   },
 
+  /** @deprecated BREACH 階段已移除，保留向後相容 */
   startBreach() {
-    if (this.state !== 'planning') return;
-    this.state = 'breach';
+    console.warn('[Deprecated] startBreach() - BREACH 階段已移除');
+    this.startInvasion();
   },
 
   startInvasion() {
-    if (this.state !== 'breach') return;
-    if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) return;
+    if (this.state !== 'planning') return;
+    // 使用傳送門作為敵人生成點
+    this.initPortalsAsSpawnPoints();
     this.state = 'invasion';
     this._spawnHoleIndex = 0;
     this.startWave();
+  },
+
+  /**
+   * 初始化傳送門作為敵人生成點
+   * 向後相容：若無 portals，自動掃描 layout 生成
+   */
+  initPortalsAsSpawnPoints() {
+    if (!DK.Map) return;
+
+    // 優先使用 portals（新地圖）
+    if (DK.Map.portals && DK.Map.portals.length > 0) {
+      // 將 portals 的 entrance 轉換為 breachHoles 格式（向後相容）
+      DK.Map.breachHoles = DK.Map.portals.map(p => ({
+        col: p.entrance ? p.entrance.x : p.col,
+        row: p.entrance ? p.entrance.y : p.row
+      }));
+    } else {
+      // 向後相容：舊地圖無 portals，自動掃描 'E' 生成
+      if (DK.Map.scanPortalsFromLayout) {
+        DK.Map.scanPortalsFromLayout();
+        // 再次嘗試轉換
+        if (DK.Map.portals && DK.Map.portals.length > 0) {
+          DK.Map.breachHoles = DK.Map.portals.map(p => ({
+            col: p.entrance ? p.entrance.x : p.col,
+            row: p.entrance ? p.entrance.y : p.row
+          }));
+        }
+      }
+    }
+
+    // 最終檢查：如果仍無生成點，發出警告
+    if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) {
+      console.error('[Game] 無法找到敵人生成點（portals 或 E 標記）');
+    }
   },
 
   damageHeart(amount) {
@@ -143,8 +179,8 @@ DK.Game = {
       return;
     }
 
-    // planning 和 breach 階段只更新時間和 UI
-    if (this.state === 'planning' || this.state === 'breach') {
+    // planning 階段只更新時間和 UI（BREACH 已移除）
+    if (this.state === 'planning') {
       this.time += dt;
       DK.UI.update(dt);
       // 更新教學系統

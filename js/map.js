@@ -133,6 +133,18 @@ DK.Map = {
       this.layout = DK.LevelManager.currentLevel.layout;
     }
 
+    // 載入傳送門配置（新地圖）或自動掃描（舊地圖）
+    if (DK.LevelManager?.currentLevel?.portals) {
+      this.portals = DK.LevelManager.currentLevel.portals;
+      console.log(`🌀 載入 ${this.portals.length} 個傳送門（來自關卡配置）`);
+    } else {
+      // 向後相容：舊地圖無 portals metadata，自動掃描 'E' 標記
+      this.scanPortalsFromLayout();
+      if (this.portals && this.portals.length > 0) {
+        console.log(`🌀 掃描到 ${this.portals.length} 個傳送門（來自 layout 'E' 標記）`);
+      }
+    }
+
     // 自動偵測地圖尺寸並調整 camera（簡化地圖不使用 camera）
     const rows = this.layout.length;
     const cols = this.layout[0].length;
@@ -270,14 +282,58 @@ DK.Map = {
 
   /** === Portal System Functions === */
 
-  /** 檢查該格是否有傳送門 */
-  hasPortal(col, row) {
-    return this.portals.some(p => p.col === col && p.row === row);
+  /**
+   * 自動掃描 layout 中的 'E' 標記，生成預設 portals
+   * 向後相容：舊地圖無 portals metadata 時自動呼叫
+   */
+  scanPortalsFromLayout() {
+    if (this.portals && this.portals.length > 0) {
+      // 已有 portals，不覆蓋
+      return;
+    }
+
+    const entrances = [];
+    // 掃描所有 'E' tile
+    for (let r = 0; r < this.layout.length; r++) {
+      for (let c = 0; c < this.layout[r].length; c++) {
+        if (this.layout[r][c] === 'E') {
+          entrances.push({ x: c, y: r });
+        }
+      }
+    }
+
+    // 生成預設 portals（entrance = E 位置，exit = 地圖中心偏移）
+    this.portals = entrances.map((ent, idx) => {
+      const mapCenterX = Math.floor(this.layout[0].length / 2);
+      const mapCenterY = Math.floor(this.layout.length / 2);
+      return {
+        id: idx + 1,
+        entrance: ent,
+        exit: {
+          x: mapCenterX + (idx % 3) - 1, // 簡單偏移避免重疊
+          y: mapCenterY + Math.floor(idx / 3) - 1
+        }
+      };
+    });
   },
 
-  /** 取得該格的傳送門物件 */
+  /** 檢查該格是否有傳送門（2×2 檢查） */
+  hasPortal(col, row) {
+    return this.portals.some(p => {
+      const ex = p.entrance ? p.entrance.x : p.col;
+      const ey = p.entrance ? p.entrance.y : p.row;
+      // 檢查 (col, row) 是否在 2×2 範圍內
+      return col >= ex && col < ex + 2 && row >= ey && row < ey + 2;
+    });
+  },
+
+  /** 取得該格的傳送門物件（2×2 檢查） */
   getPortalAt(col, row) {
-    return this.portals.find(p => p.col === col && p.row === row) || null;
+    return this.portals.find(p => {
+      const ex = p.entrance ? p.entrance.x : p.col;
+      const ey = p.entrance ? p.entrance.y : p.row;
+      return col >= ex && col < ex + 2 && row >= ey && row < ey + 2;
+    }) || null;
   },
 
   /**
@@ -355,8 +411,12 @@ DK.Map = {
 
   // === Dungeon Heart 核心函式 ===
 
-  /** 破壞牆壁：B -> '.'，加入 breachHoles，重新計算 distanceField */
+  /**
+   * @deprecated BREACH 階段已移除，改用預配置的 portals
+   * 保留向後相容但不再使用
+   */
   breakWall(col, row) {
+    console.warn('[Deprecated] breakWall() - 請使用 portals 系統');
     if (!this.isBreakable(col, row)) return;
 
     // 修改 layout（字串轉陣列再轉回）
