@@ -336,4 +336,40 @@ DK.PixelArt = {
       }
     }
   },
+
+  /**
+   * Isometric shading utilities for Dungeon Keeper style 3D effects
+   * Based on 45° pseudo-isometric view with top-right light source
+   */
+  Isometric: {
+    /**
+     * Apply top-facing surface lighting (brightest surface)
+     * @param {string} baseColor - Base hex color (e.g., '#3a2a4a')
+     * @param {number} amount - Lighten amount (default: 50)
+     * @returns {string} Lightened color in rgb() format
+     */
+    topLight(baseColor, amount = 50) {
+      return DK.PixelArt.lighten(baseColor, amount);
+    },
+
+    /**
+     * Apply side-facing surface shading (medium darkness)
+     * @param {string} baseColor - Base hex color
+     * @param {number} amount - Darken amount (default: 40)
+     * @returns {string} Darkened color in rgb() format
+     */
+    sideDark(baseColor, amount = 40) {
+      return DK.PixelArt.darken(baseColor, amount);
+    },
+
+    /**
+     * Apply ambient occlusion shading (darkest areas, corners/crevices)
+     * @param {string} baseColor - Base hex color
+     * @param {number} amount - Darken amount (default: 60)
+     * @returns {string} Heavily darkened color in rgb() format
+     */
+    ambientOcclusion(baseColor, amount = 60) {
+      return DK.PixelArt.darken(baseColor, amount);
+    },
+  },
 };

@@ -938,6 +938,7 @@ window.DK = window.DK || {};
     const x = hp.col * T;
     const y = hp.row * T;
     const PA = DK.PixelArt;
+    const ISO = PA.Isometric;
 
     // Hurt flash
     const isFlashing = DK.Game.heartFlashTimer > 0;
@@ -949,26 +950,59 @@ window.DK = window.DK || {};
     // HP < 30%: faster pulse
     const fastPulse = hpPercent < 0.3 ? Math.sin(time / 500 * Math.PI) * 0.5 + 0.5 : pulse;
 
-    // Stone base (2x2 = 32x32 pixel area)
-    PA.rect(ctx, x + 1, y + 1, 30, 30, '#2a1a3a');
-    PA.rect(ctx, x + 2, y + 2, 28, 28, '#3a2a4a');
+    // Center point of 2×2 area (32×32 pixels)
+    const cx = x + 16;
+    const cy = y + 16;
 
-    // Crystal heart (center area)
+    // Crystal colors (HP-based)
     const coreColor = isFlashing ? '#ff4444' : '#aa44ff';
-    const coreLight = isFlashing ? '#ff8888' : '#cc88ff';
-    const coreDark = isFlashing ? '#880000' : '#6622aa';
+    const hpColor = hpPercent > 0.3 ? coreColor : (isFlashing ? '#ff4444' : '#ff4488');
 
-    // Diamond shape (~16x20 pixels)
-    PA.rect(ctx, x + 10, y + 6, 12, 20, coreDark);
-    PA.rect(ctx, x + 12, y + 4, 8, 24, coreColor);
-    PA.rect(ctx, x + 14, y + 3, 4, 26, coreLight);
+    // === 1. Ground Shadow (ellipse, alpha 0.15, crystal color) ===
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = hpColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 16, 16, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
-    // Inner glow point (pulsating)
+    // === 2. Isometric Stone Pedestal (3 layers, compact) ===
+    const stoneBase = '#3a2a4a';
+
+    // Bottom layer (base, darkest) - 14×6
+    PA.rect(ctx, cx - 7, cy + 8, 14, 6, ISO.sideDark(stoneBase));
+
+    // Front face (medium) - 12×4
+    PA.rect(ctx, cx - 6, cy + 4, 12, 4, stoneBase);
+
+    // Top face (brightest) - 10×3
+    PA.rect(ctx, cx - 5, cy + 1, 10, 3, ISO.topLight(stoneBase));
+
+    // Right side dark edge (enhance 3D effect) - 1px width
+    PA.rect(ctx, cx + 6, cy + 4, 1, 10, ISO.ambientOcclusion(stoneBase));
+
+    // === 3. Hovering Crystal (4 layers, 3px gap above pedestal) ===
+    // Crystal bottom (cy - 2) is 3px above pedestal top (cy + 1)
+
+    // Layer 1: Bottom (darkest, largest) - 8×8
+    PA.rect(ctx, cx - 4, cy - 2, 8, 8, ISO.ambientOcclusion(hpColor));
+
+    // Layer 2: Middle (medium) - 6×12
+    PA.rect(ctx, cx - 3, cy - 5, 6, 12, ISO.sideDark(hpColor));
+
+    // Layer 3: Top (bright) - 4×8
+    PA.rect(ctx, cx - 2, cy - 7, 4, 8, hpColor);
+
+    // Layer 4: Tip (brightest) - 2×2
+    PA.rect(ctx, cx - 1, cy - 8, 2, 2, ISO.topLight(hpColor));
+
+    // === 4. Inner glow point (pulsating, at crystal center) ===
     const glowSize = 2 + Math.round(fastPulse * 2);
-    PA.rect(ctx, x + 15 - Math.floor(glowSize / 2), y + 14 - Math.floor(glowSize / 2),
+    PA.rect(ctx, cx - Math.floor(glowSize / 2), cy - 5 - Math.floor(glowSize / 2),
             glowSize, glowSize, '#ffffff');
 
-    // Glow effect (tile-based halo)
+    // === 5. Glow effect (tile-based halo) ===
     const glowAlpha = 0.08 + fastPulse * 0.08;
     const glowRadius = 3 + fastPulse * 0.5;
     for (let gr = -glowRadius; gr <= glowRadius; gr++) {
@@ -988,7 +1022,7 @@ window.DK = window.DK || {};
       }
     }
 
-    // HP bar (above heart) - only show when damaged
+    // === 6. HP bar (above heart) - only show when damaged ===
     if (hpPercent < 1) {
       const barW = 28;
       const barX = x + 2;

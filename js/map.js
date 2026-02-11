@@ -1243,7 +1243,7 @@ DK.Map = {
   },
 
   // 繪製漩渦圖案（旋轉的螺旋）
-  drawSwirlPattern(ctx, colorScheme) {
+  drawSwirlPattern(ctx, colorScheme, scale = 1.0) {
     const PA = DK.PixelArt;
     // 繪製 4 條螺旋臂（簡化像素風格）
     for (let i = 0; i < 4; i++) {
@@ -1253,8 +1253,8 @@ DK.Map = {
       // 每條螺旋臂：從中心向外延伸
       for (let r = 2; r <= 8; r += 2) {
         const armAngle = angle + (r / 8) * Math.PI / 4; // 螺旋扭曲
-        const px = Math.cos(armAngle) * r;
-        const py = Math.sin(armAngle) * r;
+        const px = Math.cos(armAngle) * r * scale;
+        const py = Math.sin(armAngle) * r * scale;
         PA.rect(ctx, Math.floor(px), Math.floor(py), 2, 2, color);
       }
     }
@@ -1263,7 +1263,22 @@ DK.Map = {
   // 繪製完整 2×2 傳送門（含動畫效果）
   drawPortalFull(ctx, x, y, colorScheme, time) {
     const PA = DK.PixelArt;
+    const ISO = PA.Isometric;
     const T = 16; // Tile size
+
+    // 0. 地面凹陷邊緣（等距光影）
+    const edgeColor = '#4a4236'; // 地板色
+    const edgeTop = ISO.topLight(edgeColor);
+    const edgeSide = ISO.sideDark(edgeColor);
+
+    // 上邊緣（亮面）
+    PA.rect(ctx, x, y, 32, 2, edgeTop);
+    // 左邊緣（暗面）
+    PA.rect(ctx, x, y, 2, 32, edgeSide);
+    // 右邊緣（中亮）
+    PA.rect(ctx, x + 30, y, 2, 32, PA.lighten(edgeColor, 10));
+    // 下邊緣（最暗）
+    PA.rect(ctx, x, y + 30, 32, 2, PA.darken(edgeColor, 20));
 
     // 1. 繪製地面光暈（4 格範圍，32×32px）
     ctx.save();
@@ -1275,11 +1290,28 @@ DK.Map = {
     ctx.fillRect(x, y, T * 2, T * 2);
     ctx.restore();
 
-    // 2. 繪製核心漩渦（16×16 中心，旋轉動畫）
+    // 2. 三層深度漩渦（等距深度效果）
     ctx.save();
     ctx.translate(x + T, y + T);
     ctx.rotate(time * Math.PI); // 0.5 秒/圈
-    this.drawSwirlPattern(ctx, colorScheme);
+
+    // 深層（最暗，最小）
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.translate(0, 2); // 向下偏移 2px
+    this.drawSwirlPattern(ctx, colorScheme, 0.6); // 縮放 60%
+    ctx.restore();
+
+    // 中層
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.translate(0, 1); // 向下偏移 1px
+    this.drawSwirlPattern(ctx, colorScheme, 0.8); // 縮放 80%
+    ctx.restore();
+
+    // 淺層（最亮，最大）
+    this.drawSwirlPattern(ctx, colorScheme, 1.0); // 原始大小
+
     ctx.restore();
 
     // 3. 繪製能量環（脈動）
@@ -2497,32 +2529,61 @@ DK.Map = {
     }
   },
 
-  /** 木門：褐色木紋 + 鐵鉸鏈 + 門把 */
+  /** 木門：褐色木紋 + 鐵鉸鏈 + 門把（等距立體風格）*/
   drawWoodenDoor(ctx, x, y, isLocked) {
     const PA = DK.PixelArt;
+    const ISO = PA.Isometric;
 
-    // 門框（深灰色）
-    PA.rect(ctx, x + 3, y + 2, 10, 12, '#4a4a5e');
+    // === 1. 等距門框（深灰石材）===
+    const frameBase = '#4a4a5e';
+    const frameTop = ISO.topLight(frameBase);
+    const frameSide = ISO.sideDark(frameBase);
 
-    // 木板紋理（褐色）
-    PA.rect(ctx, x + 5, y + 3, 6, 10, '#5a4030');
-    PA.rect(ctx, x + 6, y + 4, 4, 8, '#6a5040');
+    // 頂部門框（2px 高，顯示頂面 + 正面）
+    PA.rect(ctx, x + 3, y + 2, 10, 1, frameTop);    // 頂面
+    PA.rect(ctx, x + 3, y + 3, 10, 1, frameBase);   // 正面
 
-    // 木紋橫條
-    PA.rect(ctx, x + 5, y + 6, 6, 1, '#4a3020');
-    PA.rect(ctx, x + 5, y + 9, 6, 1, '#4a3020');
+    // 左側門框（2px 寬）
+    PA.rect(ctx, x + 3, y + 3, 1, 11, frameSide);
+    PA.rect(ctx, x + 4, y + 3, 1, 11, frameBase);
 
-    // 鐵鉸鏈（4個像素）
+    // 右側門框（2px 寬）
+    PA.rect(ctx, x + 11, y + 3, 1, 11, frameBase);
+    PA.rect(ctx, x + 12, y + 3, 1, 11, PA.lighten(frameBase, 10));
+
+    // 底部門框
+    PA.rect(ctx, x + 3, y + 13, 10, 1, PA.darken(frameBase, 20));
+
+    // === 2. 門板底色 ===
+    const woodBase = '#6a5040';
+    PA.rect(ctx, x + 5, y + 3, 6, 10, woodBase);
+
+    // === 3. 等距斜面（左上亮，右下暗）===
+    const woodLight = ISO.topLight(woodBase);
+    const woodDark = ISO.sideDark(woodBase);
+
+    PA.rect(ctx, x + 5, y + 3, 1, 10, woodLight);  // 左邊緣高光
+    PA.rect(ctx, x + 5, y + 3, 6, 1, woodLight);   // 頂邊高光
+    PA.rect(ctx, x + 10, y + 4, 1, 9, woodDark);   // 右邊緣陰影
+    PA.rect(ctx, x + 6, y + 12, 5, 1, woodDark);   // 底邊陰影
+
+    // === 4. 木紋橫條（凹陷效果）===
+    const woodGrain = ISO.ambientOcclusion(woodBase);
+    PA.rect(ctx, x + 5, y + 5, 6, 1, woodGrain);
+    PA.rect(ctx, x + 5, y + 8, 6, 1, woodGrain);
+    PA.rect(ctx, x + 5, y + 11, 6, 1, woodGrain);
+
+    // === 5. 鐵鉸鏈（4個像素）===
     PA.pixel(ctx, x + 5, y + 4, '#3a3a4e');
     PA.pixel(ctx, x + 5, y + 5, '#3a3a4e');
     PA.pixel(ctx, x + 5, y + 11, '#3a3a4e');
     PA.pixel(ctx, x + 5, y + 12, '#3a3a4e');
 
-    // 門把（金色）
+    // === 6. 門把（金色）===
     PA.pixel(ctx, x + 9, y + 8, '#ffd700');
     PA.pixel(ctx, x + 9, y + 9, '#ffaa00');
 
-    // 鎖定狀態：鎖頭圖示
+    // === 7. 鎖定狀態：鎖頭圖示 ===
     if (isLocked) {
       PA.rect(ctx, x + 7, y + 7, 2, 2, '#ffd700'); // 鎖體
       PA.pixel(ctx, x + 7, y + 6, '#ffd700'); // 鎖環
