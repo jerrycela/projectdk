@@ -203,3 +203,400 @@ Team lead 完成後必須：
 - 推送到 Heptabase 後**必須**同時保存本地備份
 - Tag 必須包含至少 3 個：專案名稱 + 功能模組 + 時間標記
 - 本地備份檔名格式：`<主題>-<日期>.md`
+
+---
+
+## 除錯方法論與經驗教訓
+
+### 典型案例：遊戲 UI 無法顯示（2026-02-11）
+
+#### 問題描述
+
+重構傳送門系統後，遊戲畫面正常顯示，但**下方 UI 按鈕區域完全空白**。
+
+#### 錯誤的除錯方向（避免）
+
+❌ **直接懷疑重構程式碼有問題**
+- 立即 `git stash` 回滾所有變更
+- 問題依然存在 → 證明不是重構造成的
+
+❌ **懷疑瀏覽器快取**
+- 硬重新載入（Cmd+Shift+R）
+- 更換 port（8000 → 8001）
+- 無痕模式測試
+- 問題依然存在 → 證明不是快取問題
+
+#### 正確的除錯流程（推薦）
+
+✅ **階段 1：語法檢查**
+```bash
+# 檢查所有 JS 檔案語法
+for file in js/*.js; do
+  node -c "$file" || echo "❌ 語法錯誤: $file"
+done
+```
+
+**結論**：所有檔案語法正確 → 問題不在語法層面
+
+---
+
+✅ **階段 2：建立除錯測試頁面**
+
+建立 `test-debug.html`，測試模組載入和邏輯：
+
+```html
+<script src="js/config.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  console.log('DK.TRAP_TYPES:', Object.keys(DK.TRAP_TYPES));
+  console.log('DK.HERO_TYPES:', Object.keys(DK.HERO_TYPES));
+  DK.UI.buildButtons();
+  console.log('Buttons:', DK.UI.buttons.length);
+</script>
+```
+
+**結論**：
+- ✅ 所有模組正確載入
+- ✅ `buildButtons()` 成功執行
+- ✅ 按鈕陣列建立正確（8 個按鈕）
+
+→ 問題不在 UI 邏輯，而在**遊戲初始化流程**
+
+---
+
+✅ **階段 3：捕獲 Runtime 錯誤**
+
+建立 `test-game.html`，捕獲所有 JavaScript 錯誤：
+
+```javascript
+window.addEventListener('error', (e) => {
+  console.error('❌ ERROR:', e.message, '@', e.filename + ':' + e.lineno);
+});
+```
+
+**結論**：發現關鍵錯誤訊息
+```
+❌ ERROR: Cannot read properties of undefined (reading 'layout')
+@ js/doors.js:16
+```
+
+---
+
+✅ **階段 4：追蹤錯誤根源**
+
+**錯誤位置**：`js/doors.js:16`
+```javascript
+init(levelData) {
+  if (!levelData.layout) return;  // ← levelData 是 undefined
+  // ...
+}
+```
+
+**呼叫位置**：`js/game.js:64`
+```javascript
+if (DK.Doors) DK.Doors.init(DK.Map.currentLevel);  // ← 問題在這裡
+```
+
+**根本原因**：屬性名稱錯誤
+- ❌ `DK.Map.currentLevel`（不存在）
+- ✅ `DK.LevelManager.currentLevel`（正確）
+
+**修復**：
+```javascript
+// 修改前
+if (DK.Doors) DK.Doors.init(DK.Map.currentLevel);
+
+// 修改後
+if (DK.Doors) DK.Doors.init(DK.LevelManager.currentLevel);
+```
+
+---
+
+### 關鍵教訓總結
+
+#### 1. 語法正確 ≠ 邏輯正確
+
+✅ **語法檢查（node -c）只能發現**：
+- 缺少分號、括號不匹配
+- 關鍵字拼寫錯誤
+- 基本語法錯誤
+
+❌ **無法發現**：
+- 屬性名稱錯誤（`DK.Map.currentLevel` vs `DK.LevelManager.currentLevel`）
+- 函式呼叫參數為 `undefined`
+- 邏輯錯誤
+
+#### 2. 瀏覽器快取的真實影響範圍
+
+瀏覽器快取**只會影響**：
+- 舊的 JS/CSS 檔案內容被快取
+- 修改後的程式碼沒有載入
+
+瀏覽器快取**不會導致**：
+- Runtime 錯誤（如 `undefined.layout`）
+- 邏輯錯誤
+- 模組載入失敗
+
+**最佳實踐**：
+- 硬重新載入後問題依然存在 → **不是快取問題**
+- 立即進行 Runtime 錯誤檢查
+
+#### 3. 除錯頁面的威力
+
+**建立專門的除錯頁面**可以：
+
+✅ **隔離問題範圍**
+- `test-debug.html`：只測試邏輯，不渲染遊戲
+- `test-game.html`：完整遊戲 + 錯誤捕獲
+
+✅ **快速定位錯誤**
+- 捕獲所有 Runtime 錯誤
+- 顯示詳細的錯誤堆疊
+- 避免被遊戲邏輯干擾
+
+✅ **驗證修復效果**
+- 修改後立即測試
+- 確認錯誤訊息消失
+
+#### 4. 函式呼叫前必須驗證參數
+
+**壞習慣**：直接呼叫函式
+```javascript
+DK.Doors.init(DK.Map.currentLevel);  // 假設 currentLevel 存在
+```
+
+**好習慣**：驗證參數存在
+```javascript
+if (DK.Map.currentLevel) {
+  DK.Doors.init(DK.Map.currentLevel);
+} else {
+  console.warn('currentLevel 不存在，無法初始化門系統');
+}
+```
+
+或使用正確的屬性：
+```javascript
+const levelData = DK.LevelManager?.currentLevel;
+if (levelData) {
+  DK.Doors.init(levelData);
+}
+```
+
+#### 5. 錯誤訊息是最好的線索
+
+**錯誤訊息**：
+```
+Cannot read properties of undefined (reading 'layout')
+@ js/doors.js:16
+```
+
+**解讀**：
+1. `undefined.layout` → 某個物件是 `undefined`
+2. `js/doors.js:16` → 錯誤發生在 `doors.js` 第 16 行
+3. 往上追蹤呼叫棧 → 找到 `game.js:64`
+4. 檢查傳入的參數 → `DK.Map.currentLevel` 不存在
+
+**教訓**：永遠仔細閱讀錯誤訊息，不要憑直覺猜測。
+
+---
+
+### 除錯檢查清單（Debugging Checklist）
+
+遇到 Runtime 錯誤時，按照以下順序檢查：
+
+- [ ] **語法檢查**：`node -c js/*.js`
+- [ ] **清除快取**：硬重新載入（Cmd+Shift+R）
+- [ ] **建立除錯頁面**：捕獲所有錯誤訊息
+- [ ] **檢查錯誤堆疊**：找出錯誤發生的確切位置
+- [ ] **追蹤呼叫鏈**：找出誰呼叫了出錯的函式
+- [ ] **驗證參數**：檢查傳入的參數是否存在
+- [ ] **屬性名稱**：確認物件屬性名稱正確
+- [ ] **模組載入順序**：確認相依模組已載入
+
+---
+
+### 除錯工具清單
+
+#### 1. 語法檢查工具
+```bash
+# 檢查單個檔案
+node -c js/game.js
+
+# 檢查所有 JS 檔案
+for file in js/*.js; do node -c "$file"; done
+```
+
+#### 2. 除錯測試頁面範本
+
+**test-debug.html**（邏輯測試）：
+```html
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+  <div id="output"></div>
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    function log(msg) {
+      output.innerHTML += msg + '<br>';
+      console.log(msg);
+    }
+
+    log('模組載入: ' + (typeof DK !== 'undefined'));
+    log('按鈕數量: ' + (DK.UI.buttons?.length || 0));
+  </script>
+</body>
+</html>
+```
+
+**test-game.html**（完整遊戲 + 錯誤捕獲）：
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #debug-console {
+      position: fixed; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.9); color: #0f0;
+      padding: 10px; max-height: 300px; overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="debug-console"></div>
+  <canvas id="game-canvas"></canvas>
+  <canvas id="ui-canvas"></canvas>
+
+  <script>
+    const debugConsole = document.getElementById('debug-console');
+    function debugLog(msg) {
+      debugConsole.innerHTML += msg + '<br>';
+      console.log(msg);
+    }
+
+    window.addEventListener('error', (e) => {
+      debugLog('❌ ' + e.message + ' @ ' + e.filename + ':' + e.lineno);
+    });
+  </script>
+
+  <!-- 載入所有遊戲模組 -->
+  <script src="js/config.js"></script>
+  <script>debugLog('✓ config.js');</script>
+  <!-- ... 其他模組 -->
+</body>
+</html>
+```
+
+#### 3. Console 檢查指令
+
+在瀏覽器 Console 執行：
+
+```javascript
+// 檢查模組載入
+console.log('DK:', DK);
+console.log('Modules:', Object.keys(DK));
+
+// 檢查關鍵屬性
+console.log('LevelManager.currentLevel:', DK.LevelManager?.currentLevel);
+console.log('Map.currentLevel:', DK.Map?.currentLevel);
+
+// 檢查 UI 按鈕
+console.log('UI.buttons:', DK.UI?.buttons?.length);
+DK.UI?.buttons?.forEach((btn, i) => {
+  console.log(`Button ${i}:`, btn.trap?.name || btn.hero?.name || btn.action);
+});
+```
+
+---
+
+### 預防措施
+
+#### 1. 使用 TypeScript 或 JSDoc
+
+**問題**：屬性名稱錯誤無法在編譯時發現
+
+**解決方案**：使用 JSDoc 類型註解
+```javascript
+/**
+ * @param {object} levelData - 關卡數據
+ * @param {string[][]} levelData.layout - 地圖佈局
+ */
+init(levelData) {
+  if (!levelData?.layout) return;
+  // ...
+}
+```
+
+或使用 TypeScript：
+```typescript
+interface LevelData {
+  layout: string[][];
+}
+
+init(levelData: LevelData) {
+  // TypeScript 會檢查屬性是否存在
+}
+```
+
+#### 2. 防禦性編程
+
+**問題**：假設物件屬性一定存在
+
+**解決方案**：使用可選鏈（Optional Chaining）
+```javascript
+// 壞習慣
+DK.Doors.init(DK.Map.currentLevel);
+
+// 好習慣
+const levelData = DK.LevelManager?.currentLevel;
+if (levelData) {
+  DK.Doors.init(levelData);
+} else {
+  console.warn('[Game] 無法取得關卡數據');
+}
+```
+
+#### 3. 統一命名規範
+
+**問題**：相似的屬性名稱容易混淆
+- `DK.Map.currentLevel`
+- `DK.LevelManager.currentLevel`
+
+**解決方案**：建立清晰的命名規範
+```javascript
+// 統一使用 LevelManager 管理關卡
+DK.LevelManager = {
+  currentLevel: null,
+  loadLevel(id) { /* ... */ }
+};
+
+// Map 只負責渲染
+DK.Map = {
+  init() {
+    const level = DK.LevelManager.currentLevel; // 明確的依賴關係
+    // ...
+  }
+};
+```
+
+---
+
+### 總結
+
+這次除錯經驗的核心啟示：
+
+1. **不要假設問題來源** - 重構後出錯不一定是重構造成的
+2. **使用工具而非直覺** - 除錯頁面比猜測更有效
+3. **錯誤訊息是線索** - 仔細閱讀，不要忽略
+4. **防禦性編程** - 驗證參數存在，使用可選鏈
+5. **記錄經驗** - 寫進 CLAUDE.md，避免重蹈覆轍
+
+**時間對比**：
+- ❌ 猜測 + 回滾 + 快取清除：30 分鐘（無效）
+- ✅ 建立除錯頁面 + 追蹤錯誤：5 分鐘（直接定位）
+
+**投資報酬率**：建立除錯工具的時間 < 無目標猜測的時間

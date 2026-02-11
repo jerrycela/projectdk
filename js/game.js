@@ -61,7 +61,7 @@ DK.Game = {
     DK.Map.init();
     this.initParticles();
     DK.Traps.init();
-    if (DK.Doors) DK.Doors.init(DK.Map.currentLevel);
+    if (DK.Doors) DK.Doors.init(DK.LevelManager.currentLevel);
     DK.Enemies.init();
     if (DK.Elements) DK.Elements.init();
     if (DK.Heroes) DK.Heroes.init();
