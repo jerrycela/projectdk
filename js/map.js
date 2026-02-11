@@ -1320,13 +1320,13 @@ DK.Map = {
     }
   },
 
-  // 繪製完整 2×2 傳送門（含動畫效果）
+// 繪製完整 2×2 傳送門（含動畫效果）- 優化版（3 層渲染）
   drawPortalFull(ctx, x, y, colorScheme, time) {
     const PA = DK.PixelArt;
     const ISO = PA.Isometric;
     const T = 16; // Tile size
 
-    // 0. 地面凹陷邊緣（等距光影）
+    // 0. 地面凹陷邊緣（等距光影）- 保持不變
     const edgeColor = '#4a4236'; // 地板色
     const edgeTop = ISO.topLight(edgeColor);
     const edgeSide = ISO.sideDark(edgeColor);
@@ -1340,63 +1340,61 @@ DK.Map = {
     // 下邊緣（最暗）
     PA.rect(ctx, x, y + 30, 32, 2, PA.darken(edgeColor, 20));
 
-    // 1. 繪製地面光暈（4 格範圍，32×32px）
+    // 【優化】共用 alpha 計算（避免重複 Math.sin）
+    const pulseAlpha = 0.4 + 0.2 * Math.sin(time * Math.PI * 2); // 1 秒週期脈動
+
+    // Layer 1: 地面光暈（核心視覺，保留）
     ctx.save();
     const gradient = ctx.createRadialGradient(x + T, y + T, 4, x + T, y + T, T * 1.5);
-    const alpha = 0.4 + 0.2 * Math.sin(time * Math.PI * 2); // 脈動（1 秒週期）
-    gradient.addColorStop(0, colorScheme.glow + Math.floor(alpha * 255).toString(16).padStart(2, '0'));
+    gradient.addColorStop(0, colorScheme.glow + Math.floor(pulseAlpha * 255).toString(16).padStart(2, '0'));
     gradient.addColorStop(1, 'transparent');
     ctx.fillStyle = gradient;
     ctx.fillRect(x, y, T * 2, T * 2);
     ctx.restore();
 
-    // 2. 三層深度漩渦（等距深度效果）
+    // Layer 2: 簡化漩渦（雙重繪製取代三層）
     ctx.save();
     ctx.translate(x + T, y + T);
     ctx.rotate(time * Math.PI); // 0.5 秒/圈
 
-    // 深層（最暗，最小）
+    // 深層（暗，小）- 模擬深度
     ctx.save();
-    ctx.globalAlpha = 0.4;
-    ctx.translate(0, 2); // 向下偏移 2px
-    this.drawSwirlPattern(ctx, colorScheme, 0.6); // 縮放 60%
+    ctx.globalAlpha = 0.5;
+    ctx.translate(0, 1.5); // 向下偏移 1.5px（折衷）
+    this.drawSwirlPattern(ctx, colorScheme, 0.7); // 縮放 70%（折衷）
     ctx.restore();
 
-    // 中層
-    ctx.save();
-    ctx.globalAlpha = 0.7;
-    ctx.translate(0, 1); // 向下偏移 1px
-    this.drawSwirlPattern(ctx, colorScheme, 0.8); // 縮放 80%
-    ctx.restore();
-
-    // 淺層（最亮，最大）
-    this.drawSwirlPattern(ctx, colorScheme, 1.0); // 原始大小
+    // 淺層（亮，大）
+    ctx.globalAlpha = 0.9;
+    this.drawSwirlPattern(ctx, colorScheme, 1.0);
 
     ctx.restore();
 
-    // 3. 繪製能量環（脈動）
+    // Layer 3: 能量環 + 粒子合併（共用 pulseAlpha）
     ctx.save();
-    const ringAlpha = 0.3 + 0.4 * Math.sin(time * Math.PI * 2);
+
+    // 能量環
+    const ringAlpha = 0.3 + 0.4 * pulseAlpha; // 複用脈動值
     ctx.strokeStyle = colorScheme.glow + Math.floor(ringAlpha * 255).toString(16).padStart(2, '0');
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(x + T, y + T, 12, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.restore();
 
-    // 4. 繪製環繞粒子（8 個）
-    for (let i = 0; i < 8; i++) {
-      const particleSpeed = 0.8 + (i % 3) * 0.2; // 每個粒子獨立速度
-      const angle = time * 2 * particleSpeed + i * Math.PI / 4;
+    // 【優化】粒子數量：8 → 6，簡化計算
+    for (let i = 0; i < 6; i++) {
+      const angle = time * 1.6 + i * Math.PI / 3; // 簡化速度計算
       const radius = 10 + 2 * Math.sin(time * 3 + i);
       const px = x + T + Math.cos(angle) * radius;
       const py = y + T + Math.sin(angle) * radius;
 
-      // 粒子漸隱效果
-      const particleAlpha = 0.6 + 0.4 * Math.sin(time * 4 + i);
+      // 複用 pulseAlpha 避免重複計算
+      const particleAlpha = 0.6 + 0.4 * pulseAlpha;
       ctx.fillStyle = colorScheme.glow + Math.floor(particleAlpha * 255).toString(16).padStart(2, '0');
       PA.rect(ctx, Math.floor(px) - 1, Math.floor(py) - 1, 2, 2, ctx.fillStyle);
     }
+
+    ctx.restore();
   },
 
   drawEntranceTile(ctx, x, y, time = 0) {
@@ -1954,6 +1952,19 @@ DK.Map = {
     };
   },
 
+  /**
+   * 視距剔除：檢查物件是否在可見範圍內（含緩衝區）
+   * @param {number} col - 物件列位置
+   * @param {number} row - 物件行位置
+   * @param {number} buffer - 緩衝格數（預設 2）
+   * @returns {boolean} 是否在視野內
+   */
+  isInViewport(col, row, buffer = 2) {
+    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
+    return col >= startCol - buffer && col <= endCol + buffer &&
+           row >= startRow - buffer && row <= endRow + buffer;
+  },
+
   render(ctx) {
     const PA = DK.PixelArt;
     const T = DK.CONFIG.TILE_SIZE;
@@ -2093,12 +2104,11 @@ DK.Map = {
     const PA = DK.PixelArt;
     const T = DK.CONFIG.TILE_SIZE;
     const time = DK.Game ? DK.Game.time : 0;
-    const { startCol, startRow, endCol, endRow } = this.getVisibleRange();
 
     for (const torch of this.torches) {
-      // 跳過不在可見範圍內的火把（含光暈半徑 3 格）
-      if (torch.col < startCol - 3 || torch.col > endCol + 3 ||
-          torch.row < startRow - 3 || torch.row > endRow + 3) continue;
+      // 視距剔除：只渲染視野內 + 2 格緩衝的火把
+      if (!this.isInViewport(torch.col, torch.row, 2)) continue;
+
       const tx = torch.col * T;
       const ty = torch.row * T;
 
@@ -2148,27 +2158,17 @@ DK.Map = {
         });
       }
 
-      // 周圍格子的環境光暈（暖橘色）- 升級光暈參數
-      const glowRadius = 2.8 + flicker * 0.5;
-      const glowIntensity = 0.12 + flicker * 0.08;
-      for (let gr = -glowRadius; gr <= glowRadius; gr++) {
-        for (let gc = -glowRadius; gc <= glowRadius; gc++) {
-          const dist = Math.sqrt(gr * gr + gc * gc);
-          if (dist > glowRadius) continue;
-          const nr = torch.row + gr;
-          const nc = torch.col + gc;
-          if (nr < 0 || nr >= this.layout.length || nc < 0 || nc >= this.layout[0].length) continue;
+      // === 優化版 2 層光暈系統（取代原本漸變計算）===
+      // 性能目標：單個火把 < 0.15ms
+      const glowFlicker = 0.12 + flicker * 0.08; // 光暈隨火焰閃爍
 
-          const falloff = 1 - dist / glowRadius;
-          const alpha = glowIntensity * falloff * falloff * falloff;
-          if (alpha < 0.01) continue;
+      // 外層光暈（16px 半徑，alpha 0.06）
+      ctx.fillStyle = `rgba(255,180,80,${0.06 + glowFlicker * 0.5})`;
+      ctx.fillRect(tx - 16, ty - 16, T + 32, T + 32);
 
-          const gx = nc * T;
-          const gy = nr * T;
-          ctx.fillStyle = `rgba(255,180,80,${alpha})`;
-          ctx.fillRect(gx, gy, T, T);
-        }
-      }
+      // 內層光暈（8px 半徑，alpha 0.12）
+      ctx.fillStyle = `rgba(255,200,100,${0.12 + glowFlicker})`;
+      ctx.fillRect(tx - 8, ty - 8, T + 16, T + 16);
     }
   },
 

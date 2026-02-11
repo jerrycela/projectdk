@@ -83,6 +83,23 @@ window.DK = window.DK || {};
     DK.UI.clearSelection();
   });
 
+  // 鍵盤導航（無障礙功能）
+  document.addEventListener('keydown', (e) => {
+    // F3 快捷鍵：切換 FPS 監控
+    if (e.key === 'F3') {
+      e.preventDefault();
+      if (DK.Debug) {
+        const enabled = DK.Debug.toggle();
+        console.log(`FPS 監控已${enabled ? '開啟' : '關閉'}`);
+      }
+      return;
+    }
+
+    if (DK.UI && DK.UI.handleKeyboard) {
+      DK.UI.handleKeyboard(e);
+    }
+  });
+
   // Game loop
   let lastTime = performance.now();
 
@@ -93,9 +110,19 @@ window.DK = window.DK || {};
     // Update
     DK.Game.update(dt);
 
+    // Update error notification system
+    if (DK.UI && DK.UI.ErrorNotification) {
+      DK.UI.ErrorNotification.update(dt);
+    }
+
     // Update test toolbar stats
     if (DK.TestToolbar && DK.TestToolbar.updateStats) {
       DK.TestToolbar.updateStats();
+    }
+
+    // Update FPS monitor
+    if (DK.Debug) {
+      DK.Debug.update(dt);
     }
 
     // 開始畫面：只渲染標題畫面
@@ -232,6 +259,11 @@ window.DK = window.DK || {};
     // Render UI overlay (high-res for crisp text)
     uiCtx.clearRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
     DK.UI.render(uiCtx);
+
+    // Render FPS monitor (顯示在最上層)
+    if (DK.Debug) {
+      DK.Debug.render(uiCtx);
+    }
 
     requestAnimationFrame(gameLoop);
   }
