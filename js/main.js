@@ -37,23 +37,56 @@ window.DK = window.DK || {};
   // Initialize game
   // (Game init will be called by startGame() after user clicks Start button)
 
+  // Cache canvas rect to avoid triggering reflow on every mouse event
+  let canvasRect = uiCanvas.getBoundingClientRect();
+
+  // Update cached rect on window resize
+  function updateCanvasRect() {
+    canvasRect = uiCanvas.getBoundingClientRect();
+  }
+  window.addEventListener('resize', updateCanvasRect);
+
   // Input handling - mousedown/mouseup for drag-to-scroll camera
   uiCanvas.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return; // Left button only
-    const rect = uiCanvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = e.clientX - canvasRect.left;
+    const my = e.clientY - canvasRect.top;
     DK.UI.handleMouseDown(mx, my);
   });
 
   uiCanvas.addEventListener('mouseup', (e) => {
     if (e.button !== 0) return;
-    const rect = uiCanvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = e.clientX - canvasRect.left;
+    const my = e.clientY - canvasRect.top;
 
-    // Start screen and game over: click to proceed
+    // Start screen: 啟動遊戲
+    // 註：視覺模式選擇已移除，固定使用 DW3 優化風格（standard 模式）
     if (DK.Game.state === 'start') {
+      /*
+      // 檢查是否點擊視覺模式按鈕（已停用）
+      if (DK.UI._presetButtons) {
+        for (const btn of DK.UI._presetButtons) {
+          if (mx >= btn.x && mx <= btn.x + btn.w &&
+              my >= btn.y && my <= btn.y + btn.h) {
+            // 點擊了視覺模式按鈕
+            DK.VISUAL_SETTINGS.applyPreset(btn.preset);
+
+            // 保存到 localStorage
+            try {
+              localStorage.setItem('dk_visual_preset', btn.preset);
+            } catch (err) {
+              console.warn('Failed to save visual preset:', err);
+            }
+
+            DK.UI._mouseDown = false;
+            DK.UI._isDragging = false;
+            return; // 不啟動遊戲
+          }
+        }
+      }
+      */
+
+      // 直接啟動遊戲
       DK.Game.startGame();
       DK.UI._mouseDown = false;
       DK.UI._isDragging = false;
@@ -71,9 +104,8 @@ window.DK = window.DK || {};
   });
 
   uiCanvas.addEventListener('mousemove', (e) => {
-    const rect = uiCanvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = e.clientX - canvasRect.left;
+    const my = e.clientY - canvasRect.top;
     DK.UI.handleMouseMove(mx, my);
   });
 
@@ -90,7 +122,30 @@ window.DK = window.DK || {};
       e.preventDefault();
       if (DK.Debug) {
         const enabled = DK.Debug.toggle();
-        console.log(`FPS 監控已${enabled ? '開啟' : '關閉'}`);
+        if (DK.DEBUG_MODE) {
+          console.log(`FPS 監控已${enabled ? '開啟' : '關閉'}`);
+        }
+      }
+      return;
+    }
+
+    // Ctrl+Z / Cmd+Z 快捷鍵：撤銷操作
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+
+      // 僅在 PLANNING 階段可撤銷
+      if (DK.Game.state === 'planning') {
+        if (DK.UndoSystem) {
+          const success = DK.UndoSystem.undo();
+          if (success && DK.SoundSystem) {
+            DK.SoundSystem.play('ui_click', 0.7);
+          }
+        }
+      } else {
+        // 非 PLANNING 階段，顯示提示
+        if (DK.UI && DK.UI.ErrorNotification) {
+          DK.UI.ErrorNotification.show('只能在準備階段撤銷操作', 'warning');
+        }
       }
       return;
     }
@@ -226,11 +281,15 @@ window.DK = window.DK || {};
 
     // Screen-space rendering (not affected by camera)
     // Vignette (screen-space, stays at screen edges)
-    DK.Map.renderVignette(offCtx);
+    if (DK.VISUAL_SETTINGS.isEnabled('vignette')) {
+      DK.Map.renderVignette(offCtx);
+    }
 
-    // Global warm tone overlay (simulates torch-dominated lighting)
-    offCtx.fillStyle = 'rgba(255,180,120,0.03)';
-    offCtx.fillRect(0, 0, DK.CONFIG.GAME_WIDTH, DK.CONFIG.GAME_HEIGHT);
+    // Global warm tone overlay
+    if (DK.VISUAL_SETTINGS.isEnabled('colorGrading')) {
+      offCtx.fillStyle = 'rgba(255,180,120,0.03)';
+      offCtx.fillRect(0, 0, DK.CONFIG.GAME_WIDTH, DK.CONFIG.GAME_HEIGHT);
+    }
 
     // Scale pixel art to display canvas
     gameCtx.clearRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
@@ -258,7 +317,7 @@ window.DK = window.DK || {};
 
     // Render UI overlay (high-res for crisp text)
     uiCtx.clearRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
-    DK.UI.render(uiCtx);
+    DK.UI.render(uiCtx); // renderWavePreview 已在 DK.UI.render() 內部呼叫 (line 830)
 
     // Render FPS monitor (顯示在最上層)
     if (DK.Debug) {
@@ -266,6 +325,208 @@ window.DK = window.DK || {};
     }
 
     requestAnimationFrame(gameLoop);
+  }
+
+  // === Wave Preview System ===
+
+  function renderWavePreview(ctx) {
+    const currentWave = DK.Game.getCurrentWaveData();
+    const nextWave = DK.Game.getNextWaveData();
+
+    if (!currentWave) return;
+
+    // 渲染當前波次卡片（左上角，波次資訊下方）
+    renderCurrentWaveCard(ctx, currentWave, 20, 120);
+
+    // 渲染下一波次預覽（左上角，偏下）
+    if (nextWave) {
+      renderNextWaveCard(ctx, nextWave, 20, 300);
+    }
+
+    // 渲染波次進度條（底部中央）
+    renderWaveProgress(ctx, DK.Game.currentWave + 1, DK.WAVES.length);
+  }
+
+  function renderCurrentWaveCard(ctx, waveData, x, y) {
+    ctx.save();  // ✅ 保存 Canvas 狀態
+
+    const cardW = 220;
+    const cardH = 160;
+
+    // 難度邊框顏色
+    const difficultyColors = {
+      easy: '#44ff44',
+      medium: '#ffff44',
+      hard: '#ff8844',
+      extreme: '#ff4444'
+    };
+    const borderColor = difficultyColors[waveData.difficulty] || '#44ff44';
+
+    // 半透明深色背景
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+    ctx.fillRect(x, y, cardW, cardH);
+
+    // 難度邊框（3px）
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, cardW, cardH);
+
+    // 波次編號（大字體）
+    ctx.font = DK.FONTS.bold(28);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.fillText(`第 ${waveData.wave} 波`, x + 12, y + 32);
+
+    // 難度指示器（5 個格子）
+    renderDifficultyIndicator(ctx, waveData.difficulty, x + 12, y + 46);
+
+    // 敵人類型 + 數量
+    ctx.font = DK.FONTS.body(14);
+    ctx.fillStyle = '#cccccc';
+    ctx.fillText(`敵人類型：`, x + 12, y + 80);
+
+    let offsetY = y + 100;
+    waveData.enemies.forEach((enemyGroup, index) => {
+      const enemyType = DK.ENEMY_TYPES[enemyGroup.type];
+      const enemyName = enemyType ? enemyType.name : enemyGroup.type;
+      const color = getEnemyColor(enemyGroup.type);
+
+      ctx.fillStyle = color;
+      ctx.fillText(`• ${enemyName} × ${enemyGroup.count}`, x + 16, offsetY);
+      offsetY += 18;
+    });
+
+    // 完成獎勵金幣
+    ctx.font = DK.FONTS.bold(16);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(`💰 獎勵：+${waveData.reward} 金幣`, x + 12, y + cardH - 12);
+
+    ctx.restore();  // ✅ 恢復 Canvas 狀態
+  }
+
+  function renderNextWaveCard(ctx, waveData, x, y) {
+    ctx.save();  // ✅ 保存 Canvas 狀態
+
+    const cardW = 220;
+    const cardH = 100;
+
+    // 半透明深色背景（更透明）
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.7)';
+    ctx.fillRect(x, y, cardW, cardH);
+
+    // 灰色邊框
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, cardW, cardH);
+
+    // "下一波" 標籤
+    ctx.font = DK.FONTS.bold(18);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.textAlign = 'left';
+    ctx.fillText(`下一波（第 ${waveData.wave} 波）`, x + 12, y + 28);
+
+    // 難度指示器
+    renderDifficultyIndicator(ctx, waveData.difficulty, x + 12, y + 40);
+
+    // 敵人類型預覽（小圖示）
+    ctx.font = DK.FONTS.body(12);
+    ctx.fillStyle = '#999999';
+    ctx.fillText(`敵人：${waveData.totalEnemies} 隻`, x + 12, y + 68);
+
+    // 敵人類型列表（簡化版）
+    const enemyTypes = waveData.enemies.map(e => {
+      const enemyType = DK.ENEMY_TYPES[e.type];
+      return enemyType ? enemyType.name : e.type;
+    }).join(', ');
+
+    ctx.fillStyle = '#777777';
+    ctx.fillText(enemyTypes.length > 24 ? enemyTypes.substring(0, 24) + '...' : enemyTypes, x + 12, y + 84);
+
+    ctx.restore();  // ✅ 恢復 Canvas 狀態
+  }
+
+  function renderDifficultyIndicator(ctx, difficulty, x, y) {
+    ctx.save();  // ✅ 保存 Canvas 狀態
+
+    const barW = 10;
+    const barH = 16;
+    const gap = 4;
+    const totalBars = 5;
+
+    const difficultyLevels = {
+      easy: 1,
+      medium: 3,
+      hard: 4,
+      extreme: 5
+    };
+    const level = difficultyLevels[difficulty] || 1;
+
+    const colors = {
+      easy: '#44ff44',
+      medium: '#ffff44',
+      hard: '#ff8844',
+      extreme: '#ff4444'
+    };
+    const activeColor = colors[difficulty] || '#44ff44';
+
+    for (let i = 0; i < totalBars; i++) {
+      const barX = x + i * (barW + gap);
+      const isActive = i < level;
+
+      if (isActive) {
+        ctx.fillStyle = activeColor;
+      } else {
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.3)';
+      }
+
+      ctx.fillRect(barX, y, barW, barH);
+    }
+
+    ctx.restore();  // ✅ 恢復 Canvas 狀態
+  }
+
+  function renderWaveProgress(ctx, currentWave, totalWaves) {
+    ctx.save();  // ✅ 保存 Canvas 狀態
+
+    const barW = 300;
+    const barH = 20;
+    const x = (DK.CONFIG.DISPLAY_WIDTH - barW) / 2;
+    const y = DK.CONFIG.DISPLAY_HEIGHT - 40;
+
+    // 背景
+    ctx.fillStyle = 'rgba(20, 20, 40, 0.8)';
+    ctx.fillRect(x - 4, y - 4, barW + 8, barH + 8);
+
+    // 邊框
+    ctx.strokeStyle = '#666666';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, barW, barH);
+
+    // 進度條填充
+    const progress = currentWave / totalWaves;
+    const fillW = Math.round(barW * progress);
+
+    ctx.fillStyle = '#44aaff';
+    ctx.fillRect(x, y, fillW, barH);
+
+    // 文字
+    ctx.font = DK.FONTS.bold(14);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(`波次進度：${currentWave} / ${totalWaves}`, x + barW / 2, y + 14);
+
+    ctx.restore();  // ✅ 恢復 Canvas 狀態
+  }
+
+  function getEnemyColor(enemyType) {
+    const colorMap = {
+      goblin: '#44ff44',
+      orc: '#ff8844',
+      troll: '#ff4444',
+      golem: '#888888',
+      // 可根據需要擴展
+    };
+    return colorMap[enemyType] || '#cccccc';
   }
 
   // === Effect Sub-Renderers (extracted from renderEffects) ===
@@ -494,6 +755,122 @@ window.DK = window.DK || {};
         const dpy = Math.round(effect.y + Math.sin(dAngle) * dR * 0.6 - novaProgress * 3);
         PA.pixel(ctx, dpx, dpy, '#88ccff');
       }
+    }
+  }
+
+  function renderHalo(ctx, PA, effect, progress) {
+    // 陷阱觸發光暈效果：從小放大再縮小，透明度漸變
+    const T = DK.CONFIG.TILE_SIZE;
+    const maxScale = effect.maxScale || 1.5;
+
+    // 縮放曲線：0 → maxScale → 0 (使用 ease-out-quad)
+    let scale;
+    if (progress < 0.3) {
+      // 前 30%：快速放大 (0 → 1)
+      const t = progress / 0.3;
+      scale = t * t * (3 - 2 * t); // smoothstep
+    } else if (progress < 0.7) {
+      // 中 40%：維持最大值
+      scale = 1;
+    } else {
+      // 後 30%：快速縮小 (1 → 0)
+      const t = (progress - 0.7) / 0.3;
+      scale = 1 - t * t;
+    }
+
+    const currentScale = scale * maxScale;
+
+    // 透明度曲線：0.8 → 0 (線性衰減)
+    const alpha = (1 - progress) * 0.8;
+
+    if (alpha <= 0.05 || currentScale <= 0.1) return;
+
+    // 繪製徑向漸層光暈
+    const radius = T * currentScale;
+    const cx = Math.round(effect.x);
+    const cy = Math.round(effect.y);
+
+    // 使用 Canvas 徑向漸層
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+
+    // 解析顏色 (假設為 hex 格式 #rrggbb)
+    const color = effect.color || '#ffffff';
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+
+    // 漸層：中心亮 → 邊緣暗
+    gradient.addColorStop(0, `rgba(255,255,255,${alpha})`); // 中心白色高光
+    gradient.addColorStop(0.3, `rgba(${r},${g},${b},${alpha * 0.9})`); // 主色
+    gradient.addColorStop(0.7, `rgba(${r},${g},${b},${alpha * 0.5})`); // 主色衰減
+    gradient.addColorStop(1, `rgba(${r},${g},${b},0)`); // 邊緣透明
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 新增閃光粒子（前 40% 階段）
+    if (progress < 0.4) {
+      const particleCount = 6;
+      const particleAlpha = (0.4 - progress) / 0.4 * alpha;
+
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2 + progress * 8;
+        const dist = radius * (0.6 + Math.random() * 0.3);
+        const px = Math.round(cx + Math.cos(angle) * dist);
+        const py = Math.round(cy + Math.sin(angle) * dist);
+
+        ctx.fillStyle = `rgba(255,255,255,${particleAlpha})`;
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  }
+
+  function renderTrapRangeHighlight(ctx, PA, effect, progress) {
+    // 陷阱範圍圈高亮效果：顯示陷阱的實際作用範圍
+    // 持續 500ms，透明度從高到低
+    const alpha = (1 - progress) * 0.6;
+
+    if (alpha <= 0.05) return;
+
+    const cx = Math.round(effect.x);
+    const cy = Math.round(effect.y);
+    const range = effect.range || 0;
+
+    // 解析顏色
+    const color = effect.color || '#ffffff';
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+
+    // 繪製虛線圓圈（範圍指示）
+    ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, range, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 繪製半透明填充
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, range, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 在圓圈上繪製 8 個亮點（旋轉動畫）
+    const pointCount = 8;
+    const rotationSpeed = 4; // 旋轉速度
+    for (let i = 0; i < pointCount; i++) {
+      const angle = (i / pointCount) * Math.PI * 2 + progress * rotationSpeed;
+      const px = Math.round(cx + Math.cos(angle) * range);
+      const py = Math.round(cy + Math.sin(angle) * range);
+
+      // 亮點透明度會閃爍
+      const pointAlpha = alpha * (0.5 + Math.sin(progress * Math.PI * 8 + i) * 0.5);
+      ctx.fillStyle = `rgba(255,255,255,${pointAlpha})`;
+      ctx.fillRect(px - 1, py - 1, 2, 2);
     }
   }
 
@@ -1266,55 +1643,119 @@ window.DK = window.DK || {};
 
   // === Path Preview (breach phase) ===
 
+  /**
+   * Cardinal 樣條曲線插值 - 用於繪製光滑路徑
+   * @param {number} p0 - 前一個控制點
+   * @param {number} p1 - 起點
+   * @param {number} p2 - 終點
+   * @param {number} p3 - 下一個控制點
+   * @param {number} t - 插值參數 (0-1)
+   * @param {number} tension - 張力 (0-1, 0=最平滑)
+   */
+  function cardinalSplinePoint(p0, p1, p2, p3, t, tension) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const s = (1 - tension) / 2;
+
+    const v1 = s * (p2 - p0);
+    const v2 = s * (p3 - p1);
+
+    return (
+      (2 * p1 - 2 * p2 + v1 + v2) * t3 +
+      (-3 * p1 + 3 * p2 - 2 * v1 - v2) * t2 +
+      v1 * t +
+      p1
+    );
+  }
+
+  /**
+   * 繪製 Cardinal 樣條曲線
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 上下文
+   * @param {Array<{x, y}>} points - 路徑點陣列
+   * @param {number} tension - 張力 (0-1)
+   * @param {number} numSegments - 每段的插值數量
+   */
+  function drawCardinalSpline(ctx, points, tension, numSegments) {
+    if (points.length < 2) return;
+
+    // 如果只有 2 個點，直接畫直線
+    if (points.length === 2) {
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      return;
+    }
+
+    // 從第一個點開始
+    ctx.moveTo(points[0].x, points[0].y);
+
+    // 為每一對相鄰點繪製曲線段
+    for (let i = 0; i < points.length - 1; i++) {
+      // 選擇控制點（使用邊界點作為虛擬控制點）
+      const p0 = points[Math.max(i - 1, 0)];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[Math.min(i + 2, points.length - 1)];
+
+      // 插值這一段
+      for (let t = 1; t <= numSegments; t++) {
+        const t1 = t / numSegments;
+
+        const x = cardinalSplinePoint(p0.x, p1.x, p2.x, p3.x, t1, tension);
+        const y = cardinalSplinePoint(p0.y, p1.y, p2.y, p3.y, t1, tension);
+
+        ctx.lineTo(x, y);
+      }
+    }
+  }
+
   function renderPathPreview(ctx) {
     // 優先使用路徑預覽快取（支援路障標記）
     if (DK.Map.pathPreviewCache && DK.Map.pathPreviewCache.length > 0) {
       const T = DK.CONFIG.TILE_SIZE;
       const time = DK.Game.time || 0;
 
-      // 動態流動偏移（螞蟻行軍效果，快速流動）
-      const dashOffset = -(time * 0.008) % 8;
-
       for (const { hole, path } of DK.Map.pathPreviewCache) {
         if (path.length === 0) continue;
 
-        // 從洞口開始畫
-        let prevX = hole.col * T + T / 2;
-        let prevY = hole.row * T + T / 2;
+        // 建立完整路徑點陣列（起點：傳送門中心 + 路徑點 + 終點：地城之心中心）
+        const points = [
+          { x: hole.col * T + T, y: hole.row * T + T }, // 傳送門中心（2x2格子）
+          ...path.slice(1).map(step => ({ // 跳過 path[0]（傳送門自己的格子）
+            x: step.col * T + T / 2,
+            y: step.row * T + T / 2,
+            blocked: step.blocked
+          }))
+        ];
 
-        for (const step of path) {
-          const curX = step.col * T + T / 2;
-          const curY = step.row * T + T / 2;
-
-          // 高對比色：正常路段亮青色，路障路段亮橙色
-          const color = step.blocked
-            ? 'rgba(255,180,40,0.7)'
-            : 'rgba(40,255,200,0.6)';
-
-          // 底層暗色描邊增加可見度
-          ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-          ctx.lineWidth = 2.5;
-          ctx.setLineDash([4, 4]);
-          ctx.lineDashOffset = dashOffset;
-          ctx.beginPath();
-          ctx.moveTo(prevX, prevY);
-          ctx.lineTo(curX, curY);
-          ctx.stroke();
-
-          // 上層亮色主線
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(prevX, prevY);
-          ctx.lineTo(curX, curY);
-          ctx.stroke();
-
-          prevX = curX;
-          prevY = curY;
+        // 加入地城之心中心點作為終點
+        if (DK.Map.heartPos) {
+          points.push({
+            x: DK.Map.heartPos.col * T + T / 2,
+            y: DK.Map.heartPos.row * T + T / 2
+          });
         }
 
-        ctx.setLineDash([]);
-        ctx.lineDashOffset = 0;
+        // 檢查是否有路障
+        const hasBlocked = path.some(step => step.blocked);
+        const pathColor = hasBlocked ? 'rgba(255,180,40,0.6)' : 'rgba(255,255,255,0.6)';
+
+        // 繪製虛線曲線（光滑 + 斷點）
+        ctx.save();
+        ctx.shadowColor = pathColor;
+        ctx.shadowBlur = 4;
+        ctx.strokeStyle = pathColor;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // 虛線設定（斷點效果，快速流動）
+        ctx.setLineDash([8, 4]);
+        ctx.lineDashOffset = -(time * 0.025) % 12;
+
+        ctx.beginPath();
+        drawCardinalSpline(ctx, points, 0.5, 16);
+        ctx.stroke();
+        ctx.restore();
       }
       return;
     }
@@ -1376,6 +1817,8 @@ window.DK = window.DK || {};
         case 'hero_deploy': renderHeroDeploy(ctx, PA, effect, progress); break;
         case 'hero_recall': renderHeroRecall(ctx, PA, effect, progress); break;
         case 'wall_break': renderWallBreak(ctx, PA, effect, progress); break;
+        case 'halo': renderHalo(ctx, PA, effect, progress); break;
+        case 'trap_range_highlight': renderTrapRangeHighlight(ctx, PA, effect, progress); break;
         case 'barricade_shatter': {
           if (progress > 1) break;
 
@@ -1493,12 +1936,40 @@ window.DK = window.DK || {};
     }
   };
 
-  // Patch UI render to include effects
+  // Patch UI render to include effects and tooltip
   const originalUIRender = DK.UI.render.bind(DK.UI);
   DK.UI.render = function(ctx) {
     originalUIRender(ctx);
     DK.renderUIEffects(ctx);
+
+    // Render tooltip system (on top of everything)
+    if (DK.Tooltip) {
+      DK.Tooltip.render(ctx, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
+    }
   };
+
+  // Initialize Math Cache (pre-compute sin/cos lookup tables)
+  if (DK.MathCache) {
+    DK.MathCache.init();
+  }
+
+  // Initialize Sound System
+  if (DK.SoundSystem) {
+    DK.SoundSystem.init();
+  }
+
+  // Load visual preset from localStorage（已停用 - 固定使用 DW3 優化風格）
+  // 註：已改為固定使用 'standard' 模式，不再從 localStorage 載入
+  /*
+  try {
+    const savedPreset = localStorage.getItem('dk_visual_preset');
+    if (savedPreset && DK.VISUAL_SETTINGS) {
+      DK.VISUAL_SETTINGS.applyPreset(savedPreset);
+    }
+  } catch (err) {
+    console.warn('Failed to load visual preset from localStorage:', err);
+  }
+  */
 
   // Start!
   requestAnimationFrame(gameLoop);
