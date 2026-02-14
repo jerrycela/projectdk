@@ -458,11 +458,11 @@ DK.Editor = {
         return;
       }
 
-      // 檢查 NxN 區域是否可用
+      // 檢查 NxN 區域是否可用（多格物件只允許放在地板上，防止重疊）
       for (let dy = 0; dy < N; dy++) {
         for (let dx = 0; dx < N; dx++) {
           const existingTile = this.getTile(col + dx, row + dy);
-          if (existingTile !== '.' && existingTile !== this.selectedTile) {
+          if (existingTile !== '.') {
             console.warn(`放置失敗：(${col + dx}, ${row + dy}) 已被 '${existingTile}' 佔用`);
             return;
           }
@@ -918,24 +918,46 @@ DK.Editor = {
     ctx.translate(-camX * tileSize, -camY * tileSize);
 
     // 只渲染可見地磚
+    // claimed Set 追蹤已由錨點認領的多格物件格子，避免重複渲染
+    const claimed = new Set();
+
     for (let row = startRow; row < endRow; row++) {
       for (let col = startCol; col < endCol; col++) {
         const tile = this.getTile(col, row);
         const x = col * tileSize;
         const y = row * tileSize;
 
-        // === 多格物件檢查 ===
-        // 多格物件只在錨點（左上角）繪製完整圖形，其餘格跳過
+        // === 多格物件檢查（使用 claimed Set 正確處理相鄰同類型物件）===
         const tileSize2 = this._getMultiTileSize(tile);
         if (tileSize2 > 1) {
-          // 錨點偵測：上方和左方都不是同一代碼才是錨點
-          const leftTile = this.getTile(col - 1, row);
-          const topTile = this.getTile(col, row - 1);
-
-          if (leftTile === tile || topTile === tile) {
-            continue;
+          const cellKey = row * this.cols + col;
+          if (claimed.has(cellKey)) {
+            continue; // 已被其他錨點認領，跳過
           }
-          // 否則當前格是錨點，繪製完整圖形
+
+          // 驗證以 (col, row) 為錨點的 NxN 區塊是否完整
+          let isValidAnchor = (col + tileSize2 <= this.cols && row + tileSize2 <= this.rows);
+          if (isValidAnchor) {
+            for (let dy = 0; dy < tileSize2 && isValidAnchor; dy++) {
+              for (let dx = 0; dx < tileSize2 && isValidAnchor; dx++) {
+                if (this.getTile(col + dx, row + dy) !== tile) {
+                  isValidAnchor = false;
+                }
+              }
+            }
+          }
+
+          if (!isValidAnchor) {
+            continue; // 不完整的區塊（孤立格或殘留），跳過
+          }
+
+          // 認領整個 NxN 區塊
+          for (let dy = 0; dy < tileSize2; dy++) {
+            for (let dx = 0; dx < tileSize2; dx++) {
+              claimed.add((row + dy) * this.cols + (col + dx));
+            }
+          }
+          // 落入下方渲染邏輯
         }
 
         // 優先使用快取（基本地磚類型）

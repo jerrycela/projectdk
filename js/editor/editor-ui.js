@@ -516,10 +516,14 @@ DK.EditorUI = {
     const previewCtx = canvas.getContext('2d');
     previewCtx.imageSmoothingEnabled = false;
 
-    // 繪製地磚預覽（放大 4 倍）
+    // 繪製地磚預覽（依物件尺寸自適應縮放）
     if (DK.Editor && DK.Editor.renderTile) {
+      const N = DK.Editor._getMultiTileSize
+        ? DK.Editor._getMultiTileSize(DK.Editor.selectedTile)
+        : 1;
+      const scale = 64 / (N * 16); // 1x1→4x, 2x2→2x, 3x3→1.33x, 4x4→1x
       previewCtx.save();
-      previewCtx.scale(4, 4);
+      previewCtx.scale(scale, scale);
       DK.Editor.renderTile.call(DK.Editor, previewCtx, DK.Editor.selectedTile, 0, 0);
       previewCtx.restore();
     }
