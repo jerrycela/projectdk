@@ -85,6 +85,8 @@ DK.PixelArt = {
 
   /**
    * Lighten a hex color
+   * 註：回傳 rgb() 格式以保持向後相容
+   * 若需 #hex 格式，請使用 DK.ColorUtils.adjustBrightness(color, percent)
    */
   lighten(hex, amount) {
     const num = parseInt(hex.slice(1), 16);
@@ -96,6 +98,8 @@ DK.PixelArt = {
 
   /**
    * Darken a hex color
+   * 註：回傳 rgb() 格式以保持向後相容
+   * 若需 #hex 格式，請使用 DK.ColorUtils.adjustBrightness(color, -percent)
    */
   darken(hex, amount) {
     const num = parseInt(hex.slice(1), 16);
@@ -107,6 +111,8 @@ DK.PixelArt = {
 
   /**
    * Mix two hex colors
+   * 註：回傳 rgb() 格式以保持向後相容
+   * 若需 #hex 格式，請使用 DK.ColorUtils.mixColors(color1, color2, ratio)
    */
   mix(hex1, hex2, t) {
     const n1 = parseInt(hex1.slice(1), 16);

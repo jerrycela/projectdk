@@ -265,6 +265,18 @@ DK.COLORS = {
         gem: '#88ccff',
         pearl: '#ffffff',
         silver: '#aaccee',
+        // 深海女巫風格新增色彩
+        cloak: '#1a3a6a',
+        cloakDark: '#0e2a4a',
+        cloakEdge: '#4488cc',
+        hairDark: '#3a5a8a',
+        hairMid: '#6a8aaa',
+        hairLight: '#8aaacc',
+        hairTip: '#aaccee',
+        crown: '#c0d0e8',
+        crownGem: '#4488dd',
+        eyeShadow: '#6688aa',
+        wavePattern: '#2a4a7a',
       },
       // 巴爾（火法師）深紅紫禮服
       fire: {
@@ -272,6 +284,18 @@ DK.COLORS = {
         robeDark: '#4a2a3a',
         robeLight: '#8a5a7a',
         gem: '#ffaa44',
+        // 火焰女皇風格新增色彩
+        cloak: '#5a2030',
+        cloakDark: '#3a1020',
+        cloakEdge: '#8a4060',
+        armor: '#8a6a40',
+        armorLight: '#ccaa60',
+        armorDark: '#5a4a20',
+        hairTip: '#ffaa44',
+        crownDark: '#cc8800',
+        flameTip: '#ffdd66',
+        emblem: '#ff6622',
+        chainGold: '#ddaa30',
       },
       // 通用裝飾
       decoration: {
@@ -866,7 +890,7 @@ DK.COLORS = {
     ELEMENT_FIRE: fx.element.fire,
     ELEMENT_FIRE_LIGHT: fx.element.fireLight,
 
-    // Heroes
+    // Heroes (共用)
     HERO_SKIN: chars.hero.skin,
     HERO_SELECTED: chars.hero.selected,
     HERO_HAIR_DARK: chars.hero.hair.dark,
@@ -874,18 +898,44 @@ DK.COLORS = {
     HERO_HAIR_LIGHT: chars.hero.hair.light,
     HERO_CROWN_GOLD: chars.hero.crown.gold,
     HERO_CROWN_GEM: chars.hero.crown.gem,
+    HERO_GOLD: chars.hero.decoration.gold,
+    HERO_FUR_WHITE: chars.hero.decoration.furWhite,
+
+    // Water Mage (Leviathan) - Deep Sea Witch
     HERO_ROBE: chars.hero.water.robe,
     HERO_ROBE_DARK: chars.hero.water.robeDark,
     HERO_ROBE_LIGHT: chars.hero.water.robeLight,
     HERO_GEM_WATER: chars.hero.water.gem,
     HERO_PEARL: chars.hero.water.pearl,
     HERO_SILVER: chars.hero.water.silver,
-    HERO_GOLD: chars.hero.decoration.gold,
-    HERO_FUR_WHITE: chars.hero.decoration.furWhite,
+    HERO_WATER_CLOAK: chars.hero.water.cloak,
+    HERO_WATER_CLOAK_DARK: chars.hero.water.cloakDark,
+    HERO_WATER_CLOAK_EDGE: chars.hero.water.cloakEdge,
+    HERO_WATER_HAIR_DARK: chars.hero.water.hairDark,
+    HERO_WATER_HAIR_MID: chars.hero.water.hairMid,
+    HERO_WATER_HAIR_LIGHT: chars.hero.water.hairLight,
+    HERO_WATER_HAIR_TIP: chars.hero.water.hairTip,
+    HERO_WATER_CROWN: chars.hero.water.crown,
+    HERO_WATER_CROWN_GEM: chars.hero.water.crownGem,
+    HERO_WATER_EYE_SHADOW: chars.hero.water.eyeShadow,
+    HERO_WATER_WAVE_PATTERN: chars.hero.water.wavePattern,
+
+    // Fire Mage (Baal) - Fire Queen
     HERO_FIRE_ROBE: chars.hero.fire.robe,
     HERO_FIRE_ROBE_DARK: chars.hero.fire.robeDark,
     HERO_FIRE_ROBE_LIGHT: chars.hero.fire.robeLight,
     HERO_GEM_FIRE: chars.hero.fire.gem,
+    HERO_FIRE_CLOAK: chars.hero.fire.cloak,
+    HERO_FIRE_CLOAK_DARK: chars.hero.fire.cloakDark,
+    HERO_FIRE_CLOAK_EDGE: chars.hero.fire.cloakEdge,
+    HERO_FIRE_ARMOR: chars.hero.fire.armor,
+    HERO_FIRE_ARMOR_LIGHT: chars.hero.fire.armorLight,
+    HERO_FIRE_ARMOR_DARK: chars.hero.fire.armorDark,
+    HERO_FIRE_HAIR_TIP: chars.hero.fire.hairTip,
+    HERO_FIRE_CROWN_DARK: chars.hero.fire.crownDark,
+    HERO_FIRE_FLAME_TIP: chars.hero.fire.flameTip,
+    HERO_FIRE_EMBLEM: chars.hero.fire.emblem,
+    HERO_FIRE_CHAIN_GOLD: chars.hero.fire.chainGold,
   };
 
   // 將平面結構合併到 DK.COLORS（向後相容）

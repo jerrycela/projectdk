@@ -4,6 +4,16 @@
  */
 
 DK.EditorUI = {
+  /**
+   * HTML 跳脫函式（防止 XSS）
+   */
+  escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  },
+
   // === Tile 定義 ===
   tiles: [
     { id: 'W', name: '牆壁', color: '#2d2d44' },
@@ -81,8 +91,6 @@ DK.EditorUI = {
    * 初始化 UI 系統
    */
   init() {
-    console.log('🎨 初始化編輯器 UI...');
-
     // 1. 初始化分類狀態
     this.initCategoryStates();
 
@@ -94,8 +102,6 @@ DK.EditorUI = {
 
     // 4. 設置參數輸入事件
     this.setupParamInputs();
-
-    console.log('✅ 編輯器 UI 初始化完成');
   },
 
   /**
@@ -203,7 +209,7 @@ DK.EditorUI = {
         // 名稱和符號
         const label = document.createElement('div');
         label.className = 'tile-label';
-        label.innerHTML = `<strong>${tile.id}</strong><br><small>${tile.name}</small>`;
+        label.innerHTML = `<strong>${this.escapeHTML(tile.id)}</strong><br><small>${this.escapeHTML(tile.name)}</small>`;
         btn.appendChild(label);
 
         // 點擊事件

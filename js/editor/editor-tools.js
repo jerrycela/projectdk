@@ -15,8 +15,6 @@ DK.EditorTools = {
    * 初始化工具系統
    */
   init() {
-    console.log('🔧 初始化編輯工具...');
-
     // 設置工具按鈕事件
     this.setupToolButtons();
 
@@ -25,8 +23,6 @@ DK.EditorTools = {
 
     // 初始化歷史記錄
     this.saveHistory();
-
-    console.log('✅ 編輯工具初始化完成');
   },
 
   /**
@@ -196,9 +192,9 @@ DK.EditorTools = {
     // 清除當前指針後的所有記錄（分支清除）
     this.history.stack = this.history.stack.slice(0, this.history.current + 1);
 
-    // 保存當前狀態
+    // 保存當前狀態（深拷貝）
     const snapshot = {
-      layout: [...DK.Editor.layout],
+      layout: DK.Editor.layout.map(row => [...row]),
       timestamp: Date.now()
     };
 
@@ -217,16 +213,13 @@ DK.EditorTools = {
    */
   undo() {
     if (this.history.current <= 0) {
-      console.log('⚠️ 無法再 Undo');
       return;
     }
 
     this.history.current--;
     const snapshot = this.history.stack[this.history.current];
-    DK.Editor.layout = [...snapshot.layout];
+    DK.Editor.layout = snapshot.layout.map(row => [...row]);
     DK.Editor.markDirty();
-
-    console.log(`↶ Undo 到 ${this.history.current}/${this.history.stack.length - 1}`);
   },
 
   /**
@@ -234,15 +227,12 @@ DK.EditorTools = {
    */
   redo() {
     if (this.history.current >= this.history.stack.length - 1) {
-      console.log('⚠️ 無法再 Redo');
       return;
     }
 
     this.history.current++;
     const snapshot = this.history.stack[this.history.current];
-    DK.Editor.layout = [...snapshot.layout];
+    DK.Editor.layout = snapshot.layout.map(row => [...row]);
     DK.Editor.markDirty();
-
-    console.log(`↷ Redo 到 ${this.history.current}/${this.history.stack.length - 1}`);
   }
 };

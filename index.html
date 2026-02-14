@@ -30,16 +30,46 @@
     <canvas id="ui-canvas"></canvas>
   </div>
   <script src="js/config.js"></script>
+  <script src="js/error-handler.js"></script>
+  <script src="js/math-cache.js"></script>
+  <script src="js/particle-pool.js"></script>
+  <script src="js/sound.js"></script>
   <script src="js/levels.js"></script>
   <script src="js/tutorial.js"></script>
   <script src="js/pixelart.js"></script>
-  <script src="js/map.js"></script>
+
+  <!-- Map 系統模組化檔案 -->
+  <script src="js/map/map-core.js"></script>
+  <script src="js/map/map-pathfinding.js"></script>
+  <script src="js/map/map-tiles-basic.js"></script>
+  <script src="js/map/map-tiles-special.js"></script>
+  <script src="js/map/map-tiles-portal.js"></script>
+  <script src="js/map/map-tiles-heart.js"></script>
+  <script src="js/map/map-render.js"></script>
+  <script src="js/map/map-decorations.js"></script>
+
   <script src="js/elements.js"></script>
   <script src="js/traps.js"></script>
   <script src="js/doors.js"></script>
   <script src="js/enemies.js"></script>
   <script src="js/heroes.js"></script>
+  <script src="js/undo-system.js"></script>
+
+  <!-- 編輯器系統 -->
+  <script src="js/editor/editor-main.js"></script>
+  <script src="js/editor/editor-tools.js"></script>
+  <script src="js/editor/editor-ui.js"></script>
+  <script src="js/editor/editor-minimap.js"></script>
+  <script src="js/editor/editor-portal.js"></script>
+  <script src="js/editor/editor-storage.js"></script>
+  <script src="js/editor/editor-wave.js"></script>
+
+  <!-- UI 模組化拆分（2026-02-11）-->
+  <!-- ui.js 必須先載入（定義 DK.UI 基礎物件）-->
   <script src="js/ui.js"></script>
+  <!-- ui-tooltip.js 和 ui-notifications.js 擴展 DK.UI -->
+  <script src="js/ui/ui-tooltip.js"></script>
+  <script src="js/ui/ui-notifications.js"></script>
   <script src="js/game.js"></script>
   <script src="js/debug.js"></script>
   <script src="js/test-toolbar.js"></script>

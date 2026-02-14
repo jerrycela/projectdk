@@ -93,104 +93,6 @@ DK.UI = {
     return this.ButtonStates.NORMAL;
   },
 
-  // 錯誤提示系統（就近原則）
-  ErrorNotification: {
-    queue: [],
-    current: null,
-
-    /**
-     * 顯示錯誤提示
-     * @param {string} message - 錯誤訊息
-     * @param {string} type - 類型：'error' | 'warning' | 'info'
-     * @param {object} position - 顯示位置 { x, y }，null 則顯示於螢幕中央
-     */
-    show(message, type = 'error', position = null) {
-      this.queue.push({
-        message,
-        type,
-        timer: 0,
-        duration: 2000,
-        position: position || { x: 480, y: 300 }
-      });
-    },
-
-    update(dt) {
-      if (!this.current && this.queue.length > 0) {
-        this.current = this.queue.shift();
-      }
-
-      if (this.current) {
-        this.current.timer += dt;
-        if (this.current.timer >= this.current.duration) {
-          this.current = null;
-        }
-      }
-    },
-
-    render(ctx) {
-      if (!this.current) return;
-
-      const n = this.current;
-      const x = n.position.x;
-      const y = n.position.y;
-
-      // 滑入滑出動畫（300ms）
-      const slideTime = 300;
-      let offsetY = 0;
-      if (n.timer < slideTime) {
-        offsetY = -50 * (1 - n.timer / slideTime);
-      } else if (n.timer > n.duration - slideTime) {
-        offsetY = -50 * (n.timer - (n.duration - slideTime)) / slideTime;
-      }
-
-      // 淡入淡出
-      let alpha = 1;
-      if (n.timer < slideTime) {
-        alpha = n.timer / slideTime;
-      } else if (n.timer > n.duration - slideTime) {
-        alpha = (n.duration - n.timer) / slideTime;
-      }
-
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate(0, offsetY);
-
-      // 背景框（根據類型變色）
-      const colors = {
-        error: { bg: '#6e3e3e', border: '#ff4444', icon: '❌' },
-        warning: { bg: '#6e5e3e', border: '#ffaa44', icon: '⚠️' },
-        info: { bg: '#3e4e6e', border: '#4488ff', icon: 'ℹ️' }
-      };
-      const style = colors[n.type];
-
-      const w = 300, h = 60;
-
-      // 背景
-      ctx.fillStyle = style.bg;
-      ctx.fillRect(x - w/2, y - h/2, w, h);
-
-      // 邊框（脈動）
-      const pulse = Math.sin(n.timer / 200) * 0.3 + 0.7;
-      ctx.strokeStyle = style.border;
-      ctx.lineWidth = 3 * pulse;
-      ctx.strokeRect(x - w/2, y - h/2, w, h);
-
-      // 圖標
-      ctx.font = '24px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#f0e8d8';
-      ctx.fillText(style.icon, x - 120, y);
-
-      // 訊息文字
-      ctx.font = DK.FONTS.bold(16);
-      ctx.fillStyle = '#f0e8d8';
-      ctx.textAlign = 'left';
-      ctx.fillText(n.message, x - 90, y);
-
-      ctx.restore();
-    }
-  },
 
   init() {
     this.selectedTrap = null;
@@ -448,6 +350,18 @@ DK.UI = {
     });
   },
 
+  /**
+   * 更新按鈕狀態（根據遊戲階段啟用/禁用）
+   * 在狀態轉換時呼叫此方法以同步 UI
+   */
+  updateButtonStates() {
+    if (!DK.Game) return;
+
+    // 目前此方法主要用於確保狀態同步
+    // 按鈕的啟用/禁用邏輯已在 getButtonState() 中處理
+    // 未來可以在這裡添加更多狀態同步邏輯
+  },
+
   handleMouseDown(mx, my) {
     // Only start drag tracking in game area
     if (my < DK.CONFIG.UI_TOP) {
@@ -484,8 +398,10 @@ DK.UI = {
           this._evolveButtonRect = null;
           return true;
         } else if (evo && DK.Game && DK.Game.gold < evo.cost) {
-          // 就近原則：顯示在金幣數字旁邊
-          this.ErrorNotification.show('金幣不足！', 'error', { x: 100, y: 50 });
+          // 使用可操作錯誤訊息
+          if (DK.ErrorHandler) {
+            DK.ErrorHandler.showError('insufficient_gold', { required: evo.cost, current: DK.Game.gold });
+          }
           return true;
         }
       }
@@ -508,6 +424,10 @@ DK.UI = {
         if (btn.action === 'start_wave') {
           if (DK.Game) {
             if (DK.Game.state === 'planning') {
+              // 播放 UI 點擊音效
+              if (DK.SoundSystem) {
+                DK.SoundSystem.play('ui_click');
+              }
               // PLANNING → INVASION（直接開始入侵）
               DK.Game.startInvasion();
               // 教學系統：檢測波次開始
@@ -519,6 +439,10 @@ DK.UI = {
           return true;
         }
         if (btn.trap) {
+          // 播放 UI 點擊音效
+          if (DK.SoundSystem) {
+            DK.SoundSystem.play('ui_click');
+          }
           this.selectedTrap = btn.trap;
           this.selectedHeroType = null;
           this.selectedPlacedTrap = null;
@@ -528,6 +452,10 @@ DK.UI = {
           return true;
         }
         if (btn.hero) {
+          // 播放 UI 點擊音效
+          if (DK.SoundSystem) {
+            DK.SoundSystem.play('ui_click');
+          }
           this.selectedHeroType = btn.hero;
           this.selectedTrap = null;
           this.selectedPlacedTrap = null;
@@ -609,12 +537,18 @@ DK.UI = {
         if (heroTileValid) {
           if (DK.Game.gold >= this.selectedHeroType.cost) {
             if (DK.Heroes && DK.Heroes.deploy(this.selectedHeroType.id, col, row)) {
+              // 播放英雄召喚音效
+              if (DK.SoundSystem) {
+                DK.SoundSystem.play('hero_summon');
+              }
               DK.Game.gold -= this.selectedHeroType.cost;
               return true;
             }
           } else {
-            // 就近原則：顯示在金幣數字旁邊
-          this.ErrorNotification.show('金幣不足！', 'error', { x: 100, y: 50 });
+            // 使用可操作錯誤訊息
+            if (DK.ErrorHandler) {
+              DK.ErrorHandler.showError('insufficient_gold', { required: this.selectedHeroType.cost, current: DK.Game.gold });
+            }
           }
         }
         return true;
@@ -637,6 +571,10 @@ DK.UI = {
       if (this.selectedTrap.type === 'wall' && DK.Map.isValidWallTrapSlot(col, row)) {
         if (DK.Game.gold >= this.selectedTrap.cost) {
           if (DK.Traps.place(this.selectedTrap.id, col, row)) {
+            // 播放陷阱放置音效
+            if (DK.SoundSystem) {
+              DK.SoundSystem.play('trap_place');
+            }
             DK.Game.gold -= this.selectedTrap.cost;
             // 教學系統：檢測陷阱放置
             if (DK.Tutorial && DK.Traps.placed) {
@@ -645,12 +583,18 @@ DK.UI = {
             return true;
           }
         } else {
-          // 就近原則：顯示在金幣數字旁邊
-          this.ErrorNotification.show('金幣不足！', 'error', { x: 100, y: 50 });
+          // 使用可操作錯誤訊息
+          if (DK.ErrorHandler) {
+            DK.ErrorHandler.showError('insufficient_gold', { required: this.selectedTrap.cost, current: DK.Game.gold });
+          }
         }
       } else if (this.selectedTrap.type === 'floor' && DK.Map.isValidFloorTrapSlot(col, row)) {
         if (DK.Game.gold >= this.selectedTrap.cost) {
           if (DK.Traps.place(this.selectedTrap.id, col, row)) {
+            // 播放陷阱放置音效
+            if (DK.SoundSystem) {
+              DK.SoundSystem.play('trap_place');
+            }
             DK.Game.gold -= this.selectedTrap.cost;
             // 教學系統：檢測陷阱放置
             if (DK.Tutorial && DK.Traps.placed) {
@@ -659,8 +603,10 @@ DK.UI = {
             return true;
           }
         } else {
-          // 就近原則：顯示在金幣數字旁邊
-          this.ErrorNotification.show('金幣不足！', 'error', { x: 100, y: 50 });
+          // 使用可操作錯誤訊息
+          if (DK.ErrorHandler) {
+            DK.ErrorHandler.showError('insufficient_gold', { required: this.selectedTrap.cost, current: DK.Game.gold });
+          }
         }
       }
     }
@@ -716,6 +662,61 @@ DK.UI = {
       }
     }
 
+    // === Tooltip System Integration ===
+    if (DK.Tooltip && !this._isDragging) {
+      // 優先級：已放置陷阱 > 英雄 > 敵人 > UI 按鈕
+      let tooltipShown = false;
+
+      // 1. 檢查是否懸停在已放置的陷阱上
+      if (this.hoveredTile && DK.Traps && DK.Game && !DK.Game.gameOver) {
+        const { col, row } = this.hoveredTile;
+        const hoveredTrap = DK.Traps.placed.find(t => t.col === col && t.row === row);
+        if (hoveredTrap) {
+          DK.Tooltip.show('trap', hoveredTrap, mx, my);
+          tooltipShown = true;
+        }
+      }
+
+      // 2. 檢查是否懸停在英雄上
+      if (!tooltipShown && this.hoveredTile && DK.Heroes && DK.Heroes.active && DK.Game && !DK.Game.gameOver) {
+        const { col, row } = this.hoveredTile;
+        const hoveredHero = DK.Heroes.active.find(h =>
+          Math.floor(h.col) === col && Math.floor(h.row) === row
+        );
+        if (hoveredHero) {
+          DK.Tooltip.show('hero', hoveredHero, mx, my);
+          tooltipShown = true;
+        }
+      }
+
+      // 3. 檢查是否懸停在敵人上
+      if (!tooltipShown && this.hoveredTile && DK.Enemies && DK.Enemies.active && DK.Game && !DK.Game.gameOver) {
+        const { col, row } = this.hoveredTile;
+        const T = DK.CONFIG.TILE_SIZE;
+        const hoveredEnemy = DK.Enemies.active.find(e => {
+          if (!e.alive) return false;
+          const eCol = Math.floor(e.x / T);
+          const eRow = Math.floor(e.y / T);
+          return eCol === col && eRow === row;
+        });
+        if (hoveredEnemy) {
+          DK.Tooltip.show('enemy', hoveredEnemy, mx, my);
+          tooltipShown = true;
+        }
+      }
+
+      // 4. 檢查是否懸停在 UI 按鈕上（只有當按鈕有 description 時才顯示）
+      if (!tooltipShown && this.hoveredButton && this.hoveredButton.description) {
+        DK.Tooltip.show('button', this.hoveredButton, mx, my);
+        tooltipShown = true;
+      }
+
+      // 如果沒有任何 tooltip，隱藏
+      if (!tooltipShown) {
+        DK.Tooltip.hide();
+      }
+    }
+
     // Update cursor style based on state
     const uiCanvas = document.getElementById('ui-canvas');
     uiCanvas.classList.remove('cursor-pointer', 'cursor-crosshair', 'cursor-grabbing');
@@ -755,6 +756,25 @@ DK.UI = {
       this.waveCompleteTimer -= dt;
       if (this.waveCompleteTimer <= 0) {
         this.showWaveComplete = false;
+      }
+    }
+
+    // 更新按鈕 hover 動畫進度（緩動過渡）
+    for (const btn of this.buttons) {
+      // 初始化 hoverProgress（首次）
+      if (btn.hoverProgress === undefined) {
+        btn.hoverProgress = 0;
+      }
+
+      // 根據 hover 狀態更新進度
+      const isHovered = this.hoveredButton === btn;
+      const targetProgress = isHovered ? 1 : 0;
+      const speed = 0.15; // 每幀變化量（約 6-7 幀完成過渡）
+
+      if (btn.hoverProgress < targetProgress) {
+        btn.hoverProgress = Math.min(1, btn.hoverProgress + speed);
+      } else if (btn.hoverProgress > targetProgress) {
+        btn.hoverProgress = Math.max(0, btn.hoverProgress - speed);
       }
     }
   },
@@ -848,7 +868,9 @@ DK.UI = {
     }
 
     // 錯誤提示系統渲染（就近原則）
-    this.ErrorNotification.render(ctx);
+    if (DK.UI.ErrorNotification) {
+      DK.UI.ErrorNotification.render(ctx);
+    }
   },
 
   renderPhaseHint(ctx) {
@@ -933,12 +955,18 @@ DK.UI = {
    * Draw a small pixel art icon representing a trap type
    */
   drawTrapIcon(ctx, x, y, trapId, size) {
+    ctx.save(); // 保護 Canvas 狀態
+
     const s = size || 24;
     const hs = s / 2;
 
     switch (trapId) {
       case 'shock_plate':
         // Lightning bolt icon
+        if (DK.DEBUG_MODE) {
+          console.log(`[UI] 繪製 shock_plate 圖標: x=${x}, y=${y}, size=${s}`);
+        }
+
         ctx.fillStyle = '#ffdd44';
         ctx.fillRect(x + hs, y + 3, 2, 3);
         ctx.fillRect(x + hs - 2, y + 6, 5, 2);
@@ -1003,10 +1031,30 @@ DK.UI = {
         ctx.fillStyle = '#aaddff';
         ctx.fillRect(x + hs - 1, y + hs - 1, 2, 2);
         break;
+
+      default:
+        // 未知陷阱 ID：繪製紅色警告框
+        if (DK.DEBUG_MODE) {
+          console.error(`[UI] 未知的陷阱 ID: ${trapId}`);
+        }
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(x, y, s, s);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('?', x + hs, y + hs + 3);
+        break;
     }
+
+    ctx.restore(); // 恢復 Canvas 狀態
   },
 
   renderButton(ctx, btn) {
+    // 診斷：記錄按鈕類型
+    if (DK.DEBUG_MODE && btn.trap) {
+      console.log(`[UI] renderButton: ${btn.trap.name} (id: ${btn.trap.id}), trap object:`, btn.trap);
+    }
+
     const C = DK.COLORS;
     const isSelected = btn.trap && this.selectedTrap && btn.trap.id === this.selectedTrap.id;
     const game = DK.Game;
@@ -1016,8 +1064,15 @@ DK.UI = {
     const btnState = this.getButtonState(btn);
     const isHovered = btnState === this.ButtonStates.HOVER;
 
-    // HOVER 狀態：上浮效果（-2px）
-    const offsetY = isHovered ? -2 : 0;
+    // 緩動過渡：使用 DK.MathCache.easing.smoothstep 實現流暢 hover 動畫
+    const hoverProgress = btn.hoverProgress || 0;
+    const easedProgress = DK.MathCache.easing.smoothstep(hoverProgress);
+
+    // HOVER 狀態：上浮效果（-2px），使用緩動過渡
+    const offsetY = -2 * easedProgress;
+
+    // Alpha 過渡（懸停時高亮疊加層 alpha 提升）
+    const hoverAlpha = 0.08 * easedProgress;
 
     // 儲存 canvas 狀態，套用位移
     ctx.save();
@@ -1095,9 +1150,9 @@ DK.UI = {
         ctx.fillText(subText, btn.x + btn.width / 2, btn.y + btn.height / 2 + 10);
       }
 
-      // Hover highlight overlay
-      if (btn === this.hoveredButton) {
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      // Hover highlight overlay - 使用緩動 alpha
+      if (hoverAlpha > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${hoverAlpha})`;
         ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
       }
 
@@ -1154,9 +1209,9 @@ DK.UI = {
         ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
       }
 
-      // 懸停高亮
-      if (btn === this.hoveredButton) {
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      // 懸停高亮 - 使用緩動 alpha
+      if (hoverAlpha > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${hoverAlpha})`;
         ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
       }
 
@@ -1256,9 +1311,9 @@ DK.UI = {
         ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
       }
 
-      // Hover highlight overlay
-      if (btn === this.hoveredButton) {
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      // Hover highlight overlay - 使用緩動 alpha
+      if (hoverAlpha > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${hoverAlpha})`;
         ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
       }
 
@@ -1301,6 +1356,9 @@ DK.UI = {
     ctx.fillText(badgeText, btn.x + 13, btn.y + 11);
 
     // Mini trap icon (right side of badge area)
+    if (DK.DEBUG_MODE) {
+      console.log(`[UI] 渲染陷阱圖標: ${btn.trap.name} (id: ${btn.trap.id}) at (${btn.x + btn.width - 28}, ${btn.y + 2})`);
+    }
     this.drawTrapIcon(ctx, btn.x + btn.width - 28, btn.y + 2, btn.trap.id, 22);
 
     // Trap name (large, centered) + 形狀標記（色盲友善）
@@ -1356,9 +1414,9 @@ DK.UI = {
       ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.width - 1, btn.height - 1);
     }
 
-    // Hover highlight overlay
-    if (btn === this.hoveredButton) {
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    // Hover highlight overlay - 使用緩動 alpha
+    if (hoverAlpha > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${hoverAlpha})`;
       ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
     }
 
@@ -1557,18 +1615,111 @@ DK.UI = {
     const cam = DK.Game.camera;
     const range = this.selectedTrap.range * T;
 
+    // 判斷位置有效性
+    let valid = false;
+    if (this.selectedTrap.type === 'wall') {
+      valid = DK.Map.isValidWallTrapSlot(col, row);
+    } else {
+      valid = DK.Map.isValidFloorTrapSlot(col, row);
+    }
+
+    // 檢查是否已佔用
+    const occupied = DK.Traps.placed.some(t => t.col === col && t.row === row);
+    if (occupied) valid = false;
+
+    // 檢查是否為次佳位置（邊緣位置 - 接近外牆）
+    const isEdge = col <= 1 || col >= DK.CONFIG.WORLD_COLS - 2 ||
+                   row <= 1 || row >= DK.CONFIG.WORLD_ROWS - 2;
+
+    // 顏色編碼
+    let previewColor, rangeColor;
+    if (!valid) {
+      previewColor = 'rgba(255,100,100,0.5)'; // 紅色 - 不可放置
+      rangeColor = 'rgba(255,100,100,0.3)';
+    } else if (isEdge && this.selectedTrap.type === 'floor') {
+      previewColor = 'rgba(255,220,100,0.5)'; // 黃色 - 次佳位置
+      rangeColor = 'rgba(255,220,100,0.3)';
+    } else {
+      previewColor = 'rgba(100,255,100,0.5)'; // 綠色 - 可放置
+      rangeColor = 'rgba(100,255,100,0.3)';
+    }
+
+    const cx = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE + T / 2;
+    const cy = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE + T / 2;
+
+    // 繪製範圍圈（虛線）
     if (range > 0) {
-      const cx = (col * DK.CONFIG.TILE_SIZE - cam.x) * DK.CONFIG.SCALE + T / 2;
-      const cy = (row * DK.CONFIG.TILE_SIZE - cam.y) * DK.CONFIG.SCALE + T / 2;
-      ctx.strokeStyle = 'rgba(255,255,100,0.2)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = rangeColor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
       ctx.beginPath();
       ctx.arc(cx, cy, range, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.setLineDash([]);
 
-      ctx.fillStyle = 'rgba(255,255,100,0.05)';
+      ctx.fillStyle = rangeColor.replace('0.3', '0.1');
       ctx.fill();
     }
+
+    // 繪製半透明陷阱圖示
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = previewColor;
+    const iconSize = T * 0.6;
+    const iconX = cx - iconSize / 2;
+    const iconY = cy - iconSize / 2;
+
+    // 根據陷阱類型繪製不同圖示
+    if (this.selectedTrap.element === 'electric') {
+      // 電擊板 - 閃電符號
+      ctx.strokeStyle = '#ffff44';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - iconSize / 3);
+      ctx.lineTo(cx - iconSize / 4, cy);
+      ctx.lineTo(cx + iconSize / 6, cy);
+      ctx.lineTo(cx, cy + iconSize / 3);
+      ctx.stroke();
+    } else if (this.selectedTrap.id === 'push_trap' || this.selectedTrap.id === 'wind_trap') {
+      // 推力/風壓 - 箭頭
+      ctx.fillStyle = '#ffaa44';
+      ctx.beginPath();
+      ctx.moveTo(cx + iconSize / 2, cy);
+      ctx.lineTo(cx - iconSize / 3, cy - iconSize / 3);
+      ctx.lineTo(cx - iconSize / 3, cy + iconSize / 3);
+      ctx.closePath();
+      ctx.fill();
+    } else if (this.selectedTrap.id === 'oil_trap') {
+      // 油漬 - 水滴形狀
+      ctx.fillStyle = '#8a6030';
+      ctx.beginPath();
+      ctx.arc(cx, cy + iconSize / 6, iconSize / 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - iconSize / 3);
+      ctx.lineTo(cx - iconSize / 4, cy + iconSize / 6);
+      ctx.lineTo(cx + iconSize / 4, cy + iconSize / 6);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // 預設 - 方形
+      ctx.fillRect(iconX, iconY, iconSize, iconSize);
+    }
+
+    ctx.restore();
+
+    // 繪製狀態文字
+    ctx.font = DK.FONTS.body(10);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const statusText = !valid ? '無效位置' : (isEdge && this.selectedTrap.type === 'floor') ? '次佳位置' : '可放置';
+    const statusColor = !valid ? '#ff8888' : (isEdge && this.selectedTrap.type === 'floor') ? '#ffdd88' : '#88ff88';
+
+    // 文字陰影
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillText(statusText, cx + 1, cy + T / 2 + 6);
+    ctx.fillStyle = statusColor;
+    ctx.fillText(statusText, cx, cy + T / 2 + 5);
   },
 
   renderMessages(ctx) {
@@ -1711,7 +1862,23 @@ DK.UI = {
       this.drawHintBox(ctx, hintText, C.UI_TEXT_DIM);
     }
 
-    // Render tooltipText near mouse cursor
+    // 增強型陷阱 tooltip（懸停在按鈕上）
+    if (this.hoveredButton && this.hoveredButton.trap) {
+      this.renderTrapTooltip(ctx, this.hoveredButton.trap);
+      return;
+    }
+
+    // 升級對比 tooltip（懸停在已放置的陷阱上）
+    if (this.hoveredTile && !this.selectedTrap && DK.Game) {
+      const { col, row } = this.hoveredTile;
+      const hoveredTrap = DK.Traps.placed.find(t => t.col === col && t.row === row);
+      if (hoveredTrap && DK.Game.state === 'planning') {
+        this.renderUpgradePreview(ctx, hoveredTrap);
+        return;
+      }
+    }
+
+    // Render tooltipText near mouse cursor (fallback)
     if (this.tooltipText) {
       ctx.font = DK.FONTS.body(12);
       const tipMetrics = ctx.measureText(this.tooltipText);
@@ -1740,6 +1907,156 @@ DK.UI = {
     }
   },
 
+  /**
+   * 渲染增強型陷阱 tooltip（卡片式）
+   * 顯示陷阱名稱、類型、效果範圍、數值
+   */
+  renderTrapTooltip(ctx, trap) {
+    const padX = 12;
+    const padY = 10;
+    const lineHeight = 16;
+    const titleHeight = 20;
+
+    let tipX = this.mouseX + 15;
+    let tipY = this.mouseY + 15;
+
+    // 構建 tooltip 內容
+    const lines = [];
+    lines.push({ text: trap.name, font: DK.FONTS.bold(14), color: '#ffd966' });
+    lines.push({ text: `類型：${trap.type === 'floor' ? '地板陷阱' : '牆壁陷阱'}`, font: DK.FONTS.body(11), color: '#c0b090' });
+    lines.push({ text: `花費：${trap.cost} 金幣`, font: DK.FONTS.body(11), color: '#ffcc44' });
+
+    if (trap.damage > 0) {
+      lines.push({ text: `傷害：${trap.damage}`, font: DK.FONTS.body(11), color: '#ff8866' });
+    }
+
+    if (trap.range > 0) {
+      lines.push({ text: `範圍：${trap.range} 格`, font: DK.FONTS.body(11), color: '#88ccff' });
+    }
+
+    if (trap.element) {
+      const elementName = { electric: '電擊', fire: '火焰', ice: '寒冰', water: '水' }[trap.element] || trap.element;
+      lines.push({ text: `元素：${elementName}`, font: DK.FONTS.body(11), color: '#aa88ff' });
+    }
+
+    if (trap.pushForce) {
+      lines.push({ text: `推力：${trap.pushForce}`, font: DK.FONTS.body(11), color: '#ffaa66' });
+    }
+
+    lines.push({ text: trap.description, font: DK.FONTS.body(10), color: '#a0a090', italic: true });
+
+    // 計算 tooltip 尺寸
+    const maxWidth = Math.max(...lines.map(line => {
+      ctx.font = line.font;
+      return ctx.measureText(line.text).width;
+    }));
+    const tipW = maxWidth + padX * 2;
+    const tipH = titleHeight + (lines.length - 1) * lineHeight + padY * 2;
+
+    // 邊界檢測
+    if (tipX + tipW > DK.CONFIG.DISPLAY_WIDTH) {
+      tipX = this.mouseX - tipW - 5;
+    }
+    if (tipY + tipH > DK.CONFIG.DISPLAY_HEIGHT) {
+      tipY = this.mouseY - tipH - 5;
+    }
+
+    // 繪製卡片背景
+    ctx.fillStyle = 'rgba(18,16,30,0.95)';
+    ctx.fillRect(tipX, tipY, tipW, tipH);
+    ctx.strokeStyle = '#6a5a8a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(tipX + 1, tipY + 1, tipW - 2, tipH - 2);
+
+    // 繪製標題底色
+    ctx.fillStyle = 'rgba(80,60,100,0.4)';
+    ctx.fillRect(tipX + 2, tipY + 2, tipW - 4, titleHeight);
+
+    // 繪製文字
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let currentY = tipY + padY;
+    lines.forEach((line, i) => {
+      ctx.font = line.font;
+      ctx.fillStyle = line.color;
+      ctx.fillText(line.text, tipX + padX, currentY);
+      currentY += i === 0 ? titleHeight : lineHeight;
+    });
+  },
+
+  /**
+   * 渲染升級對比預覽
+   * 顯示當前等級與升級後數值變化
+   */
+  renderUpgradePreview(ctx, trap) {
+    if (trap.evolved) return; // 已升級，不顯示
+
+    // 查找對應的升級類型
+    const baseTrapId = trap.type.id;
+    const evolutionType = Object.keys(DK.EVOLUTION_TYPES).find(key =>
+      DK.EVOLUTION_TYPES[key].baseTrap === baseTrapId
+    );
+
+    if (!evolutionType) return;
+
+    const evo = DK.EVOLUTION_TYPES[evolutionType];
+    const canAfford = DK.Game.gold >= evo.cost;
+
+    const padX = 12;
+    const padY = 10;
+    const lineHeight = 16;
+
+    let tipX = this.mouseX + 15;
+    let tipY = this.mouseY + 15;
+
+    // 構建內容
+    const lines = [];
+    lines.push({ text: `${trap.type.name} → ${evo.name}`, font: DK.FONTS.bold(13), color: '#ffd966' });
+    lines.push({ text: `升級成本：${evo.cost} 金幣`, font: DK.FONTS.body(11), color: canAfford ? '#88ff88' : '#ff8888' });
+    lines.push({ text: evo.description, font: DK.FONTS.body(10), color: '#c0b090' });
+    lines.push({ text: `需要：${evo.requiredHeroElement === 'water' ? '水' : evo.requiredHeroElement === 'fire' ? '火' : '冰'} 元素英雄光環`, font: DK.FONTS.body(10), color: '#aa88ff' });
+
+    if (canAfford) {
+      lines.push({ text: '（點擊陷阱查看詳情）', font: DK.FONTS.body(9), color: '#88cc88' });
+    } else {
+      lines.push({ text: '（金幣不足）', font: DK.FONTS.body(9), color: '#ff6666' });
+    }
+
+    // 計算尺寸
+    const maxWidth = Math.max(...lines.map(line => {
+      ctx.font = line.font;
+      return ctx.measureText(line.text).width;
+    }));
+    const tipW = maxWidth + padX * 2;
+    const tipH = lines.length * lineHeight + padY * 2;
+
+    // 邊界檢測
+    if (tipX + tipW > DK.CONFIG.DISPLAY_WIDTH) {
+      tipX = this.mouseX - tipW - 5;
+    }
+    if (tipY + tipH > DK.CONFIG.DISPLAY_HEIGHT) {
+      tipY = this.mouseY - tipH - 5;
+    }
+
+    // 繪製背景
+    ctx.fillStyle = 'rgba(18,16,30,0.95)';
+    ctx.fillRect(tipX, tipY, tipW, tipH);
+    ctx.strokeStyle = canAfford ? '#88cc88' : '#cc8888';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(tipX + 1, tipY + 1, tipW - 2, tipH - 2);
+
+    // 繪製文字
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let currentY = tipY + padY;
+    lines.forEach(line => {
+      ctx.font = line.font;
+      ctx.fillStyle = line.color;
+      ctx.fillText(line.text, tipX + padX, currentY);
+      currentY += lineHeight;
+    });
+  },
+
   /** 波次預告提示：在波次未開始時顯示下一波敵人組成 */
   renderWavePreview(ctx) {
     const game = DK.Game;
@@ -1759,9 +2076,10 @@ DK.UI = {
     });
     const previewText = `下一波：${parts.join('、')}`;
 
-    // 淡入淡出脈動
+    // 淡入淡出脈動 - 使用快取的三角函式
     const timestamp = game.time || 0;
-    const pulse = 0.6 + 0.2 * Math.sin(timestamp * 0.002);
+    const MC = DK.MathCache;
+    const pulse = 0.6 + 0.2 * MC.sinTime(timestamp, 0.002);
 
     ctx.save();
     ctx.globalAlpha = pulse;
@@ -2230,14 +2548,6 @@ DK.UI = {
       }
     }
 
-    // 3. 火把閃爍（4 個）
-    const torchPositions = [[40, 60], [280, 60], [40, 140], [280, 140]];
-    if (DK.Map && DK.Map.drawTorchTile) {
-      for (const [tx, ty] of torchPositions) {
-        DK.Map.drawTorchTile(gameCtx, tx, ty, Math.floor(time / 200) % 3);
-      }
-    }
-
     // === 高解析度 Canvas（UI Canvas）===
 
     // 4. 半透明遮罩層
@@ -2276,10 +2586,72 @@ DK.UI = {
       uiCtx.fillText(intro[i], cx, 300 + i * 35);
     }
 
-    // 8. 開始按鈕（脈動動畫）
-    const pulse = Math.sin(time / 1000 * Math.PI) * 0.1 + 0.9;
+    // 7.5. 視覺模式選擇（已移除 - 固定使用 DW3 優化風格）
+    // 註：已改為固定使用 'standard' 模式（符合 Dungeon Warfare 3 設計理念）
+    // 不再提供模式切換 UI
+    /*
+    const currentPreset = DK.VISUAL_SETTINGS.currentPreset;
+    const presetY = 410;
+
+    // 標題
+    uiCtx.font = DK.FONTS.body(14);
+    uiCtx.fillStyle = '#8a8070';
+    uiCtx.fillText('視覺模式:', cx, presetY - 20);
+
+    // 三個模式按鈕
+    const presets = [
+      { name: 'simple', label: '簡單', desc: '最大效能' },
+      { name: 'standard', label: '標準', desc: '平衡' },
+      { name: 'fancy', label: '華麗', desc: '最佳視覺' }
+    ];
+
+    const presetBtnW = 80, presetBtnH = 40;
+    const presetSpacing = 20;
+    const totalWidth = presets.length * presetBtnW + (presets.length - 1) * presetSpacing;
+    const startX = cx - totalWidth / 2;
+
+    for (let i = 0; i < presets.length; i++) {
+      const preset = presets[i];
+      const btnX = startX + i * (presetBtnW + presetSpacing);
+      const btnY = presetY;
+      const isSelected = currentPreset === preset.name;
+
+      // 按鈕背景
+      uiCtx.fillStyle = isSelected ? '#3a344a' : '#2a2438';
+      uiCtx.fillRect(btnX, btnY, presetBtnW, presetBtnH);
+
+      // 按鈕邊框
+      uiCtx.strokeStyle = isSelected ? '#aa44ff' : '#4a3e6e';
+      uiCtx.lineWidth = isSelected ? 2 : 1;
+      uiCtx.strokeRect(btnX, btnY, presetBtnW, presetBtnH);
+
+      // 按鈕文字（標籤）
+      uiCtx.font = DK.FONTS.bold(14);
+      uiCtx.fillStyle = isSelected ? '#f0e8d8' : '#c0b8a8';
+      uiCtx.fillText(preset.label, btnX + presetBtnW / 2, btnY + 14);
+
+      // 按鈕文字（描述）
+      uiCtx.font = DK.FONTS.body(10);
+      uiCtx.fillStyle = '#8a8070';
+      uiCtx.fillText(preset.desc, btnX + presetBtnW / 2, btnY + 30);
+
+      // 儲存按鈕位置（用於點擊檢測）
+      if (!this._presetButtons) this._presetButtons = [];
+      this._presetButtons[i] = {
+        x: btnX,
+        y: btnY,
+        w: presetBtnW,
+        h: presetBtnH,
+        preset: preset.name
+      };
+    }
+    */
+
+    // 8. 開始按鈕（脈動動畫）- 使用快取的三角函式
+    const MC = DK.MathCache;
+    const pulse = MC.sinTime(time, 0.001) * 0.1 + 0.9; // time/1000 * PI = time * PI/1000 ≈ 0.00314
     const btnW = 200, btnH = 50;
-    const btnX = cx - btnW / 2, btnY = 450;
+    const btnX = cx - btnW / 2, btnY = 480;
 
     uiCtx.fillStyle = '#2a2438';
     uiCtx.fillRect(btnX, btnY, btnW, btnH);
@@ -2292,8 +2664,8 @@ DK.UI = {
     uiCtx.fillStyle = '#f0e8d8';
     uiCtx.fillText('開始遊戲', cx, btnY + btnH / 2);
 
-    // 9. 提示文字（閃爍）
-    const blinkAlpha = Math.sin(time / 600 * Math.PI) * 0.3 + 0.7;
+    // 9. 提示文字（閃爍）- 使用快取的三角函式
+    const blinkAlpha = MC.sinTime(time, 0.00167) * 0.3 + 0.7; // time/600 * PI ≈ 0.00524
     uiCtx.globalAlpha = blinkAlpha;
     uiCtx.font = DK.FONTS.body(14);
     uiCtx.fillStyle = '#8a8070';
@@ -2305,3 +2677,4 @@ DK.UI = {
 
   // (舊版精緻開始畫面程式碼已移除，保留 MVP 簡化版本)
 };
+

@@ -13,14 +13,34 @@ DK.Traps = {
 
   place(trapTypeId, col, row) {
     const typeDef = Object.values(DK.TRAP_TYPES).find(t => t.id === trapTypeId);
-    if (!typeDef) return false;
+    if (!typeDef) {
+      if (DK.ErrorHandler) {
+        DK.ErrorHandler.log('error', 'Invalid trap type', { trapTypeId });
+      }
+      return false;
+    }
 
     // Safety: cannot place on outer walls or heart tiles
-    if (DK.Map.isOuter && DK.Map.isOuter(col, row)) return false;
-    if (DK.Map.isHeart && DK.Map.isHeart(col, row)) return false;
+    if (DK.Map.isOuter && DK.Map.isOuter(col, row)) {
+      if (DK.ErrorHandler) {
+        DK.ErrorHandler.showError('invalid_trap_position', { col, row });
+      }
+      return false;
+    }
+    if (DK.Map.isHeart && DK.Map.isHeart(col, row)) {
+      if (DK.ErrorHandler) {
+        DK.ErrorHandler.showError('invalid_trap_position', { col, row });
+      }
+      return false;
+    }
 
     // Check if already occupied
-    if (this.placed.some(t => t.col === col && t.row === row)) return false;
+    if (this.placed.some(t => t.col === col && t.row === row)) {
+      if (DK.ErrorHandler) {
+        DK.ErrorHandler.showError('trap_occupied', { col, row });
+      }
+      return false;
+    }
 
     const trap = {
       type: typeDef,
@@ -40,6 +60,25 @@ DK.Traps = {
     };
 
     this.placed.push(trap);
+
+    // 記錄陷阱放置
+    if (DK.ErrorHandler) {
+      DK.ErrorHandler.log('info', `Trap placed: ${typeDef.name}`, { col, row, trapId: typeDef.id });
+    }
+
+    // 記錄到撤銷系統（只在 planning 階段記錄）
+    if (DK.UndoSystem && DK.Game.state === 'planning') {
+      DK.UndoSystem.record({
+        type: 'trap_placed',
+        trap: {
+          col: trap.col,
+          row: trap.row,
+          type: typeDef
+        },
+        cost: typeDef.cost
+      });
+    }
+
     return true;
   },
 
@@ -68,6 +107,15 @@ DK.Traps = {
           trap.cooldownTimer = trap.type.cooldown;
           trap.active = true;
           trap.flashTimer = 150;
+
+          // 播放陷阱觸發音效
+          if (DK.SoundSystem) {
+            DK.SoundSystem.play('trap_trigger', 0.8);
+          }
+
+          // 新增光暈效果（推力陷阱觸發）
+          this.createTrapHalo(trap, trap.col * T + T / 2, trap.row * T + T / 2);
+
           this.firePushTrap(trap, enemies, T);
         }
         continue;
@@ -83,6 +131,15 @@ DK.Traps = {
           trap.cooldownTimer = trap.type.cooldown;
           trap.active = true;
           trap.flashTimer = 150;
+
+          // 播放陷阱觸發音效
+          if (DK.SoundSystem) {
+            DK.SoundSystem.play('trap_trigger', 0.8);
+          }
+
+          // 新增光暈效果（風壓陷阱觸發）
+          this.createTrapHalo(trap, trap.col * T + T / 2, trap.row * T + T / 2);
+
           this.fireWindTrap(trap, enemies, T);
         }
         continue;
@@ -147,6 +204,14 @@ DK.Traps = {
             trap.oilZoneActive = true;
             trap.flashTimer = 150;
 
+            // 播放陷阱觸發音效
+            if (DK.SoundSystem) {
+              DK.SoundSystem.play('trap_trigger', 0.8);
+            }
+
+            // 新增光暈效果（油漬陷阱觸發）
+            this.createTrapHalo(trap, trap.col * T + T / 2, trap.row * T + T / 2);
+
             // 建立油漬區域格子
             if (evo) {
               trap.oilZoneTiles = [];
@@ -160,15 +225,26 @@ DK.Traps = {
             }
 
             // 噴灑特效
-            if (DK.Game && DK.Game.effects) {
-              DK.Game.effects.push({
-                type: 'oil_splat',
-                x: trap.col * T + T / 2,
-                y: trap.row * T + T / 2,
-                radius: evo ? T * 1.5 : T * 0.5,
-                duration: 400,
-                timer: 0,
-              });
+            if (DK.Game) {
+              if (DK.Game.createEffect) {
+                DK.Game.createEffect({
+                  type: 'oil_splat',
+                  x: trap.col * T + T / 2,
+                  y: trap.row * T + T / 2,
+                  radius: evo ? T * 1.5 : T * 0.5,
+                  duration: 400,
+                  timer: 0,
+                });
+              } else {
+                DK.Game.effects.push({
+                  type: 'oil_splat',
+                  x: trap.col * T + T / 2,
+                  y: trap.row * T + T / 2,
+                  radius: evo ? T * 1.5 : T * 0.5,
+                  duration: 400,
+                  timer: 0,
+                });
+              }
             }
 
             // 對觸發的敵人施加油污
@@ -212,23 +288,45 @@ DK.Traps = {
           trap.cooldownTimer = trap.type.cooldown;
           trap.flashTimer = 150;
 
+          // 播放陷阱觸發音效
+          if (DK.SoundSystem) {
+            DK.SoundSystem.play('trap_trigger', 0.8);
+          }
+
           // Deal damage
           target.hp -= trap.type.damage;
           target.flashTimer = 150; // Visual hit feedback
 
+          // 新增光暈效果（牆壁陷阱觸發）
+          this.createTrapHalo(trap, trapCX, trapCY);
+
           // Create projectile effect
-          if (DK.Game && DK.Game.effects) {
-            DK.Game.effects.push({
-              type: 'projectile',
-              x: trapCX + (trap.facing ? trap.facing.dc * T / 2 : 0),
-              y: trapCY + (trap.facing ? trap.facing.dr * T / 2 : 0),
-              targetX: target.x,
-              targetY: target.y,
-              color: DK.COLORS.TRAP_METAL_LIGHT,
-              duration: 300,
-              timer: 0,
-              trapType: trap.type.id,
-            });
+          if (DK.Game) {
+            if (DK.Game.createEffect) {
+              DK.Game.createEffect({
+                type: 'projectile',
+                x: trapCX + (trap.facing ? trap.facing.dc * T / 2 : 0),
+                y: trapCY + (trap.facing ? trap.facing.dr * T / 2 : 0),
+                targetX: target.x,
+                targetY: target.y,
+                color: DK.COLORS.TRAP_METAL_LIGHT,
+                duration: 300,
+                timer: 0,
+                trapType: trap.type.id,
+              });
+            } else {
+              DK.Game.effects.push({
+                type: 'projectile',
+                x: trapCX + (trap.facing ? trap.facing.dc * T / 2 : 0),
+                y: trapCY + (trap.facing ? trap.facing.dr * T / 2 : 0),
+                targetX: target.x,
+                targetY: target.y,
+                color: DK.COLORS.TRAP_METAL_LIGHT,
+                duration: 300,
+                timer: 0,
+                trapType: trap.type.id,
+              });
+            }
           }
         } else {
           trap.active = false;
@@ -245,20 +343,41 @@ DK.Traps = {
             trap.cooldownTimer = trap.type.cooldown;
             trap.flashTimer = 150;
 
+            // 播放陷阱觸發音效
+            if (DK.SoundSystem) {
+              DK.SoundSystem.play('trap_trigger', 0.8);
+            }
+
             if (trap.type.damage > 0) {
               enemy.hp -= trap.type.damage;
               enemy.flashTimer = 150; // Visual hit feedback
+
+              // 新增光暈效果（地板陷阱觸發）
+              this.createTrapHalo(trap, trap.col * T + T / 2, trap.row * T + T / 2);
+
               // Damage number
-              if (DK.Game && DK.Game.effects) {
-                DK.Game.effects.push({
-                  type: 'damage',
-                  x: enemy.x,
-                  y: enemy.y - 8,
-                  text: `-${trap.type.damage}`,
-                  color: trap.type.element === 'electric' ? DK.COLORS.TRAP_ELECTRIC : DK.COLORS.DAMAGE_TEXT,
-                  duration: 800,
-                  timer: 0,
-                });
+              if (DK.Game) {
+                if (DK.Game.createEffect) {
+                  DK.Game.createEffect({
+                    type: 'damage',
+                    x: enemy.x,
+                    y: enemy.y - 8,
+                    text: `-${trap.type.damage}`,
+                    color: trap.type.element === 'electric' ? DK.COLORS.TRAP_ELECTRIC : DK.COLORS.DAMAGE_TEXT,
+                    duration: 800,
+                    timer: 0,
+                  });
+                } else {
+                  DK.Game.effects.push({
+                    type: 'damage',
+                    x: enemy.x,
+                    y: enemy.y - 8,
+                    text: `-${trap.type.damage}`,
+                    color: trap.type.element === 'electric' ? DK.COLORS.TRAP_ELECTRIC : DK.COLORS.DAMAGE_TEXT,
+                    duration: 800,
+                    timer: 0,
+                  });
+                }
               }
             }
 
@@ -957,7 +1076,22 @@ DK.Traps = {
 
   evolveTrap(trap, evoId) {
     const evoDef = DK.EVOLUTION_TYPES[evoId];
-    if (!evoDef) return;
+    if (!evoDef) return false;
+
+    // 記錄到撤銷系統（只在 planning 階段記錄）
+    if (DK.UndoSystem && DK.Game.state === 'planning') {
+      DK.UndoSystem.record({
+        type: 'trap_upgraded',
+        trap: {
+          col: trap.col,
+          row: trap.row,
+          type: trap.type
+        },
+        evolutionType: evoId,
+        cost: evoDef.cost || 0
+      });
+    }
+
     trap.evolved = true;
     trap.evolutionType = evoId;
 
@@ -982,5 +1116,79 @@ DK.Traps = {
       });
       DK.Game.screenShake = { intensity: 3, timer: 300 };
     }
+
+    return true;
+  },
+
+  /**
+   * 創建陷阱觸發光暈效果
+   * @param {Object} trap - 陷阱物件
+   * @param {number} x - 中心 X 座標
+   * @param {number} y - 中心 Y 座標
+   */
+  createTrapHalo(trap, x, y) {
+    if (!DK.Game || !DK.Game.createEffect) return;
+
+    // 根據陷阱元素決定光暈顏色
+    const HALO_COLORS = {
+      electric: '#ffff44',  // 電擊黃
+      fire: '#ff8844',       // 火焰橘
+      ice: '#aaddff',        // 冰霜藍
+      water: '#66aaff',      // 水藍
+      oil: '#8a6030',        // 油污深褐
+      push: '#ffaa44',       // 推力橘黃
+      wind: '#88bbdd',       // 風壓藍灰
+    };
+
+    let color = '#ffffff'; // 預設白色
+    let duration = 400;
+    let maxScale = 1.5;
+
+    // 根據陷阱類型決定顏色
+    if (trap.type.element) {
+      color = HALO_COLORS[trap.type.element] || '#ffffff';
+    } else if (trap.type.id === 'push_trap') {
+      color = HALO_COLORS.push;
+      duration = 350;
+      maxScale = 1.8; // 推力陷阱光暈較大
+    } else if (trap.type.id === 'wind_trap') {
+      color = HALO_COLORS.wind;
+      duration = 450;
+      maxScale = 2.0; // 風壓陷阱光暈最大
+    } else if (trap.type.id === 'oil_trap') {
+      color = HALO_COLORS.oil;
+      duration = 500;
+      maxScale = 1.3;
+    }
+
+    // 進化態：光暈更亮、持續更久
+    if (trap.evolved) {
+      duration += 150;
+      maxScale += 0.3;
+    }
+
+    // 範圍圈效果（僅在有範圍的陷阱觸發時顯示）
+    const range = trap.type.range || 0;
+    if (range > 0) {
+      DK.Game.createEffect({
+        type: 'trap_range_highlight',
+        x,
+        y,
+        range: range * DK.CONFIG.TILE_SIZE,
+        color,
+        duration: 500,
+        timer: 500,
+      });
+    }
+
+    DK.Game.createEffect({
+      type: 'halo',
+      x: x,
+      y: y,
+      color: color,
+      duration: duration,
+      maxScale: maxScale,
+      timer: 0,
+    });
   },
 };

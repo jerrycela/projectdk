@@ -339,7 +339,7 @@ DK.Map.drawWallTile = function(ctx, x, y, variant) {
     const C = DK.COLORS;
     const rng = PA.seededRandom(variant * 137 + 42);
 
-    // === 深色石磚牆 ===
+    // === 深色石磚牆（原始設計）===
     PA.rect(ctx, x, y, 16, 16, C.WALL_DARK);
 
     // 磚塊排列：3 排交錯磚塊
@@ -404,30 +404,9 @@ DK.Map.drawWallTile = function(ctx, x, y, variant) {
       PA.pixel(ctx, x + mx + 1, y + 10, mortarDeep);
     }
 
-    // === 風化效果（所有變體加入細微變化）===
-    // 使用座標哈希生成可重複的隨機圖案
-    const wallSeed = (x + 3) * 31 + (y + 7) * 17 + variant * 13;
-    const wallRng = PA.seededRandom(wallSeed);
-
-    // 風化點（3-5 個，使用多色階）
-    const weatherCount = 3 + Math.floor(wallRng() * 3);
-    for (let w = 0; w < weatherCount; w++) {
-      const wx = 2 + Math.floor(wallRng() * 12);
-      const wy = 2 + Math.floor(wallRng() * 12);
-      const weatherRoll = wallRng();
-      const weatherColor = weatherRoll > 0.6 ? C.WALL_DARK_MID
-        : weatherRoll > 0.3 ? C.WALL_MID
-        : C.WALL_DARK;
-      PA.pixel(ctx, x + wx, y + wy, weatherColor);
-      // 可選：風化點周圍加 1px 陰影
-      if (wx + 1 < 16 && wallRng() > 0.5) {
-        PA.pixel(ctx, x + wx + 1, y + wy, PA.darken(weatherColor, 5));
-      }
-    }
-
-    // 苔蘚/裂紋（依變體）- DW3 風格增強細節
-    if (variant === 2 || variant === 5) {
-      // 苔蘚區擴大至 4-6px，使用冷綠色調
+    // 苔蘚/裂紋（依變體）
+    if (variant === 2) {
+      // 苔蘚區擴大至 4-6px，混合 WALL_DARK_MID / WALL_MID_LIGHT
       PA.pixel(ctx, x + 2, y + 5, C.WALL_MOSS);
       PA.pixel(ctx, x + 3, y + 5, C.WALL_MOSS);
       PA.pixel(ctx, x + 3, y + 4, '#2a5a2a');
@@ -438,17 +417,10 @@ DK.Map.drawWallTile = function(ctx, x, y, variant) {
       PA.pixel(ctx, x + 12, y + 9, C.WALL_DARK_MID);
       PA.pixel(ctx, x + 13, y + 10, C.WALL_MID_LIGHT);
     }
-    if (variant === 3 || variant === 6) {
-      // 裂紋細節
-      PA.pixel(ctx, x + 9, y + 2, C.WALL_CRACK);
-      PA.pixel(ctx, x + 10, y + 3, C.WALL_CRACK);
-      PA.pixel(ctx, x + 10, y + 4, C.WALL_CRACK);
-    }
-    if (variant === 7) {
-      // 額外風化效果
-      PA.pixel(ctx, x + 6, y + 7, C.WALL_DARK_MID);
-      PA.pixel(ctx, x + 7, y + 7, C.WALL_MID);
-      PA.pixel(ctx, x + 8, y + 8, C.WALL_DARK);
+    if (variant === 3) {
+      PA.pixel(ctx, x + 9, y + 2, C.WALL_MORTAR);
+      PA.pixel(ctx, x + 10, y + 3, C.WALL_MORTAR);
+      PA.pixel(ctx, x + 10, y + 4, C.WALL_MORTAR);
     }
 
     // 邊角暗角
@@ -460,124 +432,92 @@ DK.Map.drawWallTile = function(ctx, x, y, variant) {
 
 DK.Map.drawFloorTile = function(ctx, x, y, variant) {
     const PA = DK.PixelArt;
-    const C = DK.COLORS;
+    const C = DK.COLORS.environment.floor;
+    const T = 16;
     const rng = PA.seededRandom(variant * 251 + 73);
 
-    // === 暖色砂岩地板 ===
-    PA.rect(ctx, x, y, 16, 16, C.FLOOR_MID);
+    // === DW3 實際風格：粗糙石地（無幾何圖案）===
 
-    // 大石板圖案（2x2 格的石板與間隙）
-    const stones = [
-      { sx: 0, sy: 0, sw: 7, sh: 7 },
-      { sx: 8, sy: 0, sw: 8, sh: 7 },
-      { sx: 0, sy: 8, sw: 8, sh: 8 },
-      { sx: 9, sy: 8, sw: 7, sh: 8 },
-    ];
+    // 1. 填充基礎色（深灰綠色）
+    const baseColor = '#2a2e2a';  // 深色石地
+    PA.rect(ctx, x, y, T, T, baseColor);
 
-    if (variant === 1) {
-      stones[0] = { sx: 0, sy: 0, sw: 9, sh: 8 };
-      stones[1] = { sx: 10, sy: 0, sw: 6, sh: 6 };
-      stones[2] = { sx: 0, sy: 9, sw: 6, sh: 7 };
-      stones[3] = { sx: 7, sy: 7, sw: 9, sh: 9 };
-    } else if (variant === 2) {
-      stones[0] = { sx: 0, sy: 0, sw: 10, sh: 6 };
-      stones[1] = { sx: 11, sy: 0, sw: 5, sh: 8 };
-      stones[2] = { sx: 0, sy: 7, sw: 7, sh: 9 };
-      stones[3] = { sx: 8, sy: 9, sw: 8, sh: 7 };
-    } else if (variant === 6) {
-      stones[0] = { sx: 0, sy: 0, sw: 8, sh: 9 };
-      stones[1] = { sx: 9, sy: 0, sw: 7, sh: 7 };
-      stones[2] = { sx: 0, sy: 10, sw: 9, sh: 6 };
-      stones[3] = { sx: 10, sy: 8, sw: 6, sh: 8 };
-    } else if (variant === 7) {
-      stones[0] = { sx: 0, sy: 0, sw: 7, sh: 8 };
-      stones[1] = { sx: 8, sy: 0, sw: 8, sh: 6 };
-      stones[2] = { sx: 0, sy: 9, sw: 10, sh: 7 };
-      stones[3] = { sx: 11, sy: 7, sw: 5, sh: 9 };
+    // 2. 添加細微的色調變化（2-4 個區域）
+    const patchCount = 2 + Math.floor(rng() * 3);
+    for (let i = 0; i < patchCount; i++) {
+      const px = x + Math.floor(rng() * T);
+      const py = y + Math.floor(rng() * T);
+      const pw = 2 + Math.floor(rng() * 4);
+      const ph = 2 + Math.floor(rng() * 4);
+
+      const shadeRoll = rng();
+      const patchColor = shadeRoll > 0.7 ? '#323632'   // 稍亮
+                       : shadeRoll > 0.4 ? '#2e322e'   // 中等
+                       : '#262a26';                     // 稍暗
+
+      PA.rect(ctx, px, py, pw, ph, patchColor);
     }
 
-    // 繪製每塊石板
-    for (const stone of stones) {
-      const sx = x + stone.sx;
-      const sy = y + stone.sy;
-      const shade = rng() > 0.5 ? C.FLOOR_MID : C.FLOOR_LIGHT;
-
-      PA.rect(ctx, sx, sy, stone.sw, stone.sh, shade);
-
-      // 左上高光
-      PA.rect(ctx, sx, sy, stone.sw, 1, C.FLOOR_HIGHLIGHT);
-      PA.rect(ctx, sx, sy, 1, stone.sh, C.FLOOR_HIGHLIGHT);
-
-      // 右下陰影（用 FLOOR_DARK_MID 增加過渡）
-      PA.rect(ctx, sx, sy + stone.sh - 1, stone.sw, 1, C.FLOOR_DARK_MID);
-      PA.rect(ctx, sx + stone.sw - 1, sy, 1, stone.sh, C.FLOOR_DARK_MID);
-
-      // 內部紋理（增加色階過渡）
-      for (let t = 0; t < 4; t++) {
-        const tx = sx + 1 + Math.floor(rng() * Math.max(1, stone.sw - 3));
-        const ty = sy + 1 + Math.floor(rng() * Math.max(1, stone.sh - 3));
-        const floorR = rng();
-        const texColor = floorR > 0.7 ? C.FLOOR_MID_LIGHT
-          : floorR > 0.4 ? C.FLOOR_LIGHT
-          : floorR > 0.2 ? C.FLOOR_DARK_MID
-          : C.FLOOR_DARK;
-        PA.pixel(ctx, tx, ty, texColor);
-      }
-
-      // 暖色反光點
-      const hx = sx + 1 + Math.floor(rng() * Math.max(1, stone.sw - 3));
-      const hy = sy + 1 + Math.floor(rng() * Math.max(1, stone.sh - 3));
-      PA.pixel(ctx, hx, hy, '#9a9080');
+    // 3. 添加隨機噪點（8-12 個）
+    const noiseCount = 8 + Math.floor(rng() * 5);
+    for (let i = 0; i < noiseCount; i++) {
+      const nx = x + Math.floor(rng() * T);
+      const ny = y + Math.floor(rng() * T);
+      const noiseRoll = rng();
+      const noiseColor = noiseRoll > 0.6 ? '#363a36'   // 亮噪點
+                       : noiseRoll > 0.3 ? '#1e221e'   // 暗噪點
+                       : '#2a2e2a';                     // 中等
+      PA.pixel(ctx, nx, ny, noiseColor);
     }
 
-    // 石板間隙（暗色裂縫）
-    const gy = variant < 2 ? 7 : 8;
-    for (let i = 0; i < 16; i++) {
-      PA.pixel(ctx, x + i, y + gy, C.FLOOR_CRACK);
-    }
-    const gx = variant % 2 === 0 ? 7 : 9;
-    for (let i = 0; i < gy; i++) {
-      PA.pixel(ctx, x + gx, y + i, C.FLOOR_CRACK);
-    }
-    const gx2 = variant % 2 === 0 ? 8 : 7;
-    for (let i = gy + 1; i < 16; i++) {
-      PA.pixel(ctx, x + gx2, y + i, C.FLOOR_CRACK);
-    }
+    // 4. 添加不規則裂紋（1-3 條）
+    const crackCount = 1 + Math.floor(rng() * 3);
+    for (let ci = 0; ci < crackCount; ci++) {
+      const crackStartX = x + Math.floor(rng() * T);
+      const crackStartY = y + Math.floor(rng() * T);
+      const crackLength = 2 + Math.floor(rng() * 4);
 
-    // 散落的沙塵（增至 4 個 + 更多變體）
-    if (variant === 1 || variant === 3) {
-      PA.pixel(ctx, x + 3, y + 12, '#8a8070');
-      PA.pixel(ctx, x + 12, y + 4, '#7a7060');
-      PA.pixel(ctx, x + 7, y + 13, C.FLOOR_DARK_MID);
-      PA.pixel(ctx, x + 14, y + 9, C.FLOOR_MID_LIGHT);
-    }
-    if (variant === 0 || variant === 2) {
-      PA.pixel(ctx, x + 5, y + 11, '#8a8070');
-      PA.pixel(ctx, x + 10, y + 3, C.FLOOR_DARK_MID);
-    }
+      // 隨機方向
+      const dirs = [[1, 0], [0, 1], [1, 1], [-1, 1], [1, -1]];
+      const [dx, dy] = dirs[Math.floor(rng() * dirs.length)];
 
-    // 地板裂痕裝飾（10% 機率 - DW3 風格降低雜亂度）
-    if (rng() < 0.10) {
-      const crackCount = 1 + Math.floor(rng() * 2); // 1-2 條裂痕
-      for (let ci = 0; ci < crackCount; ci++) {
-        const startX = 2 + Math.floor(rng() * 11);
-        const startY = 2 + Math.floor(rng() * 11);
-        const length = 2 + Math.floor(rng() * 3); // 2-4px 長
-        const dirIdx = Math.floor(rng() * 4);
-        const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
-        const [cdx, cdy] = dirs[dirIdx];
-        for (let p = 0; p < length; p++) {
-          const px = startX + cdx * p;
-          const py = startY + cdy * p;
-          if (px >= 1 && px < 15 && py >= 1 && py < 15) {
-            // 裂痕中心用 FLOOR_CRACK，邊緣用 FLOOR_DARK_MID
-            PA.pixel(ctx, x + px, y + py, C.FLOOR_CRACK);
-            // 旁邊像素用較淺的 FLOOR_DARK_MID 做過渡
-            if (py + 1 < 15) {
-              PA.pixel(ctx, x + px, y + py + 1, C.FLOOR_DARK_MID);
-            }
-          }
+      for (let p = 0; p < crackLength; p++) {
+        const cx = crackStartX + dx * p;
+        const cy = crackStartY + dy * p;
+        if (cx >= x && cx < x + T && cy >= y && cy < y + T) {
+          PA.pixel(ctx, cx, cy, '#1a1e1a');  // 深色裂紋
         }
+      }
+    }
+
+    // 5. 變體差異（部分地格添加更多裂紋或風化）
+    if (variant === 2 || variant === 5 || variant === 7) {
+      // 額外的風化效果
+      for (let i = 0; i < 3; i++) {
+        const wx = x + 1 + Math.floor(rng() * 14);
+        const wy = y + 1 + Math.floor(rng() * 14);
+        PA.pixel(ctx, wx, wy, '#1e221e');
+      }
+    }
+
+    // 6. 添加熔岩紅點（隨機分布 2-5 個）
+    const lavaCount = 2 + Math.floor(rng() * 4);
+    for (let i = 0; i < lavaCount; i++) {
+      const lx = x + 1 + Math.floor(rng() * 14);
+      const ly = y + 1 + Math.floor(rng() * 14);
+
+      // 隨機紅色色調（暗紅到亮紅）
+      const lavaRoll = rng();
+      const lavaColor = lavaRoll > 0.7 ? '#cc4422'   // 亮紅
+                      : lavaRoll > 0.4 ? '#aa3311'   // 中紅
+                      : '#882211';                    // 暗紅
+
+      PA.pixel(ctx, lx, ly, lavaColor);
+
+      // 部分紅點周圍添加微弱的橙色光暈
+      if (rng() > 0.6) {
+        if (lx + 1 < x + T) PA.pixel(ctx, lx + 1, ly, '#442211');
+        if (ly + 1 < y + T) PA.pixel(ctx, lx, ly + 1, '#442211');
       }
     }
   };

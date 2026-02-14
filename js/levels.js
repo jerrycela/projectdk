@@ -102,8 +102,8 @@ DK.LEVELS = [
     layout: [
       'OOOOOOOOOOOOOOOOOOOO',
       'OWWWWWWWBBWWWWWWWWWO',
-      'OW........WW......WO',
-      'OW........WW......WO',
+      'OWEE......WW......WO',
+      'OWEE......WW......WO',
       'OW........WW......WO',
       'OW........WW......WO',
       'OW........WW......WO',
@@ -113,6 +113,18 @@ DK.LEVELS = [
       'OW..............HHWO',
       'OWWWWWWWWWWWWWWWWWWO',
       'OOOOOOOOOOOOOOOOOOOO',
+    ],
+
+    // 傳送門配置（藍色傳送門，與水坑主題搭配）
+    portals: [
+      {
+        id: 1,
+        col: 2,
+        row: 2,
+        type: 'blue',
+        entrance: { x: 2, y: 2 },
+        waves: [1, 2, 3], // 所有波次都從這個傳送門出兵
+      }
     ],
 
     waves: [
@@ -296,7 +308,6 @@ DK.LevelManager = {
     const testMode = urlParams.get('test');
 
     if (testMode === '1') {
-      console.log('🧪 進入測試模式...');
       this.isTestMode = true;
       this.loadTestLevel();
     } else {
@@ -325,7 +336,8 @@ DK.LevelManager = {
     }
 
     // 初始化教學系統（向下相容檢查）
-    if (this.currentLevel.tutorial && DK.Tutorial) {
+    // 只在明確請求時啟動 Tutorial（避免強制打斷遊戲流程）
+    if (this.currentLevel.tutorial && DK.Tutorial && DK.Game.tutorialRequested) {
       DK.Tutorial.init(this.currentLevel.tutorial);
     }
 
@@ -360,8 +372,6 @@ DK.LevelManager = {
    * 載入測試關卡（從 localStorage）
    */
   loadTestLevel() {
-    console.log('📦 載入測試關卡...');
-
     try {
       // 1. 從 localStorage 讀取測試關卡
       const testLevelData = localStorage.getItem('dk_test_level');
@@ -375,7 +385,6 @@ DK.LevelManager = {
 
       // 2. 解析 JSON
       const level = JSON.parse(testLevelData);
-      console.log('✅ 測試關卡資料已讀取:', level);
 
       // 3. 設定為當前關卡
       this.currentLevel = level;
@@ -403,21 +412,23 @@ DK.LevelManager = {
         // 設定為遊戲波次
         if (allWaves.length > 0) {
           DK.WAVES = JSON.parse(JSON.stringify(allWaves));
-          console.log(`✅ 已載入 ${allWaves.length} 個波次`);
         }
       } else if (level.waves) {
         // 如果是舊格式（直接使用 waves）
         DK.WAVES = JSON.parse(JSON.stringify(level.waves));
       }
 
-      // 6. 在控制台顯示測試關卡資訊
-      console.log('🎮 測試關卡已載入:');
-      console.log(`  名稱: ${level.name}`);
-      console.log(`  地圖尺寸: ${level.layout[0].length}×${level.layout.length}`);
-      console.log(`  傳送門: ${level.portals?.length || 0} 個`);
-      console.log(`  波次: ${DK.WAVES?.length || 0} 波`);
-      console.log(`  起始金幣: ${level.startingGold}`);
-      console.log(`  地心生命: ${level.dungeonHeartHP}`);
+      // 6. 在控制台顯示測試關卡資訊（DEBUG 模式）
+      if (DK.DEBUG_MODE) {
+        DK.ErrorHandler.log('info', 'Test level loaded', {
+          name: level.name,
+          size: `${level.layout[0].length}×${level.layout.length}`,
+          portals: level.portals?.length || 0,
+          waves: DK.WAVES?.length || 0,
+          gold: level.startingGold,
+          hp: level.dungeonHeartHP
+        });
+      }
 
       return true;
     } catch (e) {

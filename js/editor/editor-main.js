@@ -58,8 +58,6 @@ DK.Editor = {
    * 初始化編輯器
    */
   init() {
-    console.log('🎮 初始化關卡編輯器...');
-
     // 1. 初始化 Canvas
     this.initCanvas();
 
@@ -107,8 +105,6 @@ DK.Editor = {
 
     // 12. 啟動渲染循環
     this.startRenderLoop();
-
-    console.log('✅ 編輯器初始化完成');
   },
 
   /**
@@ -126,7 +122,6 @@ DK.Editor = {
     this.uiCtx.imageSmoothingEnabled = false;
 
     // Canvas 樣式現在由 CSS 處理（響應式縮放）
-    console.log('✅ Canvas 初始化完成');
   },
 
   /**
@@ -176,7 +171,6 @@ DK.Editor = {
       this.initTileCache();
     }
 
-    console.log('✅ 空白關卡創建完成');
   },
 
   /**
@@ -199,7 +193,6 @@ DK.Editor = {
     document.getElementById('btnTest')?.addEventListener('click', () => this.testLevel());
     document.getElementById('btnClear')?.addEventListener('click', () => this.clearMap());
 
-    console.log('✅ 事件監聽設置完成');
   },
 
   /**
@@ -209,7 +202,6 @@ DK.Editor = {
     // 滑鼠滾輪縮放
     this.uiCanvas.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
 
-    console.log('✅ 視角控制設置完成');
   },
 
   /**
@@ -282,6 +274,13 @@ DK.Editor = {
       this.camera.isDragging = false;
       this.uiCanvas.style.cursor = this.spacePressed ? 'grab' : 'default';
       return;
+    }
+
+    // 如果滑鼠在繪製狀態，保存歷史記錄
+    if (this.mouse.isDown) {
+      if (DK.EditorTools && DK.EditorTools.saveHistory) {
+        DK.EditorTools.saveHistory();
+      }
     }
 
     this.mouse.isDown = false;
@@ -418,6 +417,9 @@ DK.Editor = {
     // 根據工具類型處理
     if (this.selectedTool === 'paint') {
       this.paintTile(col, row);
+    } else if (this.selectedTool === 'fill') {
+      // 填充工具
+      this.fillTile(col, row);
     } else if (this.selectedTool === 'erase') {
       this.eraseTile(col, row);
     } else if (this.selectedTool === 'picker') {
@@ -481,7 +483,6 @@ DK.Editor = {
 
       const name = this.selectedTile === 'H' ? '地城之心' :
                    this.selectedTile === 'E' ? '入口傳送門' : '出口傳送門';
-      console.log(`✅ 2×2 ${name}已放置於 (${col}, ${row})`);
       return;
     }
 
@@ -521,11 +522,9 @@ DK.Editor = {
 
         const name = tile === 'H' ? '地城之心' :
                      tile === 'E' ? '入口傳送門' : '出口傳送門';
-        console.log(`🗑️ 刪除 2×2 ${name}於 (${anchor.col}, ${anchor.row})`);
       } else {
         // 無法識別為完整 2×2，只刪除單格
         this.setTile(col, row, '.');
-        console.log(`🗑️ 刪除單格傳送門於 (${col}, ${row})`);
       }
     } else {
       // 一般地磚刪除
@@ -579,6 +578,42 @@ DK.Editor = {
       if (DK.EditorUI && DK.EditorUI.updateTilePalette) {
         DK.EditorUI.updateTilePalette();
       }
+    }
+  },
+
+  /**
+   * 填充工具（Flood Fill）
+   */
+  fillTile(col, row) {
+    const targetTile = this.getTile(col, row);
+    const replacementTile = this.selectedTile;
+
+    // 如果目標地磚與替換地磚相同，無需填充
+    if (targetTile === replacementTile) {
+      return;
+    }
+
+    // 不允許填充外圍（'O'）
+    if (targetTile === 'O') {
+      console.warn('⚠️ 無法填充外圍區域');
+      return;
+    }
+
+    // 在填充前保存歷史記錄
+    if (DK.EditorTools && DK.EditorTools.saveHistory) {
+      DK.EditorTools.saveHistory();
+    }
+
+    // 呼叫 EditorTools 的 floodFill 方法
+    if (DK.EditorTools && DK.EditorTools.floodFill) {
+      const cellsChanged = DK.EditorTools.floodFill(col, row, targetTile, replacementTile);
+
+      if (cellsChanged > 0) {
+        // 填充完成後標記為已修改
+        this.markDirty();
+      }
+    } else {
+      console.error('❌ EditorTools.floodFill not found');
     }
   },
 
@@ -717,7 +752,6 @@ DK.Editor = {
    * 測試關卡
    */
   testLevel() {
-    console.log('🧪 準備測試關卡...');
 
     // 1. 取得當前關卡資料
     const level = DK.EditorStorage.getCurrentLevelData();
@@ -766,7 +800,6 @@ DK.Editor = {
     // 6. 儲存到 localStorage
     try {
       localStorage.setItem('dk_test_level', JSON.stringify(level));
-      console.log('✅ 測試關卡已儲存到 localStorage');
     } catch (e) {
       alert(`❌ 無法儲存測試關卡：${e.message}`);
       return;
@@ -779,7 +812,6 @@ DK.Editor = {
     if (!testWindow) {
       alert('❌ 無法開啟測試視窗\n\n請允許瀏覽器彈出視窗，或手動開啟 index.html?test=1');
     } else {
-      console.log('✅ 測試視窗已開啟');
     }
   },
 
@@ -841,7 +873,6 @@ DK.Editor = {
       this.tileCache[tileId] = canvas;
     });
 
-    console.log(`✅ 地磚快取初始化完成（${Object.keys(this.tileCache).length} 種地磚）`);
   },
 
   /**
@@ -849,7 +880,6 @@ DK.Editor = {
    */
   clearTileCache() {
     this.tileCache = null;
-    console.log('🗑️ 地磚快取已清空');
   },
 
   /**
@@ -956,9 +986,6 @@ DK.Editor = {
         break;
       case 'B': // 路障
         DK.Map.drawBreakableWallTile(ctx, x, y, variant);
-        break;
-      case 'T': // 火把（使用座標為基礎的變體）
-        DK.Map.drawTorchTile(ctx, x, y, (x / 16 + y / 16 * 13) % 3);
         break;
       case 'C': // 寶箱（使用座標為基礎的變體）
         DK.Map.drawChestTile(ctx, x, y, (x / 16 + y / 16 * 13) % 3);

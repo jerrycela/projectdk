@@ -71,7 +71,13 @@ DK.Tutorial = {
   ],
 
   // === 初始化教學系統 ===
-  init() {
+  init(config) {
+    // ✅ 使用傳入的 config
+    if (!config) {
+      console.warn('[Tutorial] init() 需要 config 參數');
+      return;
+    }
+
     this.active = true;
     this.currentStep = 0;
     this.completed = false;
@@ -82,7 +88,15 @@ DK.Tutorial = {
     this.sandbox.waveStarted = false;
     this.sandbox.enemiesDefeated = 0;
 
-    console.log('[Tutorial] 教學模式已啟動（沙盒模式）');
+    // 支援自訂步驟
+    if (config.steps) {
+      this.steps = config.steps;
+    }
+
+    // 支援延遲啟動
+    if (config.autoStart === false) {
+      this.active = false;
+    }
   },
 
   // === 開始教學（從主選單呼叫） ===
@@ -103,7 +117,6 @@ DK.Tutorial = {
     // 由於不影響 DK.Map，這裡僅作為概念說明
     // 實際實作時需要設定 DK.Map.layout 為教學地圖
 
-    console.log('[Tutorial] 載入教學地圖（簡化版）');
     // 教學地圖可以硬編碼或從 DK.LEVELS 中選擇簡化版本
   },
 
@@ -153,15 +166,12 @@ DK.Tutorial = {
     }
 
     const step = this.steps[this.currentStep];
-    console.log(`[Tutorial] 進入 ${step.title}`);
   },
 
   // === 完成教學 ===
   complete() {
     this.completed = true;
     this.active = false;
-
-    console.log('[Tutorial] 教學完成！');
 
     // 儲存教學完成狀態到 localStorage
     try {
@@ -180,8 +190,6 @@ DK.Tutorial = {
 
     this.completed = true;
     this.active = false;
-
-    console.log('[Tutorial] 教學已跳過');
 
     // 也標記為已完成（避免重複提示）
     try {
@@ -259,8 +267,13 @@ DK.Tutorial = {
 
   // === 渲染遮罩 ===
   renderOverlay(ctx) {
+    ctx.save();
+
+    // 只遮罩遊戲區域，不遮罩 UI 底部（避免覆蓋按鈕）
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillRect(0, 0, ctx.canvas.width, DK.CONFIG.UI_TOP);
+
+    ctx.restore();
   },
 
   // === 渲染高亮區域 ===
@@ -274,30 +287,44 @@ DK.Tutorial = {
       let rect = this.getUIElementRect(hl.element);
       if (!rect) return;
 
-      // 清除遮罩（顯示高亮區域）
-      ctx.clearRect(rect.x - 10, rect.y - 10, rect.w + 20, rect.h + 20);
+      ctx.save();
 
-      // 脈動邊框
-      const pulse = Math.sin(Date.now() / 300) * 0.3 + 0.7;
-      ctx.strokeStyle = `rgba(255, 215, 0, ${pulse})`;
-      ctx.lineWidth = 4;
-      ctx.strokeRect(rect.x - 10, rect.y - 10, rect.w + 20, rect.h + 20);
+      // ✅ 使用 'lighter' 讓高亮區域變亮（不摧毀內容）
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.2)';
+      ctx.fillRect(rect.x - 10, rect.y - 10, rect.w + 20, rect.h + 20);
+
+      // 恢復正常模式繪製邊框
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rect.x - 5, rect.y - 5, rect.w + 10, rect.h + 10);
+
+      ctx.restore();
     }
   },
 
-  // === 獲取 UI 元素位置（簡化版） ===
+  // === 獲取 UI 元素位置（動態從 DK.UI.buttons 取得） ===
   getUIElementRect(element) {
-    // 根據元素類型返回矩形座標
-    // 這裡需要與 ui.js 的實際佈局對應
+    // 從 DK.UI.buttons 取得實際按鈕位置
+    if (!DK.UI || !DK.UI.buttons) return null;
 
     switch (element) {
       case 'trap_button':
-        // 電擊板按鈕位置（假設位於 UI 底部左側）
-        return { x: 20, y: DK.CONFIG.UI_TOP + 20, w: 80, h: 60 };
+        // 尋找電擊板按鈕（第一個陷阱按鈕）
+        const trapBtn = DK.UI.buttons.find(btn => btn.trap && btn.trap.id === 'shock_plate');
+        if (trapBtn) {
+          return { x: trapBtn.x, y: trapBtn.y, w: trapBtn.width, h: trapBtn.height };
+        }
+        return null;
 
       case 'start_invasion_button':
-        // 開始入侵按鈕位置（右下角）
-        return { x: 820, y: DK.CONFIG.UI_TOP + 20, w: 120, h: 60 };
+        // 尋找開始入侵按鈕
+        const startBtn = DK.UI.buttons.find(btn => btn.action === 'start_wave');
+        if (startBtn) {
+          return { x: startBtn.x, y: startBtn.y, w: startBtn.width, h: startBtn.height };
+        }
+        return null;
 
       default:
         return null;
@@ -346,6 +373,8 @@ DK.Tutorial = {
 
   // === 渲染教學面板 ===
   renderTutorialPanel(ctx, step) {
+    ctx.save();
+
     const padding = 20;
     const lineHeight = 24;
     const boxWidth = 500;
@@ -395,6 +424,8 @@ DK.Tutorial = {
       ctx.font = 'italic 14px sans-serif';
       ctx.fillText(step.helpText, x + padding, currentY);
     }
+
+    ctx.restore();
   },
 
   // === 渲染跳過按鈕 ===
@@ -508,7 +539,5 @@ DK.Tutorial = {
     this.currentStep = 0;
     this.completed = false;
     this.showCompletion = false;
-
-    console.log('[Tutorial] 教學進度已重置');
   },
 };

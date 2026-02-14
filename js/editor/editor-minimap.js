@@ -31,8 +31,6 @@ DK.EditorMinimap = {
    * 初始化小地圖
    */
   init() {
-    console.log('🗺️ 初始化小地圖系統...');
-
     // 使用現有的 uiCanvas 繪製小地圖
     if (!DK.Editor.uiCanvas) {
       console.error('❌ 找不到 uiCanvas');
@@ -51,8 +49,6 @@ DK.EditorMinimap = {
 
     // 設置點擊事件
     this.setupClickHandler();
-
-    console.log(`✅ 小地圖初始化完成（位置: ${this.x}, ${this.y}）`);
   },
 
   /**
@@ -88,8 +84,6 @@ DK.EditorMinimap = {
         // 邊界限制
         DK.Editor.camera.x = Math.max(0, Math.min(DK.Editor.camera.x, DK.Editor.cols - viewportCols));
         DK.Editor.camera.y = Math.max(0, Math.min(DK.Editor.camera.y, DK.Editor.rows - viewportRows));
-
-        console.log(`📍 視角跳轉到 (${clickCol}, ${clickRow})`);
       }
     });
   },
@@ -141,7 +135,7 @@ DK.EditorMinimap = {
   getTileColor(tile) {
     switch (tile) {
       case 'W': return '#2d2d44';  // 牆壁（深灰）
-      case '.': return '#5e5648';  // 地板（棕色）
+      case '.': return '#2e322e';  // 地板（深灰綠色）
       case 'O': return '#1a1828';  // 外圍（黑色）
       case 'H': return '#aa3333';  // 地城之心（紅色）- 會被脈動覆蓋
       case 'E': return '#33aa33';  // 入口傳送門（綠色）
@@ -153,7 +147,6 @@ DK.EditorMinimap = {
       case 'D': return '#6a5040';  // 木門（棕色）
       case 'I': return '#5a5a6e';  // 鐵門（灰色）
       case 'Z': return '#aa44ff';  // 魔法門（紫色）
-      case 'T': return '#ff8833';  // 火把（橙色）
       case 'C': return '#ffd700';  // 寶箱（金色）
       case 'L': return '#4a4a5a';  // 石柱（深灰）
       case 'S': return '#c8b898';  // 骸骨（米色）
@@ -217,13 +210,15 @@ DK.EditorMinimap = {
           const x = this.x + col * this.tileSize;
           const y = this.y + row * this.tileSize;
 
-          // 脈動效果（改變不透明度）
-          const alpha = 0.6 + Math.sin(this.pulsePhase) * 0.4;
+          // 脈動效果（改變不透明度）- 使用快取的三角函式
+          const MC = DK.MathCache;
+          const pulseSin = MC.sin(this.pulsePhase * 180 / Math.PI); // 弧度轉角度
+          const alpha = 0.6 + pulseSin * 0.4;
           this.ctx.fillStyle = `rgba(255, 68, 68, ${alpha})`;
           this.ctx.fillRect(x, y, this.tileSize, this.tileSize);
 
           // 外圍光暈
-          if (Math.sin(this.pulsePhase) > 0.5) {
+          if (pulseSin > 0.5) {
             this.ctx.strokeStyle = `rgba(255, 100, 100, ${alpha * 0.5})`;
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(x - 1, y - 1, this.tileSize + 2, this.tileSize + 2);

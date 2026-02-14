@@ -19,8 +19,6 @@ DK.EditorStorage = {
    * 初始化存儲系統
    */
   init() {
-    console.log('💾 初始化存儲系統...');
-
     // 1. 檢查 localStorage 可用性
     if (!this.isStorageAvailable()) {
       alert('⚠️ localStorage 不可用，無法儲存關卡');
@@ -36,7 +34,8 @@ DK.EditorStorage = {
     // 4. 設置匯入按鈕
     this.setupImportButton();
 
-    console.log('✅ 存儲系統初始化完成');
+    // 5. 設置頁面卸載時清理
+    this.setupCleanup();
   },
 
   /**
@@ -73,7 +72,6 @@ DK.EditorStorage = {
       // 更新草稿列表
       this.updateDraftsList(level);
 
-      console.log('✅ 關卡已儲存');
       return true;
     } catch (e) {
       console.error('❌ 儲存失敗:', e);
@@ -89,7 +87,6 @@ DK.EditorStorage = {
     try {
       const data = localStorage.getItem(this.KEYS.DRAFT_CURRENT);
       if (!data) {
-        console.log('無儲存的草稿');
         return false;
       }
 
@@ -114,7 +111,6 @@ DK.EditorStorage = {
       document.getElementById('inputHeartHP').value = level.dungeonHeartHP || 100;
       document.getElementById('levelName').textContent = level.name || '新關卡';
 
-      console.log('✅ 草稿已載入');
       return true;
     } catch (e) {
       console.error('❌ 載入草稿失敗:', e);
@@ -354,7 +350,6 @@ DK.EditorStorage = {
 
       URL.revokeObjectURL(url);
 
-      console.log('✅ JSON 已匯出');
       alert('✅ JSON 已匯出成功');
     } catch (e) {
       console.error('❌ 匯出失敗:', e);
@@ -422,14 +417,14 @@ DK.EditorStorage = {
    * 啟動自動儲存
    */
   startAutoSave() {
+    // 先清除舊的 interval（防止重複呼叫造成多個 timer）
+    this.stopAutoSave();
+
     this.autoSaveInterval = setInterval(() => {
       if (DK.Editor.isDirty) {
-        console.log('🔄 自動儲存中...');
         this.save();
       }
     }, this.autoSaveDelay);
-
-    console.log(`✅ 自動儲存已啟動（每 ${this.autoSaveDelay / 1000} 秒）`);
   },
 
   /**
@@ -439,7 +434,15 @@ DK.EditorStorage = {
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
       this.autoSaveInterval = null;
-      console.log('⏸️ 自動儲存已停止');
     }
+  },
+
+  /**
+   * 設置清理機制（頁面卸載時）
+   */
+  setupCleanup() {
+    window.addEventListener('beforeunload', () => {
+      this.stopAutoSave();
+    });
   }
 };

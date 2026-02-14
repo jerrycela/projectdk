@@ -58,32 +58,64 @@ DK.Game = {
     this.screenShake = { intensity: 0, timer: 0 };
     this.camera = { x: 0, y: 0 };
 
+    // 初始化粒子池系統
+    if (DK.ParticlePool) {
+      DK.ParticlePool.init();
+    }
+
     DK.Map.init();
+    // 初始化傳送門作為生成點（讓 planning 階段也能顯示動線）
+    this.initPortalsAsSpawnPoints();
     this.initParticles();
     DK.Traps.init();
     if (DK.Doors) DK.Doors.init(DK.LevelManager.currentLevel);
     DK.Enemies.init();
     if (DK.Elements) DK.Elements.init();
     if (DK.Heroes) DK.Heroes.init();
+    if (DK.UndoSystem) DK.UndoSystem.init();
     DK.UI.init();
   },
 
   startGame() {
+    const oldState = this.state;
     this.state = 'planning';
+    if (DK.ErrorHandler) {
+      DK.ErrorHandler.log('info', `Game state changed: ${oldState} → planning`);
+    }
     this.init();
   },
 
   /** @deprecated BREACH 階段已移除，保留向後相容 */
   startBreach() {
-    console.warn('[Deprecated] startBreach() - BREACH 階段已移除');
+    if (DK.DEBUG_MODE) {
+      console.warn('[Deprecated] startBreach() - BREACH 階段已移除');
+    }
+    if (DK.ErrorHandler) {
+      DK.ErrorHandler.log('warning', 'Deprecated method startBreach() called, redirecting to startInvasion()');
+    }
     this.startInvasion();
   },
 
   startInvasion() {
-    if (this.state !== 'planning') return;
+    if (this.state !== 'planning') {
+      if (DK.ErrorHandler) {
+        DK.ErrorHandler.log('warning', 'Cannot start invasion from non-planning state', { currentState: this.state });
+      }
+      return;
+    }
     // 使用傳送門作為敵人生成點
     this.initPortalsAsSpawnPoints();
+    const oldState = this.state;
     this.state = 'invasion';
+    if (DK.ErrorHandler) {
+      DK.ErrorHandler.log('info', `Game state changed: ${oldState} → invasion`);
+    }
+
+    // 同步 UI 按鈕狀態
+    if (DK.UI && DK.UI.updateButtonStates) {
+      DK.UI.updateButtonStates();
+    }
+
     this._spawnHoleIndex = 0;
     this.startWave();
   },
@@ -116,9 +148,13 @@ DK.Game = {
       }
     }
 
-    // 最終檢查：如果仍無生成點，發出警告
+    // 最終檢查：如果仍無生成點，發出錯誤
     if (!DK.Map.breachHoles || DK.Map.breachHoles.length === 0) {
-      console.error('[Game] 無法找到敵人生成點（portals 或 E 標記）');
+      if (DK.ErrorHandler) {
+        DK.ErrorHandler.log('error', 'No enemy spawn points found (portals or E markers)');
+      } else if (DK.DEBUG_MODE) {
+        console.error('[Game] 無法找到敵人生成點（portals 或 E 標記）');
+      }
     }
   },
 
@@ -143,6 +179,10 @@ DK.Game = {
     }
 
     if (this.dungeonHeartHP <= 0) {
+      // 播放遊戲結束音效
+      if (DK.SoundSystem) {
+        DK.SoundSystem.play('game_over');
+      }
       this.gameOver = true;
     }
   },
@@ -150,6 +190,11 @@ DK.Game = {
   startWave() {
     if (this.waveActive || this.gameOver) return;
     if (this.currentWave >= DK.WAVES.length) return;
+
+    // 播放波次開始音效
+    if (DK.SoundSystem) {
+      DK.SoundSystem.play('wave_start');
+    }
 
     const wave = DK.WAVES[this.currentWave];
     this.spawnQueue = [];
@@ -188,6 +233,15 @@ DK.Game = {
       // 更新粒子和特效（環境動畫繼續）
       this.updateParticles(dt);
       this.updateEffects(dt);
+
+      // 清理畫面晃動（避免從 invasion 切換過來時殘留）
+      if (this.screenShake.timer > 0) {
+        this.screenShake.timer -= dt;
+        if (this.screenShake.timer <= 0) {
+          this.screenShake.intensity = 0;
+        }
+      }
+
       return;
     }
 
@@ -266,9 +320,16 @@ DK.Game = {
       if (aliveEnemies.length === 0) {
         this.waveActive = false;
 
+        // 清除畫面晃動（避免波次結束後持續晃動）
+        this.screenShake = { intensity: 0, timer: 0 };
         // 計算波次獎勵金幣（基礎 50 + 波次 * 10）
         const waveBonus = 50 + this.currentWave * 10;
         this.gold += waveBonus;
+
+        // 播放波次完成音效
+        if (DK.SoundSystem) {
+          DK.SoundSystem.play('wave_complete');
+        }
 
         // 觸發波次完成慶祝特效
         DK.UI.showWaveComplete = true;
@@ -284,9 +345,23 @@ DK.Game = {
             this.init();
           } else {
             // 所有關卡完成，勝利！
+            if (DK.SoundSystem) {
+              DK.SoundSystem.play('victory');
+            }
             this.gameOver = true;
           }
         } else {
+          // 回到 planning 階段（波次之間可以調整陷阱和英雄）
+          this.state = 'planning';
+          if (DK.ErrorHandler) {
+            DK.ErrorHandler.log('info', 'Wave complete - returned to planning phase');
+          }
+
+          // 同步 UI 按鈕狀態
+          if (DK.UI && DK.UI.updateButtonStates) {
+            DK.UI.updateButtonStates();
+          }
+
           // 自動開始下一波倒數
           this.waveAutoTimer = DK.CONFIG.WAVE_AUTO_DELAY;
         }
@@ -361,11 +436,114 @@ DK.Game = {
       }
       effect.timer += dt;
     }
-    this.effects = this.effects.filter(e => e.timer < e.duration);
+
+    // 過濾過期粒子並回收到池中
+    const newEffects = [];
+    for (const e of this.effects) {
+      if (e.timer < e.duration) {
+        newEffects.push(e);
+      } else if (DK.ParticlePool && e._poolType) {
+        // 歸還粒子到池中
+        DK.ParticlePool.release(e, e._poolType);
+      }
+    }
+    this.effects = newEffects;
   },
 
   restart() {
     this.state = 'planning';
     this.init();
+  },
+
+  /**
+   * 獲取當前波次詳細資訊
+   * @returns {Object|null} 當前波次資料，包含難度、敵人類型、獎勵等
+   */
+  getCurrentWaveData() {
+    if (this.currentWave >= DK.WAVES.length) return null;
+    const waveConfig = DK.WAVES[this.currentWave];
+    return {
+      wave: this.currentWave + 1,
+      enemies: waveConfig.enemies,
+      totalEnemies: waveConfig.enemies.reduce((sum, e) => sum + e.count, 0),
+      difficulty: this._calculateDifficulty(waveConfig),
+      reward: this._calculateReward(waveConfig)
+    };
+  },
+
+  /**
+   * 獲取下一波次預覽資訊
+   * @returns {Object|null} 下一波次資料，如果已是最後一波則返回 null
+   */
+  getNextWaveData() {
+    if (this.currentWave + 1 >= DK.WAVES.length) return null;
+    const waveConfig = DK.WAVES[this.currentWave + 1];
+    return {
+      wave: this.currentWave + 2,
+      enemies: waveConfig.enemies,
+      totalEnemies: waveConfig.enemies.reduce((sum, e) => sum + e.count, 0),
+      difficulty: this._calculateDifficulty(waveConfig)
+    };
+  },
+
+  /**
+   * 計算波次難度等級
+   * @param {Object} waveConfig - 波次配置
+   * @returns {string} 難度等級: 'easy' | 'medium' | 'hard' | 'extreme'
+   */
+  _calculateDifficulty(waveConfig) {
+    // 根據總 HP 計算難度
+    const totalHP = waveConfig.enemies.reduce((sum, e) => {
+      const enemyType = DK.ENEMY_TYPES[e.type];
+      const hp = enemyType ? enemyType.hp : 30;
+      return sum + e.count * hp;
+    }, 0);
+
+    if (totalHP < 200) return 'easy';
+    if (totalHP < 500) return 'medium';
+    if (totalHP < 1000) return 'hard';
+    return 'extreme';
+  },
+
+  /**
+   * 計算波次完成獎勵
+   * @param {Object} waveConfig - 波次配置
+   * @returns {number} 完成獎勵金幣
+   */
+  _calculateReward(waveConfig) {
+    // 基礎獎勵 50 + 波次 * 10 + 敵人數量 * 5
+    const waveIndex = this.currentWave;
+    const totalEnemies = waveConfig.enemies.reduce((sum, e) => sum + e.count, 0);
+    return 50 + waveIndex * 10 + totalEnemies * 5;
+  },
+
+  /**
+   * 使用粒子池創建效果（推薦使用此方法取代直接 push）
+   * @param {Object} effectData - 效果數據
+   * @returns {Object} 創建的效果物件
+   */
+  createEffect(effectData) {
+    if (!DK.ParticlePool) {
+      // 粒子池未載入，退回舊方法
+      this.effects.push(effectData);
+      return effectData;
+    }
+
+    // 根據效果類型決定池類型
+    let poolType = 'effect';
+    if (effectData.type === 'projectile' || effectData.type === 'chain_lightning') {
+      poolType = 'projectile';
+    } else if (effectData.type === 'damage' || effectData.type === 'gold' || effectData.type === 'reaction_text') {
+      poolType = 'text';
+    }
+
+    // 從池中取得粒子
+    const particle = DK.ParticlePool.acquire(poolType);
+
+    // 填入效果數據
+    Object.assign(particle, effectData);
+
+    this.effects.push(particle);
+    return particle;
   },
 };

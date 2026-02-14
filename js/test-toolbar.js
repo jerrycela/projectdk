@@ -14,11 +14,8 @@ DK.TestToolbar = {
   init() {
     // 檢查是否為測試模式
     if (!DK.LevelManager || !DK.LevelManager.isTestMode) {
-      console.log('非測試模式，跳過工具列初始化');
       return;
     }
-
-    console.log('🧪 初始化測試工具列...');
 
     // 獲取元素
     this.elements.toolbar = document.getElementById('test-toolbar');
@@ -44,8 +41,6 @@ DK.TestToolbar = {
 
     // 加入 test-mode class 到 body
     document.body.classList.add('test-mode');
-
-    console.log('✅ 測試工具列初始化完成');
   },
 
   /**
@@ -142,8 +137,6 @@ DK.TestToolbar = {
   restartTest() {
     if (!confirm('確定要重新開始測試？')) return;
 
-    console.log('🔄 重新開始測試...');
-
     // 重新載入頁面
     window.location.reload();
   },
@@ -153,8 +146,6 @@ DK.TestToolbar = {
    */
   openEditor() {
     if (!confirm('確定要返回編輯器？\n\n當前測試進度將會丟失。')) return;
-
-    console.log('✏️ 返回編輯器...');
 
     // 開啟編輯器（新視窗）
     window.open('editor.html', '_blank', 'width=1600,height=900');
@@ -172,8 +163,6 @@ DK.TestToolbar = {
    */
   closeTest() {
     if (!confirm('確定要關閉測試？')) return;
-
-    console.log('✕ 關閉測試視窗...');
 
     // 嘗試關閉視窗
     window.close();

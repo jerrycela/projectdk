@@ -4,6 +4,16 @@
  */
 
 DK.EditorWave = {
+  /**
+   * HTML 跳脫函式（防止 XSS）
+   */
+  escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  },
+
   // === 當前編輯的傳送門 ===
   currentPortalId: null,
   currentPortal: null,
@@ -23,12 +33,8 @@ DK.EditorWave = {
    * 初始化波次編輯器
    */
   init() {
-    console.log('📊 初始化波次編輯器...');
-
     // 創建 Modal HTML
     this.createModal();
-
-    console.log('✅ 波次編輯器初始化完成');
   },
 
   /**
@@ -259,11 +265,11 @@ DK.EditorWave = {
       const header = document.createElement('div');
       header.className = 'wave-header';
       header.innerHTML = `
-        <h3>⚔️ Wave ${waveIndex + 1}</h3>
+        <h3>⚔️ Wave ${this.escapeHTML(String(waveIndex + 1))}</h3>
         <div class="wave-actions">
-          <button class="btn-icon" data-action="up" data-index="${waveIndex}" title="上移">↑</button>
-          <button class="btn-icon" data-action="down" data-index="${waveIndex}" title="下移">↓</button>
-          <button class="btn-icon" data-action="delete" data-index="${waveIndex}" title="刪除">🗑️</button>
+          <button class="btn-icon" data-action="up" data-index="${this.escapeHTML(String(waveIndex))}" title="上移">↑</button>
+          <button class="btn-icon" data-action="down" data-index="${this.escapeHTML(String(waveIndex))}" title="下移">↓</button>
+          <button class="btn-icon" data-action="delete" data-index="${this.escapeHTML(String(waveIndex))}" title="刪除">🗑️</button>
         </div>
       `;
 
@@ -274,14 +280,17 @@ DK.EditorWave = {
       wave.enemies.forEach((enemy, enemyIndex) => {
         const enemyItem = document.createElement('div');
         enemyItem.className = 'enemy-item';
+        const optionsHTML = this.enemyTypes.map(et =>
+          `<option value="${this.escapeHTML(et.id)}" ${enemy.type === et.id ? 'selected' : ''}>${this.escapeHTML(et.name)}</option>`
+        ).join('');
         enemyItem.innerHTML = `
-          <select data-wave="${waveIndex}" data-enemy="${enemyIndex}" data-field="type">
-            ${this.enemyTypes.map(et => `<option value="${et.id}" ${enemy.type === et.id ? 'selected' : ''}>${et.name}</option>`).join('')}
+          <select data-wave="${this.escapeHTML(String(waveIndex))}" data-enemy="${this.escapeHTML(String(enemyIndex))}" data-field="type">
+            ${optionsHTML}
           </select>
-          <input type="number" value="${enemy.count}" min="1" max="100" data-wave="${waveIndex}" data-enemy="${enemyIndex}" data-field="count" placeholder="數量">
-          <input type="number" value="${enemy.interval || 500}" min="100" max="5000" step="100" data-wave="${waveIndex}" data-enemy="${enemyIndex}" data-field="interval" placeholder="間隔(ms)">
-          <input type="number" value="${enemy.gold || 10}" min="0" max="1000" data-wave="${waveIndex}" data-enemy="${enemyIndex}" data-field="gold" placeholder="獎勵">
-          <button class="btn-icon" data-action="delete-enemy" data-wave="${waveIndex}" data-enemy="${enemyIndex}">✕</button>
+          <input type="number" value="${this.escapeHTML(String(enemy.count))}" min="1" max="100" data-wave="${this.escapeHTML(String(waveIndex))}" data-enemy="${this.escapeHTML(String(enemyIndex))}" data-field="count" placeholder="數量">
+          <input type="number" value="${this.escapeHTML(String(enemy.interval || 500))}" min="100" max="5000" step="100" data-wave="${this.escapeHTML(String(waveIndex))}" data-enemy="${this.escapeHTML(String(enemyIndex))}" data-field="interval" placeholder="間隔(ms)">
+          <input type="number" value="${this.escapeHTML(String(enemy.gold || 10))}" min="0" max="1000" data-wave="${this.escapeHTML(String(waveIndex))}" data-enemy="${this.escapeHTML(String(enemyIndex))}" data-field="gold" placeholder="獎勵">
+          <button class="btn-icon" data-action="delete-enemy" data-wave="${this.escapeHTML(String(waveIndex))}" data-enemy="${this.escapeHTML(String(enemyIndex))}">✕</button>
         `;
 
         enemyList.appendChild(enemyItem);

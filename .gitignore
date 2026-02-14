@@ -1,0 +1,64 @@
+# 測試腳本
+*.cjs
+test-*.html
+test-*.js
+verify-*.cjs
+diagnose-*.cjs
+check-*.cjs
+qa-*.cjs
+capture-*.cjs
+debug-*.cjs
+screenshot-*.cjs
+emergency-*.cjs
+quick-*.cjs
+regression-*.cjs
+start-server.sh
+
+# 測試截圖和圖片
+*.png
+*.jpg
+*.jpeg
+
+# 測試報告和日誌
+*-report.json
+*.log
+excalidraw.log
+
+# 測試目錄
+qa-screenshots/
+qa-screenshots-deep/
+qa-screenshots-final/
+tests/
+
+# 臨時檔案
+*.bak
+*.backup-*
+server.pid
+*.pid
+
+# 草稿文檔
+*-SUMMARY.txt
+VERIFICATION_*.md
+MANUAL-TEST-*.md
+BUG-FIX-REPORT-*.md
+CLAUDE-OLD.md
+CLAUDE-SIMPLIFIED.md
+SUMMON-SYSTEM-TEST-GUIDE.md
+tutorial-bug-fix-implementation-plan.md
+check-ui-errors.js
+emergency-diag.html
+
+# 臨時 HTML 測試檔案
+test-*.html
+performance-test.html
+
+# Node modules
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

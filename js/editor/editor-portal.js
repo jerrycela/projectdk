@@ -4,6 +4,16 @@
  */
 
 DK.EditorPortal = {
+  /**
+   * HTML 跳脫函式（防止 XSS）
+   */
+  escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  },
+
   // === 選中的傳送門 ===
   selectedPortalId: null,
 
@@ -11,7 +21,6 @@ DK.EditorPortal = {
    * 初始化傳送門系統
    */
   init() {
-    console.log('🚪 初始化傳送門系統...');
 
     // 確保 currentLevel 有 portals 陣列
     if (!DK.Editor.currentLevel.portals) {
@@ -24,7 +33,6 @@ DK.EditorPortal = {
     // 渲染傳送門列表
     this.renderPortalList();
 
-    console.log('✅ 傳送門系統初始化完成');
   },
 
   /**
@@ -114,7 +122,6 @@ DK.EditorPortal = {
       DK.EditorTools.saveHistory();
     }
 
-    console.log(`✅ 傳送門已放置：${id} at (${col}, ${row}) [2×2]`);
 
     // 10. 恢復編輯模式
     DK.Editor.mode = 'tiles';
@@ -318,7 +325,6 @@ DK.EditorPortal = {
       DK.EditorTools.saveHistory();
     }
 
-    console.log(`✅ 傳送門已刪除：${portalId} [2×2]`);
   },
 
   /**
@@ -378,7 +384,6 @@ DK.EditorPortal = {
       DK.EditorTools.saveHistory();
     }
 
-    console.log(`✅ 傳送門已複製：${newPortal.id} [2×2]`);
 
     // 恢復編輯模式
     DK.Editor.mode = 'tiles';
@@ -410,20 +415,23 @@ DK.EditorPortal = {
     portals.forEach((portal, index) => {
       const item = document.createElement('div');
       item.className = 'portal-item';
+      const portalType = portal.type === 'entrance' ? '入口' : '出口';
+      const waveCount = portal.waves ? portal.waves.length : 0;
+      const totalEnemies = this.countTotalEnemies(portal.waves);
       item.innerHTML = `
         <div class="portal-header">
           <h4>🚪 傳送門 #${index + 1}</h4>
-          <span class="portal-coord">(${portal.col}, ${portal.row})</span>
+          <span class="portal-coord">(${this.escapeHTML(String(portal.col))}, ${this.escapeHTML(String(portal.row))})</span>
         </div>
         <div class="portal-info">
-          <p>類型: ${portal.type === 'entrance' ? '入口' : '出口'}</p>
-          <p>波次: ${portal.waves ? portal.waves.length : 0} 波</p>
-          <p>總敵人: ${this.countTotalEnemies(portal.waves)}</p>
+          <p>類型: ${this.escapeHTML(portalType)}</p>
+          <p>波次: ${this.escapeHTML(String(waveCount))} 波</p>
+          <p>總敵人: ${this.escapeHTML(String(totalEnemies))}</p>
         </div>
         <div class="portal-actions">
-          <button class="btn-edit" data-id="${portal.id}">✏️ 編輯波次</button>
-          <button class="btn-copy" data-id="${portal.id}">📋 複製</button>
-          <button class="btn-delete" data-id="${portal.id}">🗑️ 刪除</button>
+          <button class="btn-edit" data-id="${this.escapeHTML(portal.id)}">✏️ 編輯波次</button>
+          <button class="btn-copy" data-id="${this.escapeHTML(portal.id)}">📋 複製</button>
+          <button class="btn-delete" data-id="${this.escapeHTML(portal.id)}">🗑️ 刪除</button>
         </div>
       `;
 

@@ -46,7 +46,9 @@ DK.Doors = {
       }
     }
 
-    console.log(`🚪 初始化 ${this.doors.length} 個門`);
+    if (DK.DEBUG_MODE) {
+      DK.ErrorHandler.log('info', `Doors initialized: ${this.doors.length} doors`);
+    }
   },
 
   /**
@@ -62,7 +64,6 @@ DK.Doors = {
       // 檢查門是否被破壞
       if (door.hp <= 0 && !door.isOpen) {
         door.isOpen = true;
-        console.log(`🚪 門已被破壞：(${door.col}, ${door.row})`);
       }
     });
   },
@@ -125,7 +126,6 @@ DK.Doors = {
     door.hp -= actualDamage;
     door.damageFlash = 200; // 200ms 閃爍
 
-    console.log(`🗡️ 門受到 ${actualDamage} 傷害（剩餘 ${door.hp}/${door.maxHp}）`);
     return true;
   },
 
@@ -162,7 +162,6 @@ DK.Doors = {
     const door = this.doors.find(d => d.id === doorId);
     if (door) {
       door.isLocked = false;
-      console.log(`🔓 門已解鎖：${doorId}`);
     }
   },
 
