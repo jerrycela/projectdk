@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Hero Preview - MapleStory Style</title>
+  <style>
+    body {
+      background: #1a1a2e;
+      color: #e0d8c8;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 { color: #ffcc66; font-size: 18px; }
+    .preview-row {
+      display: flex;
+      gap: 40px;
+      margin-top: 20px;
+    }
+    .hero-card {
+      text-align: center;
+      background: #2a2a3e;
+      border: 1px solid #4a4a5e;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .hero-card h3 { color: #88ccff; margin: 0 0 10px; }
+    .hero-card.fire h3 { color: #ffaa44; }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 1px solid #3a3a4e;
+      background: #2a2a3e;
+    }
+    .label { font-size: 12px; color: #8a8a9a; margin-top: 8px; }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      background: #3a3a5e;
+      color: #e0d8c8;
+      border: 1px solid #5a5a7e;
+      padding: 6px 14px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover { background: #4a4a6e; }
+    button.active { background: #5a5a8e; border-color: #88aaff; }
+  </style>
+</head>
+<body>
+  <h1>ProjectDK Hero Preview - MapleStory Chibi Style</h1>
+
+  <div class="controls">
+    <button id="btnIdle" class="active">Idle</button>
+    <button id="btnWalk">Walking</button>
+    <button id="btnAttack">Attacking</button>
+  </div>
+
+  <div class="preview-row">
+    <div class="hero-card">
+      <h3>Leviathan (Water Mage)</h3>
+      <canvas id="waterCanvas" width="64" height="64"></canvas>
+      <div class="label">64x64 actual pixels (4x zoom below)</div>
+      <canvas id="waterZoom" width="256" height="256"></canvas>
+    </div>
+    <div class="hero-card fire">
+      <h3>Baal (Fire Mage)</h3>
+      <canvas id="fireCanvas" width="64" height="64"></canvas>
+      <div class="label">64x64 actual pixels (4x zoom below)</div>
+      <canvas id="fireZoom" width="256" height="256"></canvas>
+    </div>
+  </div>
+
+  <div class="preview-row">
+    <div class="hero-card">
+      <h3>Side by Side (game scale)</h3>
+      <canvas id="bothCanvas" width="128" height="64"></canvas>
+      <div class="label">128x64 actual pixels (4x zoom below)</div>
+      <canvas id="bothZoom" width="512" height="256"></canvas>
+    </div>
+  </div>
+
+  <!-- Load game scripts -->
+  <script src="js/config/config-core.js"></script>
+  <script src="js/config/config-colors.js"></script>
+  <script src="js/config/config-utils.js"></script>
+  <script src="js/config/config-data.js"></script>
+  <script src="js/pixelart.js"></script>
+  <script src="js/math-cache.js"></script>
+  <script src="js/heroes.js"></script>
+
+  <script>
+    // Minimal stubs for missing game objects
+    window.DK = window.DK || {};
+    DK.Game = DK.Game || { time: 0 };
+    DK.Map = DK.Map || {};
+
+    const waterCtx = document.getElementById('waterCanvas').getContext('2d');
+    const fireCtx = document.getElementById('fireCanvas').getContext('2d');
+    const waterZoomCtx = document.getElementById('waterZoom').getContext('2d');
+    const fireZoomCtx = document.getElementById('fireZoom').getContext('2d');
+    const bothCtx = document.getElementById('bothCanvas').getContext('2d');
+    const bothZoomCtx = document.getElementById('bothZoom').getContext('2d');
+
+    // Disable smoothing on zoom canvases
+    [waterZoomCtx, fireZoomCtx, bothZoomCtx].forEach(ctx => {
+      ctx.imageSmoothingEnabled = false;
+    });
+
+    let heroState = 'idle'; // idle, walking, attacking
+    let animFrame = 0;
+    let animTimer = 0;
+
+    function createMockHero(type) {
+      return {
+        type: type,
+        animFrame: animFrame,
+        moving: heroState === 'walking',
+        attacking: heroState === 'attacking',
+        attackTimer: heroState === 'attacking' ? type.attackCooldown * 0.8 : 0,
+        idleAction: null,
+        idleActionProgress: 0,
+      };
+    }
+
+    function render() {
+      const time = Date.now();
+
+      // Update animation frame
+      animTimer++;
+      if (animTimer % 10 === 0) {
+        animFrame = (animFrame + 1) % 4;
+      }
+
+      // Clear canvases
+      waterCtx.clearRect(0, 0, 64, 64);
+      fireCtx.clearRect(0, 0, 64, 64);
+      bothCtx.clearRect(0, 0, 128, 64);
+
+      // Draw heroes centered in their canvases
+      const waterHero = createMockHero(DK.HERO_TYPES.WATER_MAGE);
+      const fireHero = createMockHero(DK.HERO_TYPES.FIRE_MAGE);
+
+      DK.Heroes.renderWaterMage(waterCtx, waterHero, 32, 42, time);
+      DK.Heroes.renderFireMage(fireCtx, fireHero, 32, 42, time);
+
+      // Both side by side
+      DK.Heroes.renderWaterMage(bothCtx, waterHero, 32, 42, time);
+      DK.Heroes.renderFireMage(bothCtx, fireHero, 96, 42, time);
+
+      // Zoom copies (4x)
+      waterZoomCtx.clearRect(0, 0, 256, 256);
+      waterZoomCtx.drawImage(document.getElementById('waterCanvas'), 0, 0, 256, 256);
+
+      fireZoomCtx.clearRect(0, 0, 256, 256);
+      fireZoomCtx.drawImage(document.getElementById('fireCanvas'), 0, 0, 256, 256);
+
+      bothZoomCtx.clearRect(0, 0, 512, 256);
+      bothZoomCtx.drawImage(document.getElementById('bothCanvas'), 0, 0, 512, 256);
+
+      requestAnimationFrame(render);
+    }
+
+    // Controls
+    document.getElementById('btnIdle').addEventListener('click', function() {
+      heroState = 'idle';
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+    document.getElementById('btnWalk').addEventListener('click', function() {
+      heroState = 'walking';
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+    document.getElementById('btnAttack').addEventListener('click', function() {
+      heroState = 'attacking';
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+    });
+
+    // Start rendering
+    render();
+  </script>
+</body>
+</html>
