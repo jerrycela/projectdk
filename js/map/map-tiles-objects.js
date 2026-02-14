@@ -616,37 +616,28 @@ DK.Map.drawRuneCircle = function(ctx, x, y, time, obj) {
 
 // === 4x4 Objects (64x64px) ===
 
-/** 龍骨遺骸 (4x4, 64x64px) — 完整龍骨架，頭骨+脊椎+肋骨+翼骨+尾骨 */
+/** 龍骨遺骸 (4x4, 64x64px) — 完整龍骨架，頭骨+脊椎+肋骨+翼骨+尾骨+爪 */
 DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
   const PA = DK.PixelArt;
   const c = DK.MAP_OBJECTS['7'].colors;
+  const darkGround = PA.darken(c.ground, 12);
 
   // 地面底色（灰暗灰燼地面）
   PA.rect(ctx, x, y, 64, 64, c.ground);
 
-  // 灰燼/焦痕細節（填滿地面）
+  // 焦痕區域（大面積深色灼燒）
   const ashColor = PA.lighten(c.ground, 8);
-  PA.rect(ctx, x + 5, y + 50, 20, 8, ashColor);
-  PA.rect(ctx, x + 30, y + 45, 25, 12, ashColor);
+  PA.rect(ctx, x + 5, y + 48, 22, 12, ashColor);
+  PA.rect(ctx, x + 28, y + 44, 28, 14, ashColor);
   PA.rect(ctx, x + 10, y + 35, 15, 8, ashColor);
   PA.rect(ctx, x + 40, y + 30, 18, 10, ashColor);
-
-  // 地面散落小骨頭
-  PA.pixel(ctx, x + 3, y + 58, c.boneShadow);
-  PA.rect(ctx, x + 55, y + 55, 3, 1, c.boneShadow);
-  PA.pixel(ctx, x + 50, y + 60, c.boneShadow);
-  PA.rect(ctx, x + 8, y + 54, 1, 3, c.boneShadow);
-  PA.pixel(ctx, x + 58, y + 10, c.boneShadow);
-  PA.pixel(ctx, x + 4, y + 40, c.boneShadow);
-  // 牙齒
-  PA.pixel(ctx, x + 22, y + 20, c.bone);
-  PA.pixel(ctx, x + 18, y + 22, c.bone);
+  // 深色灼燒圈（龍倒下的痕跡）
+  PA.rect(ctx, x + 14, y + 50, 18, 6, darkGround);
+  PA.rect(ctx, x + 38, y + 52, 14, 8, darkGround);
 
   // === 頭骨（左上象限，大型，16x14） ===
-  // 頭骨主體
   PA.rect(ctx, x + 3, y + 8, 16, 12, c.bone);
   PA.rect(ctx, x + 5, y + 6, 12, 3, c.bone);
-  // 頭頂弧形
   PA.rect(ctx, x + 7, y + 5, 8, 2, c.bone);
   PA.rect(ctx, x + 9, y + 4, 4, 2, c.bone);
   // 下顎
@@ -661,21 +652,21 @@ DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
   // 眼窩（大，深色）
   PA.rect(ctx, x + 6, y + 9, 4, 4, c.ground);
   PA.rect(ctx, x + 13, y + 9, 4, 4, c.ground);
-  // 頭骨高光
+  // 頭骨高光/陰影
   PA.rect(ctx, x + 5, y + 6, 1, 8, PA.lighten(c.bone, 20));
-  // 頭骨陰影
   PA.rect(ctx, x + 17, y + 8, 1, 12, c.boneShadow);
   // 牙齒（下排）
-  PA.pixel(ctx, x + 7, y + 17, c.bone);
-  PA.pixel(ctx, x + 9, y + 17, c.bone);
-  PA.pixel(ctx, x + 11, y + 17, c.bone);
-  PA.pixel(ctx, x + 13, y + 17, c.bone);
-  PA.pixel(ctx, x + 15, y + 17, c.bone);
-  // 犄角（左）
+  for (let t = 0; t < 5; t++) {
+    PA.pixel(ctx, x + 7 + t * 2, y + 17, c.bone);
+  }
+  // 散落牙齒（地面）
+  PA.pixel(ctx, x + 22, y + 20, c.bone);
+  PA.pixel(ctx, x + 18, y + 23, c.bone);
+  PA.pixel(ctx, x + 5, y + 24, c.bone);
+  // 犄角
   PA.rect(ctx, x + 4, y + 3, 2, 5, c.bone);
   PA.rect(ctx, x + 3, y + 1, 2, 3, c.boneShadow);
   PA.pixel(ctx, x + 3, y, c.boneShadow);
-  // 犄角（右）
   PA.rect(ctx, x + 16, y + 3, 2, 5, c.bone);
   PA.rect(ctx, x + 17, y + 1, 2, 3, c.boneShadow);
   PA.pixel(ctx, x + 18, y, c.boneShadow);
@@ -686,7 +677,6 @@ DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
     if (flicker) {
       PA.rect(ctx, x + 7, y + 10, 2, 2, c.eye);
       PA.rect(ctx, x + 14, y + 10, 2, 2, c.eye);
-      // 發光暈染
       ctx.save();
       ctx.globalAlpha = 0.3;
       PA.rect(ctx, x + 5, y + 8, 6, 6, c.eye);
@@ -695,10 +685,14 @@ DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
     }
   }
 
-  // === 脊椎骨（從頭骨延伸到右下，S 形彎曲） ===
+  // === 脊椎骨（S 形，從頭骨到右下） ===
   // 第一段（水平向右）
   PA.rect(ctx, x + 20, y + 14, 20, 3, c.bone);
   PA.rect(ctx, x + 20, y + 16, 20, 2, c.boneShadow);
+  // 脊椎關節突起
+  for (let s = 0; s < 4; s++) {
+    PA.pixel(ctx, x + 22 + s * 5, y + 13, c.bone);
+  }
   // 第二段（向右下彎）
   PA.rect(ctx, x + 38, y + 16, 3, 12, c.bone);
   PA.rect(ctx, x + 40, y + 16, 2, 12, c.boneShadow);
@@ -706,8 +700,8 @@ DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
   PA.rect(ctx, x + 40, y + 26, 16, 3, c.bone);
   PA.rect(ctx, x + 40, y + 28, 16, 2, c.boneShadow);
 
-  // === 肋骨（從脊椎向上下延伸，7 對） ===
-  // 上半段肋骨（從水平脊椎向上）
+  // === 肋骨（從脊椎向上下延伸） ===
+  // 上半段肋骨
   for (let i = 0; i < 4; i++) {
     const rx = x + 22 + i * 5;
     PA.rect(ctx, rx, y + 6 + i, 2, 8 - i, c.bone);
@@ -715,7 +709,7 @@ DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
     PA.rect(ctx, rx, y + 18, 2, 6 + i, c.boneShadow);
     PA.pixel(ctx, rx + 2, y + 23 + i, c.boneShadow);
   }
-  // 下半段肋骨（從垂直脊椎向左）
+  // 下半段肋骨（從垂直脊椎向左右）
   for (let i = 0; i < 3; i++) {
     const ry = y + 18 + i * 4;
     PA.rect(ctx, x + 30, ry, 9, 2, c.bone);
@@ -724,43 +718,106 @@ DK.Map.drawDragonSkeleton = function(ctx, x, y, time) {
   }
 
   // === 翼骨（右上方展開，殘破） ===
-  // 主翼骨（從脊椎上方向右延伸）
   PA.line(ctx, x + 35, y + 12, x + 55, y + 4, c.bone);
   PA.line(ctx, x + 35, y + 13, x + 55, y + 5, c.boneShadow);
-  // 翼指骨（3 根分叉）
   PA.line(ctx, x + 48, y + 6, x + 58, y + 2, c.bone);
   PA.line(ctx, x + 50, y + 7, x + 60, y + 5, c.bone);
   PA.line(ctx, x + 52, y + 8, x + 62, y + 10, c.boneShadow);
-  // 翼膜殘片
   ctx.save();
   ctx.globalAlpha = 0.3;
   PA.rect(ctx, x + 50, y + 3, 8, 5, c.boneShadow);
   ctx.restore();
 
-  // === 尾骨（從脊椎末端向右下延伸） ===
+  // === 尾骨（從脊椎末端向右下彎曲至底部角落） ===
   PA.rect(ctx, x + 54, y + 28, 6, 2, c.bone);
-  PA.rect(ctx, x + 56, y + 30, 4, 3, c.boneShadow);
-  PA.rect(ctx, x + 58, y + 33, 3, 4, c.boneShadow);
-  PA.rect(ctx, x + 59, y + 37, 2, 5, c.boneShadow);
-  PA.pixel(ctx, x + 60, y + 42, c.boneShadow);
+  PA.rect(ctx, x + 56, y + 30, 5, 3, c.bone);
+  PA.rect(ctx, x + 57, y + 33, 4, 3, c.boneShadow);
+  PA.rect(ctx, x + 58, y + 36, 3, 4, c.boneShadow);
+  PA.rect(ctx, x + 57, y + 40, 3, 4, c.bone);
+  PA.rect(ctx, x + 55, y + 44, 3, 4, c.boneShadow);
+  PA.rect(ctx, x + 53, y + 48, 3, 4, c.boneShadow);
+  PA.rect(ctx, x + 52, y + 52, 2, 4, c.boneShadow);
+  PA.rect(ctx, x + 53, y + 56, 2, 3, c.bone);
+  // 尾錘（末端膨大）
+  PA.rect(ctx, x + 51, y + 58, 5, 3, c.bone);
+  PA.rect(ctx, x + 52, y + 57, 3, 1, c.bone);
+  PA.pixel(ctx, x + 50, y + 59, c.boneShadow);
+  PA.pixel(ctx, x + 56, y + 59, c.boneShadow);
 
-  // === 後腿骨（左下方） ===
-  PA.rect(ctx, x + 32, y + 30, 2, 14, c.bone);
-  PA.rect(ctx, x + 30, y + 42, 6, 3, c.boneShadow);
-  PA.pixel(ctx, x + 29, y + 44, c.bone);
-  PA.pixel(ctx, x + 36, y + 44, c.bone);
+  // === 前腿骨（頭骨下方，延伸到 y+52 帶 3 爪） ===
+  // 股骨
+  PA.rect(ctx, x + 10, y + 24, 3, 12, c.bone);
+  PA.rect(ctx, x + 12, y + 24, 1, 12, c.boneShadow);
+  // 膝關節
+  PA.rect(ctx, x + 9, y + 35, 5, 3, c.bone);
+  PA.pixel(ctx, x + 8, y + 36, c.boneShadow);
+  // 脛骨
+  PA.rect(ctx, x + 10, y + 38, 2, 12, c.bone);
+  PA.rect(ctx, x + 12, y + 38, 1, 12, c.boneShadow);
+  // 腳掌
+  PA.rect(ctx, x + 7, y + 49, 9, 3, c.bone);
+  PA.rect(ctx, x + 7, y + 51, 9, 1, c.boneShadow);
+  // 三根腳趾爪
+  PA.rect(ctx, x + 4, y + 52, 3, 5, c.bone);
+  PA.pixel(ctx, x + 4, y + 57, c.boneShadow);
+  PA.pixel(ctx, x + 5, y + 58, c.boneShadow);
+  PA.rect(ctx, x + 10, y + 52, 2, 6, c.bone);
+  PA.pixel(ctx, x + 10, y + 58, c.boneShadow);
+  PA.pixel(ctx, x + 11, y + 59, c.boneShadow);
+  PA.rect(ctx, x + 14, y + 52, 3, 5, c.bone);
+  PA.pixel(ctx, x + 15, y + 57, c.boneShadow);
+  PA.pixel(ctx, x + 16, y + 58, c.boneShadow);
 
-  // 前腿骨（頭骨下方）
-  PA.rect(ctx, x + 10, y + 24, 2, 16, c.bone);
-  PA.rect(ctx, x + 8, y + 38, 6, 3, c.boneShadow);
-  PA.pixel(ctx, x + 7, y + 40, c.bone);
-  PA.pixel(ctx, x + 14, y + 40, c.bone);
+  // === 後腿骨（脊椎下方，延伸到 y+56 帶 3 爪） ===
+  // 股骨
+  PA.rect(ctx, x + 32, y + 30, 3, 10, c.bone);
+  PA.rect(ctx, x + 34, y + 30, 1, 10, c.boneShadow);
+  // 膝關節
+  PA.rect(ctx, x + 31, y + 39, 5, 3, c.bone);
+  PA.pixel(ctx, x + 30, y + 40, c.boneShadow);
+  // 脛骨
+  PA.rect(ctx, x + 32, y + 42, 2, 10, c.bone);
+  PA.rect(ctx, x + 34, y + 42, 1, 10, c.boneShadow);
+  // 腳掌
+  PA.rect(ctx, x + 29, y + 51, 9, 3, c.bone);
+  PA.rect(ctx, x + 29, y + 53, 9, 1, c.boneShadow);
+  // 三根腳趾爪
+  PA.rect(ctx, x + 27, y + 54, 3, 5, c.bone);
+  PA.pixel(ctx, x + 27, y + 59, c.boneShadow);
+  PA.pixel(ctx, x + 28, y + 60, c.boneShadow);
+  PA.rect(ctx, x + 32, y + 54, 2, 6, c.bone);
+  PA.pixel(ctx, x + 32, y + 60, c.boneShadow);
+  PA.pixel(ctx, x + 33, y + 61, c.boneShadow);
+  PA.rect(ctx, x + 37, y + 54, 3, 5, c.bone);
+  PA.pixel(ctx, x + 38, y + 59, c.boneShadow);
+  PA.pixel(ctx, x + 39, y + 60, c.boneShadow);
 
-  // 地面裂紋（周圍散佈）
+  // === 地面散落骨頭碎片（大塊，有存在感） ===
+  // 斷裂肋骨（左下）
+  PA.rect(ctx, x + 2, y + 46, 5, 2, c.bone);
+  PA.pixel(ctx, x + 7, y + 47, c.boneShadow);
+  // 碎骨片（中下）
+  PA.rect(ctx, x + 20, y + 55, 4, 2, c.boneShadow);
+  PA.rect(ctx, x + 22, y + 58, 3, 2, c.bone);
+  // 散落爪牙（右下）
+  PA.rect(ctx, x + 44, y + 56, 2, 4, c.bone);
+  PA.pixel(ctx, x + 44, y + 60, c.boneShadow);
+  PA.rect(ctx, x + 48, y + 58, 1, 3, c.boneShadow);
+  // 脊椎碎片（左下）
+  PA.rect(ctx, x + 2, y + 55, 3, 3, c.bone);
+  PA.pixel(ctx, x + 5, y + 56, c.boneShadow);
+  // 角碎片（中間底部）
+  PA.rect(ctx, x + 18, y + 60, 2, 2, c.bone);
+  PA.pixel(ctx, x + 20, y + 61, c.boneShadow);
+
+  // 地面裂紋（更明顯）
   ctx.save();
-  ctx.globalAlpha = 0.3;
-  PA.line(ctx, x + 2, y + 50, x + 15, y + 55, '#222233');
-  PA.line(ctx, x + 45, y + 50, x + 55, y + 58, '#222233');
+  ctx.globalAlpha = 0.5;
+  PA.line(ctx, x + 2, y + 50, x + 12, y + 56, '#222233');
+  PA.line(ctx, x + 12, y + 56, x + 18, y + 54, '#222233');
+  PA.line(ctx, x + 42, y + 48, x + 50, y + 54, '#222233');
+  PA.line(ctx, x + 50, y + 54, x + 58, y + 52, '#222233');
+  PA.line(ctx, x + 22, y + 48, x + 26, y + 54, '#1a1a28');
   ctx.restore();
 
   // 邊緣暗化
