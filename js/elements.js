@@ -56,12 +56,29 @@ DK.Elements = {
       particleColor: '#ffaa44',
       paralysis: true,
     },
+    frost_marked: {
+      id: 'frost_marked',
+      name: '冰凍印記',
+      duration: 3000,
+      color: '#64c8f0',
+      particleColor: '#aaddee',
+      slowAmount: 0.6,
+    },
+    frozen: {
+      id: 'frozen',
+      name: '凍結',
+      duration: 1500,
+      color: '#88eeff',
+      particleColor: '#cceeff',
+      paralysis: true,
+    },
   },
 
   // Reaction definitions: { trigger, consumed, result }
   REACTIONS: [
     { trigger: 'electric', consumed: 'wet', result: 'electrocuted' },
     { trigger: 'fire', consumed: 'oiled', result: 'oil_ignite' },
+    { trigger: 'ice', consumed: 'wet', result: 'frozen' },
   ],
 
   // Active reaction effects (for chain lightning rendering)
@@ -93,7 +110,7 @@ DK.Elements = {
     }
 
     // No reaction — apply base status for elements that have one
-    const elementStatusMap = { water: 'wet', fire: 'burning' };
+    const elementStatusMap = { water: 'wet', fire: 'burning', ice: 'frost_marked' };
     const baseStatus = elementStatusMap[element];
     if (baseStatus) {
       this.addStatus(enemy, baseStatus);

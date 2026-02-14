@@ -437,7 +437,7 @@ Object.assign(DK.UI, {
     ctx.fillStyle = 'rgba(10,10,18,0.9)';
     ctx.fillRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
 
-    const isVictory = game.dungeonHeartHP > 0;
+    const isVictory = game.victory === true;
     const cx = DK.CONFIG.DISPLAY_WIDTH / 2;
     const cy = DK.CONFIG.DISPLAY_HEIGHT / 2 - 30;
     const C = DK.COLORS;

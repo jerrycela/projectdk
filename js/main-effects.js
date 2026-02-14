@@ -147,6 +147,32 @@ DK.EffectRenderer = {
                    i === 0 ? '#ffcc44' : '#ff6622');
         }
       }
+    } else if (effect.trapType === 'ice_bolt') {
+      // Ice bolt: cyan-white ice shard
+      PA.pixel(ctx, ipx, ipy, '#ffffff');
+      PA.pixel(ctx, ipx - 1, ipy, '#aaddee');
+      PA.pixel(ctx, ipx + 1, ipy, '#aaddee');
+      PA.pixel(ctx, ipx, ipy - 1, '#64c8f0');
+      PA.pixel(ctx, ipx, ipy + 1, '#64c8f0');
+      // Ice crystal trail
+      for (let i = 2; i < 5; i++) {
+        const tx = ipx + Math.round(nx * i);
+        const ty = ipy + Math.round(ny * i);
+        PA.pixel(ctx, tx, ty, i < 3 ? '#64c8f0' : '#3399aa');
+        if (i < 4 && Math.random() > 0.5) {
+          PA.pixel(ctx, tx + Math.round((Math.random() - 0.5) * 2),
+                   ty + Math.round((Math.random() - 0.5) * 2), '#cceeff');
+        }
+      }
+      // Frost sparkle
+      if (t >= 1) {
+        for (let i = 0; i < 3; i++) {
+          const sa = Math.random() * Math.PI * 2;
+          const sd = 1 + Math.random() * 2;
+          PA.pixel(ctx, ipx + Math.round(Math.cos(sa) * sd),
+                   ipy + Math.round(Math.sin(sa) * sd), '#cceeff');
+        }
+      }
     } else if (effect.trapType === 'water_bolt') {
       // Water bolt: blue water sphere
       PA.pixel(ctx, ipx, ipy, '#ffffff');

@@ -368,6 +368,7 @@ Object.assign(DK.UI, {
       const elementColors = {
         water: { badge: '#1a3388', border: '#3355cc', icon: '#4488ff', iconLight: '#88ccff', selected: '#4488ff' },
         fire:  { badge: '#882211', border: '#cc4433', icon: '#ff6622', iconLight: '#ffaa44', selected: '#ff6622' },
+        ice:   { badge: '#1a5566', border: '#33aacc', icon: '#64c8f0', iconLight: '#aaddee', selected: '#64c8f0' },
       };
       const ec = elementColors[heroType.element] || elementColors.water;
 

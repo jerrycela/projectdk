@@ -144,6 +144,26 @@ DK.ENEMY_TYPES = {
     splits: true,
     heartDamage: 5,
   },
+  TROLL: {
+    id: 'troll',
+    name: '巨魔',
+    hp: 350,
+    speed: 0.35,
+    reward: 40,
+    size: 1.2,
+    mass: 4,
+    heartDamage: 35,
+  },
+  DARK_KNIGHT: {
+    id: 'dark_knight',
+    name: '暗騎士',
+    hp: 500,
+    speed: 0.4,
+    reward: 60,
+    size: 1.1,
+    mass: 3,
+    heartDamage: 50,
+  },
 };
 
 // Door types

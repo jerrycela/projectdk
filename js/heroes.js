@@ -35,6 +35,21 @@ DK.HERO_TYPES = {
     icon: 'fire_mage',
     auraRange: 2,
   },
+  ICE_MAGE: {
+    id: 'ice_mage',
+    name: '乌利爾',
+    description: '霜之女神，冰矛附加冰凍印記',
+    cost: 85,
+    hp: 120,
+    damage: 25,
+    range: 3.5,
+    aoeRadius: 1.5,
+    attackCooldown: 1500,
+    moveSpeed: 0.4,
+    element: 'ice',
+    icon: 'ice_mage',
+    auraRange: 2,
+  },
 };
 
 DK.Heroes = {
@@ -599,7 +614,7 @@ DK.Heroes = {
             }
 
             // 投射物效果：根據元素類型
-            const projectileType = hero.type.element === 'fire' ? 'fire_bolt' : 'water_bolt';
+            const projectileType = hero.type.element === 'fire' ? 'fire_bolt' : hero.type.element === 'ice' ? 'ice_bolt' : 'water_bolt';
             if (DK.Game && DK.Game.effects) {
               DK.Game.effects.push({
                 type: 'projectile',
@@ -1339,6 +1354,7 @@ DK.Heroes = {
     const elementColors = {
       water: [68, 136, 255],
       fire: [255, 102, 34],
+      ice: [100, 200, 240],
     };
     const rgb = elementColors[hero.type.element] || elementColors.water;
     const alpha = (line.timer / line.duration) * 0.6;
@@ -1369,10 +1385,12 @@ DK.Heroes = {
     const auraColors = {
       water: `rgba(68,136,255,${0.15 * pulse})`,
       fire: `rgba(255,102,34,${0.15 * pulse})`,
+      ice: `rgba(100,200,240,${0.15 * pulse})`,
     };
     const borderColors = {
       water: `rgba(68,136,255,${0.2 * pulse})`,
       fire: `rgba(255,102,34,${0.2 * pulse})`,
+      ice: `rgba(100,200,240,${0.2 * pulse})`,
     };
 
     const fillColor = auraColors[hero.type.element] || auraColors.water;

@@ -309,7 +309,8 @@ window.DK = window.DK || {};
 
     // Global warm tone overlay
     if (DK.VISUAL_SETTINGS.isEnabled('colorGrading')) {
-      offCtx.fillStyle = 'rgba(255,180,120,0.03)';
+      const warmAlpha = 0.06 * (DK.VISUAL_SETTINGS.warmOverlayIntensity || 0.5);
+      offCtx.fillStyle = `rgba(255,180,120,${warmAlpha})`;
       offCtx.fillRect(0, 0, DK.CONFIG.GAME_WIDTH, DK.CONFIG.GAME_HEIGHT);
     }
 

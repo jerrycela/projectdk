@@ -14,6 +14,7 @@ DK.Game = {
   currentWave: 0,
   waveActive: false,
   gameOver: false,
+  victory: false,
   paused: false,
   enemiesKilled: 0,
   effects: [],
@@ -50,6 +51,7 @@ DK.Game = {
     this.currentWave = 0;
     this.waveActive = false;
     this.gameOver = false;
+    this.victory = false;
     this.paused = false;
     this.enemiesKilled = 0;
     this.effects = [];
@@ -368,6 +370,7 @@ DK.Game = {
             if (DK.SoundSystem) {
               DK.SoundSystem.play('victory');
             }
+            this.victory = true;
             this.gameOver = true;
           }
         } else {

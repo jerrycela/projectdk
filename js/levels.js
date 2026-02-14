@@ -290,8 +290,8 @@ DK.LEVELS = [
     description: '綜合運用所有技能的最終試煉',
     layout: 'original',
     waves: 'original',
-    startingGold: null,
-    dungeonHeartHP: null,
+    startingGold: 800,
+    dungeonHeartHP: 100,
     tutorial: null,
   },
 ];
