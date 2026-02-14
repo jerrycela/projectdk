@@ -87,7 +87,7 @@ DK.Traps = {
 
     for (const trap of this.placed) {
       trap.animTimer += dt;
-      if (trap.animTimer > 200) {
+      if (trap.animTimer > DK.CONFIG.TRAP_ANIM_FRAME_DURATION) {
         trap.animFrame = (trap.animFrame + 1) % 4;
         trap.animTimer = 0;
       }
@@ -106,7 +106,7 @@ DK.Traps = {
         if (trap.cooldownTimer <= 0) {
           trap.cooldownTimer = trap.type.cooldown;
           trap.active = true;
-          trap.flashTimer = 150;
+          trap.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
           // 播放陷阱觸發音效
           if (DK.SoundSystem) {
@@ -130,7 +130,7 @@ DK.Traps = {
         if (trap.cooldownTimer <= 0) {
           trap.cooldownTimer = trap.type.cooldown;
           trap.active = true;
-          trap.flashTimer = 150;
+          trap.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
           // 播放陷阱觸發音效
           if (DK.SoundSystem) {
@@ -202,7 +202,7 @@ DK.Traps = {
 
             trap.oilZoneTimer = duration;
             trap.oilZoneActive = true;
-            trap.flashTimer = 150;
+            trap.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
             // 播放陷阱觸發音效
             if (DK.SoundSystem) {
@@ -286,7 +286,7 @@ DK.Traps = {
         if (target) {
           trap.active = true;
           trap.cooldownTimer = trap.type.cooldown;
-          trap.flashTimer = 150;
+          trap.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
           // 播放陷阱觸發音效
           if (DK.SoundSystem) {
@@ -295,7 +295,7 @@ DK.Traps = {
 
           // Deal damage
           target.hp -= trap.type.damage;
-          target.flashTimer = 150; // Visual hit feedback
+          target.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
           // 新增光暈效果（牆壁陷阱觸發）
           this.createTrapHalo(trap, trapCX, trapCY);
@@ -341,7 +341,7 @@ DK.Traps = {
           if (ex === trap.col && ey === trap.row) {
             trap.active = true;
             trap.cooldownTimer = trap.type.cooldown;
-            trap.flashTimer = 150;
+            trap.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
             // 播放陷阱觸發音效
             if (DK.SoundSystem) {
@@ -350,7 +350,7 @@ DK.Traps = {
 
             if (trap.type.damage > 0) {
               enemy.hp -= trap.type.damage;
-              enemy.flashTimer = 150; // Visual hit feedback
+              enemy.flashTimer = DK.CONFIG.TRAP_FLASH_DURATION;
 
               // 新增光暈效果（地板陷阱觸發）
               this.createTrapHalo(trap, trap.col * T + T / 2, trap.row * T + T / 2);

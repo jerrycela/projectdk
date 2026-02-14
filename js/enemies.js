@@ -41,7 +41,7 @@ DK.Enemies = {
       paralyzed: false,
       pushed: null,
       pushResistTimer: 0,
-      spawnTimer: 300,
+      spawnTimer: DK.CONFIG.ENEMY_SPAWN_FADE_DURATION,
     };
 
     this.active.push(enemy);
@@ -180,7 +180,7 @@ DK.Enemies = {
 
       // Animation
       enemy.animTimer += dt;
-      if (enemy.animTimer > 250) {
+      if (enemy.animTimer > DK.CONFIG.ENEMY_ANIM_FRAME_DURATION) {
         enemy.animFrame = (enemy.animFrame + 1) % 4;
         enemy.animTimer = 0;
       }
@@ -265,7 +265,7 @@ DK.Enemies = {
 
             // 累計攻擊計時器
             enemy._doorAttackTimer = (enemy._doorAttackTimer || 0) + dt;
-            const attackInterval = 1000; // 每秒攻擊一次
+            const attackInterval = DK.CONFIG.ATTACK_INTERVAL;
 
             if (enemy._doorAttackTimer >= attackInterval) {
               enemy._doorAttackTimer -= attackInterval;
@@ -314,7 +314,7 @@ DK.Enemies = {
 
           // 累計攻擊計時器
           enemy._barricadeAttackTimer = (enemy._barricadeAttackTimer || 0) + dt;
-          const attackInterval = 1000; // 每秒攻擊一次
+          const attackInterval = DK.CONFIG.ATTACK_INTERVAL;
 
           if (enemy._barricadeAttackTimer >= attackInterval) {
             enemy._barricadeAttackTimer -= attackInterval;
@@ -421,7 +421,7 @@ DK.Enemies = {
       // 生成淡入效果：透明度漸變 + 從上方飄入
       if (enemy.spawnTimer > 0) {
         ctx.save();
-        const spawnProgress = enemy.spawnTimer / 300;
+        const spawnProgress = enemy.spawnTimer / DK.CONFIG.ENEMY_SPAWN_FADE_DURATION;
         ctx.globalAlpha = 1 - spawnProgress;
         y -= Math.round(spawnProgress * 4);
       }

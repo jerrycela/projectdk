@@ -74,7 +74,7 @@ DK.Tutorial = {
   init(config) {
     // ✅ 使用傳入的 config
     if (!config) {
-      console.warn('[Tutorial] init() 需要 config 參數');
+      if (DK.ErrorHandler) DK.ErrorHandler.log('warning', '[Tutorial] init() 需要 config 參數');
       return;
     }
 
@@ -177,7 +177,7 @@ DK.Tutorial = {
     try {
       localStorage.setItem('dk_tutorial_completed', 'true');
     } catch (e) {
-      console.warn('[Tutorial] 無法儲存教學狀態', e);
+      if (DK.ErrorHandler) DK.ErrorHandler.log('warning', '[Tutorial] 無法儲存教學狀態');
     }
 
     // 顯示完成訊息並返回主選單
@@ -195,7 +195,7 @@ DK.Tutorial = {
     try {
       localStorage.setItem('dk_tutorial_completed', 'true');
     } catch (e) {
-      console.warn('[Tutorial] 無法儲存教學狀態', e);
+      if (DK.ErrorHandler) DK.ErrorHandler.log('warning', '[Tutorial] 無法儲存教學狀態');
     }
 
     // 返回主選單
@@ -532,7 +532,7 @@ DK.Tutorial = {
     try {
       localStorage.removeItem('dk_tutorial_completed');
     } catch (e) {
-      console.warn('[Tutorial] 無法重置教學狀態', e);
+      if (DK.ErrorHandler) DK.ErrorHandler.log('warning', '[Tutorial] 無法重置教學狀態');
     }
 
     this.active = false;

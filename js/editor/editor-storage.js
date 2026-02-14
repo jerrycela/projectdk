@@ -74,7 +74,7 @@ DK.EditorStorage = {
 
       return true;
     } catch (e) {
-      console.error('❌ 儲存失敗:', e);
+      if (DK.ErrorHandler) DK.ErrorHandler.log('error', '儲存失敗: ' + e.message);
       alert(`❌ 儲存失敗：${e.message}`);
       return false;
     }
@@ -113,7 +113,7 @@ DK.EditorStorage = {
 
       return true;
     } catch (e) {
-      console.error('❌ 載入草稿失敗:', e);
+      if (DK.ErrorHandler) DK.ErrorHandler.log('error', '載入草稿失敗: ' + e.message);
       return false;
     }
   },
@@ -179,7 +179,7 @@ DK.EditorStorage = {
 
       localStorage.setItem(this.KEYS.DRAFTS_LIST, JSON.stringify(drafts));
     } catch (e) {
-      console.error('❌ 更新草稿列表失敗:', e);
+      if (DK.ErrorHandler) DK.ErrorHandler.log('error', '更新草稿列表失敗: ' + e.message);
     }
   },
 

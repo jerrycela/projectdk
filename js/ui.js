@@ -2140,7 +2140,7 @@ DK.UI = {
     const game = DK.Game;
     if (!game) return;
 
-    const progress = 1 - this.waveStartTimer / 1500;
+    const progress = 1 - this.waveStartTimer / DK.CONFIG.WAVE_START_DURATION;
     const alpha = progress < 0.2 ? progress * 5 :
                   progress > 0.75 ? (1 - progress) * 4 : 1;
 

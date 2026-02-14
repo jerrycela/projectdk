@@ -137,7 +137,7 @@ DK.SoundSystem = {
       sound.play().catch(err => {
         // 瀏覽器自動播放限制處理
         if (err.name === 'NotAllowedError') {
-          console.warn('[SoundSystem] 瀏覽器阻止自動播放，需要用戶互動');
+          if (DK.ErrorHandler) DK.ErrorHandler.log('warning', '[SoundSystem] 瀏覽器阻止自動播放，需要用戶互動');
         }
       });
     }, `Failed to play sound: ${name}`);

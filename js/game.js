@@ -124,7 +124,7 @@ DK.Game = {
     // 波次開始過渡提示
     if (DK.UI) {
       DK.UI.showWaveStart = true;
-      DK.UI.waveStartTimer = 1500;
+      DK.UI.waveStartTimer = DK.CONFIG.WAVE_START_DURATION;
     }
   },
 
@@ -168,8 +168,8 @@ DK.Game = {
 
   damageHeart(amount) {
     this.dungeonHeartHP = Math.max(0, this.dungeonHeartHP - amount);
-    this.heartFlashTimer = 300;
-    this.screenShake = { intensity: 3, timer: 200 };
+    this.heartFlashTimer = DK.CONFIG.DAMAGE_FLASH_DURATION;
+    this.screenShake = { intensity: DK.CONFIG.DAMAGE_SHAKE_INTENSITY, timer: DK.CONFIG.DAMAGE_SHAKE_DURATION };
 
     // 傷害數字特效
     const hp = DK.Map.heartPos;
@@ -181,7 +181,7 @@ DK.Game = {
         y: hp.row * T - 4,
         text: `-${amount}`,
         color: '#ff4444',
-        duration: 800,
+        duration: DK.CONFIG.DAMAGE_EFFECT_DURATION,
         timer: 0,
       });
     }

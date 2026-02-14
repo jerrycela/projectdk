@@ -383,8 +383,27 @@ DK.LevelManager = {
         return false;
       }
 
-      // 2. 解析 JSON
-      const level = JSON.parse(testLevelData);
+      // 2. 解析 JSON（防禦性解析，避免惡意資料污染）
+      let level;
+      try {
+        level = JSON.parse(testLevelData);
+      } catch (parseErr) {
+        if (DK.ErrorHandler) {
+          DK.ErrorHandler.log('error', 'Test level JSON parse failed', { error: parseErr.message });
+        }
+        this.isTestMode = false;
+        this.loadLevel(4);
+        return false;
+      }
+
+      if (!level || !level.layout || !Array.isArray(level.layout)) {
+        if (DK.ErrorHandler) {
+          DK.ErrorHandler.log('error', 'Test level data missing required fields (layout)');
+        }
+        this.isTestMode = false;
+        this.loadLevel(4);
+        return false;
+      }
 
       // 3. 設定為當前關卡
       this.currentLevel = level;

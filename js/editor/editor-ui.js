@@ -113,7 +113,7 @@ DK.EditorUI = {
       try {
         this.categoryStates = JSON.parse(saved);
       } catch (e) {
-        console.warn('無法讀取分類狀態，使用預設值');
+        if (DK.ErrorHandler) DK.ErrorHandler.log('warning', '無法讀取分類狀態，使用預設值');
         this.categoryStates = {};
       }
     }
