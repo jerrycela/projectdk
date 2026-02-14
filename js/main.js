@@ -288,6 +288,11 @@ window.DK = window.DK || {};
     // Layer 1+2 裝飾（地面/牆壁基礎裝飾）
     renderDecorations(2);
 
+    // Map objects (between decorations and traps)
+    if (DK.Map.renderMapObjects) {
+      DK.Map.renderMapObjects(offCtx, DK.Game.time);
+    }
+
     DK.Traps.render(offCtx);
     DK.WorldRenderer.barricades(offCtx, DK.Game.time);
     if (DK.Doors) DK.Doors.render(offCtx);

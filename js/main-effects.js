@@ -94,6 +94,9 @@ DK.EffectRenderer = {
           }
           break;
         }
+        case 'obj_explosion': this._objExplosion(ctx, PA, effect, progress); break;
+        case 'obj_element_burst': this._objElementBurst(ctx, PA, effect, progress); break;
+        case 'obj_path_change': this._objPathChange(ctx, PA, effect, progress); break;
         case 'damage':
         case 'gold':
         case 'float_text':
@@ -991,6 +994,166 @@ DK.EffectRenderer = {
         const angle = (a / 6) * Math.PI * 2;
         PA.pixel(ctx, Math.round(effect.x + Math.cos(angle) * dustR),
                  Math.round(effect.y + Math.sin(angle) * dustR), '#888888');
+      }
+    }
+  },
+
+  /** 木桶堆爆炸（橘紅火焰 + 碎片） */
+  _objExplosion(ctx, PA, effect, progress) {
+    if (progress > 1) return;
+    const cx = effect.x;
+    const cy = effect.y;
+    const maxR = effect.radius || 24;
+
+    // Phase 1: 白色閃光 (0-15%)
+    if (progress < 0.15) {
+      const flashR = maxR * (progress / 0.15) * 0.5;
+      ctx.save();
+      ctx.globalAlpha = 1 - (progress / 0.15);
+      PA.circle(ctx, cx, cy, flashR, '#ffffff');
+      ctx.restore();
+    }
+
+    // Phase 2: 火焰環 (10-60%)
+    if (progress > 0.1 && progress < 0.6) {
+      const ringProgress = (progress - 0.1) / 0.5;
+      const ringR = maxR * ringProgress;
+      const alpha = 1 - ringProgress;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.8;
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.3) {
+        const px = Math.round(cx + Math.cos(angle) * ringR);
+        const py = Math.round(cy + Math.sin(angle) * ringR);
+        PA.pixel(ctx, px, py, '#ff5500');
+        PA.pixel(ctx, px + 1, py, '#ff8800');
+      }
+      ctx.restore();
+    }
+
+    // Phase 3: 碎片飛散 (5-100%)
+    if (progress > 0.05) {
+      const fragProgress = (progress - 0.05) / 0.95;
+      const alpha = 1 - fragProgress;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + 0.5;
+        const dist = maxR * 0.3 + maxR * 0.7 * fragProgress;
+        const fx = Math.round(cx + Math.cos(angle) * dist);
+        const fy = Math.round(cy + Math.sin(angle) * dist - 4 * (1 - fragProgress));
+        PA.pixel(ctx, fx, fy, i % 2 === 0 ? '#5a4a3a' : '#3a2a1a');
+      }
+      ctx.restore();
+    }
+
+    // 爆炸傷害邏輯（僅在首幀觸發）
+    if (effect.timer < 16 && effect.damage) {
+      this._applyAreaDamage(effect);
+    }
+  },
+
+  /** 符文陣元素爆發（紫色能量波 + 符文散射） */
+  _objElementBurst(ctx, PA, effect, progress) {
+    if (progress > 1) return;
+    const cx = effect.x;
+    const cy = effect.y;
+    const maxR = effect.radius || 32;
+
+    // 能量波圈
+    const waveR = maxR * progress;
+    const alpha = (1 - progress) * 0.7;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    PA.circle(ctx, cx, cy, waveR, '#8866cc');
+    PA.circle(ctx, cx, cy, waveR * 0.7, '#aa88ee');
+    ctx.restore();
+
+    // 符文碎片
+    if (progress < 0.7) {
+      const fragAlpha = 1 - (progress / 0.7);
+      ctx.save();
+      ctx.globalAlpha = fragAlpha;
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + progress * 3;
+        const dist = maxR * 0.5 * progress;
+        const fx = Math.round(cx + Math.cos(angle) * dist);
+        const fy = Math.round(cy + Math.sin(angle) * dist);
+        PA.pixel(ctx, fx, fy, '#aa88ee');
+      }
+      ctx.restore();
+    }
+
+    // 傷害（首幀）
+    if (effect.timer < 16 && effect.damage) {
+      this._applyAreaDamage(effect);
+    }
+  },
+
+  /** 封印之門碎裂（石塊崩塌 + 光柱） */
+  _objPathChange(ctx, PA, effect, progress) {
+    if (progress > 1) return;
+    const cx = effect.x;
+    const cy = effect.y;
+
+    // Phase 1: 光柱 (0-40%)
+    if (progress < 0.4) {
+      const beamAlpha = (1 - progress / 0.4) * 0.6;
+      ctx.save();
+      ctx.globalAlpha = beamAlpha;
+      PA.rect(ctx, cx - 4, cy - 30, 8, 60, '#ffaa44');
+      PA.rect(ctx, cx - 2, cy - 30, 4, 60, '#ffffff');
+      ctx.restore();
+    }
+
+    // Phase 2: 石塊崩塌 (10-100%)
+    if (progress > 0.1) {
+      const fallProgress = (progress - 0.1) / 0.9;
+      const alpha = 1 - fallProgress;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const dist = 10 + 20 * fallProgress;
+        const gravity = 15 * fallProgress * fallProgress;
+        const fx = Math.round(cx + Math.cos(angle) * dist);
+        const fy = Math.round(cy + Math.sin(angle) * dist + gravity);
+        PA.rect(ctx, fx, fy, 2 + (i % 2), 2 + (i % 2), i % 3 === 0 ? '#4a4c54' : '#3a3d44');
+      }
+      ctx.restore();
+    }
+  },
+
+  /** 範圍傷害通用邏輯（木桶堆、符文陣共用） */
+  _applyAreaDamage(effect) {
+    const radius = effect.radius || 24;
+    const damage = effect.damage || 0;
+
+    // 對敵人造成傷害
+    if (DK.Enemies && DK.Enemies.active) {
+      for (const enemy of DK.Enemies.active) {
+        if (!enemy.alive) continue;
+        const dx = enemy.x - effect.x;
+        const dy = enemy.y - effect.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= radius) {
+          enemy.hp -= damage;
+          if (enemy.hp <= 0) {
+            enemy.alive = false;
+            DK.Game.gold += enemy.type.reward || 0;
+          }
+        }
+      }
+    }
+
+    // friendlyFire：也對英雄造成傷害
+    if (effect.friendlyFire && DK.Heroes && DK.Heroes.active) {
+      for (const hero of DK.Heroes.active) {
+        if (!hero.alive) continue;
+        const dx = hero.x - effect.x;
+        const dy = hero.y - effect.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= radius) {
+          hero.hp -= damage;
+          if (hero.hp <= 0) hero.alive = false;
+        }
       }
     }
   }

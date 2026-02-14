@@ -120,7 +120,9 @@ DK.Map.computeDistanceFieldThrough = function() {
       if (field[nr][nc] !== -1) continue;
 
       const tile = this.layout[nr][nc];
-      if (tile !== '.' && tile !== 'E' && tile !== 'X' && tile !== 'P' && tile !== 'G' && tile !== 'H') continue;
+      // 可破壞地圖物件在穿透距離場中視為可行走（敵人可規劃攻擊路線）
+      const isDestructibleObj = DK.MAP_OBJECTS && DK.MAP_OBJECTS[tile] && DK.MAP_OBJECTS[tile].type === 'destructible';
+      if (tile !== '.' && tile !== 'E' && tile !== 'X' && tile !== 'P' && tile !== 'G' && tile !== 'H' && !isDestructibleObj) continue;
 
       // 不檢查路障（穿透模式）
 

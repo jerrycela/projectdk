@@ -388,24 +388,23 @@ DK.Editor = {
     // 邊界檢查
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return;
 
-    // 避免重複繪製（包含 2×2 物件範圍檢查）
+    // 避免重複繪製（包含多格物件範圍檢查）
     if (this.selectedTool === 'paint') {
-      const is2x2Tile = this.selectedTile === 'H' || this.selectedTile === 'E' || this.selectedTile === 'M';
+      const N = this._getMultiTileSize(this.selectedTile);
 
-      if (is2x2Tile) {
-        // 對於 2×2 物件，檢查是否在上次放置的 2×2 範圍內
+      if (N > 1) {
+        // 對於多格物件，檢查是否在上次放置的 NxN 範圍內
         const lastCol = this.mouse.lastPaintedCol;
         const lastRow = this.mouse.lastPaintedRow;
 
-        // 如果當前位置在上次放置的左上角 2×2 範圍內，跳過
         if (lastCol >= 0 && lastRow >= 0) {
           // 計算上次放置的左上角座標（lastPainted 記錄的是右下角）
-          const lastLeftCol = lastCol - 1;
-          const lastTopRow = lastRow - 1;
+          const lastLeftCol = lastCol - (N - 1);
+          const lastTopRow = lastRow - (N - 1);
 
           if (col >= lastLeftCol && col <= lastCol &&
               row >= lastTopRow && row <= lastRow) {
-            return; // 在上次放置的 2×2 範圍內，跳過
+            return; // 在上次放置的 NxN 範圍內，跳過
           }
         }
       } else {
@@ -444,45 +443,42 @@ DK.Editor = {
    * 繪製地磚
    */
   paintTile(col, row) {
-    // 特殊處理：2×2 物件（地城之心、傳送門）自動放置
-    const is2x2Object = this.selectedTile === 'H' || this.selectedTile === 'E' || this.selectedTile === 'M';
+    // 判斷是否為多格物件
+    const multiTileSize = this._getMultiTileSize(this.selectedTile);
+    const isMultiTileObject = multiTileSize > 1;
 
-    if (is2x2Object) {
-      // 驗證是否有足夠空間放置 2×2
-      if (col + 1 >= this.cols || row + 1 >= this.rows) {
-        const name = this.selectedTile === 'H' ? '地城之心' : '傳送門';
-        console.warn(`⚠️ ${name}需要 2×2 空間，位置超出地圖邊界`);
+    if (isMultiTileObject) {
+      const N = multiTileSize;
+
+      // 驗證是否有足夠空間
+      if (col + N - 1 >= this.cols || row + N - 1 >= this.rows) {
+        const tileDef = DK.EditorUI.tiles.find(t => t.id === this.selectedTile);
+        const name = tileDef ? tileDef.name : this.selectedTile;
+        console.warn(`${name} 需要 ${N}x${N} 空間，位置超出地圖邊界`);
         return;
       }
 
-      // 檢查 2×2 區域是否可用（必須是空地板或相同類型物件）
-      for (let dy = 0; dy < 2; dy++) {
-        for (let dx = 0; dx < 2; dx++) {
-          const checkCol = col + dx;
-          const checkRow = row + dy;
-          const existingTile = this.getTile(checkCol, checkRow);
-
-          // 允許覆蓋：地板、相同類型物件
+      // 檢查 NxN 區域是否可用
+      for (let dy = 0; dy < N; dy++) {
+        for (let dx = 0; dx < N; dx++) {
+          const existingTile = this.getTile(col + dx, row + dy);
           if (existingTile !== '.' && existingTile !== this.selectedTile) {
-            const name = this.selectedTile === 'H' ? '地城之心' : '傳送門';
-            console.warn(`⚠️ ${name}放置失敗：(${checkCol}, ${checkRow}) 已被 '${existingTile}' 佔用`);
+            console.warn(`放置失敗：(${col + dx}, ${row + dy}) 已被 '${existingTile}' 佔用`);
             return;
           }
         }
       }
 
-      // 自動放置 2×2 物件
-      this.setTile(col, row, this.selectedTile);
-      this.setTile(col + 1, row, this.selectedTile);
-      this.setTile(col, row + 1, this.selectedTile);
-      this.setTile(col + 1, row + 1, this.selectedTile);
+      // 放置 NxN 物件
+      for (let dy = 0; dy < N; dy++) {
+        for (let dx = 0; dx < N; dx++) {
+          this.setTile(col + dx, row + dy, this.selectedTile);
+        }
+      }
 
-      // 更新 lastPainted 為右下角座標，防止拖曳時在 2×2 範圍內重複放置
-      this.mouse.lastPaintedCol = col + 1;
-      this.mouse.lastPaintedRow = row + 1;
-
-      const name = this.selectedTile === 'H' ? '地城之心' :
-                   this.selectedTile === 'E' ? '入口傳送門' : '出口傳送門';
+      // 更新 lastPainted 為右下角座標
+      this.mouse.lastPaintedCol = col + N - 1;
+      this.mouse.lastPaintedRow = row + N - 1;
       return;
     }
 
@@ -506,24 +502,22 @@ DK.Editor = {
   eraseTile(col, row) {
     const tile = this.getTile(col, row);
 
-    // 檢查是否為 2×2 物件（地城之心或傳送門）
-    const is2x2Object = tile === 'H' || tile === 'E' || tile === 'M';
+    // 檢查是否為多格物件
+    const multiTileSize = this._getMultiTileSize(tile);
+    const isMultiTileObject = multiTileSize > 1;
 
-    if (is2x2Object) {
-      // 尋找 2×2 物件的錨點（左上角）
-      const anchor = this.find2x2Anchor(col, row, tile);
+    if (isMultiTileObject) {
+      const N = multiTileSize;
+      const anchor = this._findNxNAnchor(col, row, tile, N);
 
       if (anchor) {
-        // 刪除整個 2×2 物件
-        this.setTile(anchor.col, anchor.row, '.');
-        this.setTile(anchor.col + 1, anchor.row, '.');
-        this.setTile(anchor.col, anchor.row + 1, '.');
-        this.setTile(anchor.col + 1, anchor.row + 1, '.');
-
-        const name = tile === 'H' ? '地城之心' :
-                     tile === 'E' ? '入口傳送門' : '出口傳送門';
+        // 刪除整個 NxN 物件
+        for (let dy = 0; dy < N; dy++) {
+          for (let dx = 0; dx < N; dx++) {
+            this.setTile(anchor.col + dx, anchor.row + dy, '.');
+          }
+        }
       } else {
-        // 無法識別為完整 2×2，只刪除單格
         this.setTile(col, row, '.');
       }
     } else {
@@ -533,36 +527,43 @@ DK.Editor = {
   },
 
   /**
-   * 尋找 2×2 物件錨點（左上角）
-   * 適用於：地城之心（H）、入口傳送門（E）、出口傳送門（M）
+   * 尋找 NxN 物件錨點（左上角）
+   * 通用版：支援 2x2, 3x3, 4x4
    */
-  find2x2Anchor(col, row, objectType) {
-    // 檢查所有可能的錨點位置（左上、左、上、當前）
-    const candidates = [
-      { col: col - 1, row: row - 1 }, // 左上
-      { col: col - 1, row: row },     // 左
-      { col: col, row: row - 1 },     // 上
-      { col: col, row: row }          // 當前
-    ];
+  _findNxNAnchor(col, row, objectType, N) {
+    // 搜尋所有可能的錨點位置
+    for (let dr = 0; dr < N; dr++) {
+      for (let dc = 0; dc < N; dc++) {
+        const anchorCol = col - dc;
+        const anchorRow = row - dr;
 
-    for (const candidate of candidates) {
-      const c = candidate.col;
-      const r = candidate.row;
-
-      // 檢查是否為有效的 2×2 物件錨點
-      if (c >= 0 && r >= 0 && c + 1 < this.cols && r + 1 < this.rows) {
-        if (
-          this.getTile(c, r) === objectType &&
-          this.getTile(c + 1, r) === objectType &&
-          this.getTile(c, r + 1) === objectType &&
-          this.getTile(c + 1, r + 1) === objectType
-        ) {
-          return { col: c, row: r };
+        // 邊界檢查
+        if (anchorCol < 0 || anchorRow < 0 ||
+            anchorCol + N - 1 >= this.cols || anchorRow + N - 1 >= this.rows) {
+          continue;
         }
+
+        // 驗證 NxN 區域全部為同一 tile
+        let valid = true;
+        for (let dy = 0; dy < N && valid; dy++) {
+          for (let dx = 0; dx < N && valid; dx++) {
+            if (this.getTile(anchorCol + dx, anchorRow + dy) !== objectType) {
+              valid = false;
+            }
+          }
+        }
+
+        if (valid) return { col: anchorCol, row: anchorRow };
       }
     }
+    return null;
+  },
 
-    return null; // 無法識別為完整 2×2
+  /**
+   * 向後相容：2x2 錨點搜尋
+   */
+  find2x2Anchor(col, row, objectType) {
+    return this._findNxNAnchor(col, row, objectType, 2);
   },
 
   /**
@@ -579,6 +580,17 @@ DK.Editor = {
         DK.EditorUI.updateTilePalette();
       }
     }
+  },
+
+  /**
+   * 取得多格物件的尺寸（1=普通地磚）
+   */
+  _getMultiTileSize(tile) {
+    // 內建 2x2 物件
+    if (tile === 'H' || tile === 'E' || tile === 'M') return 2;
+    // MAP_OBJECTS 定義的物件
+    if (DK.MAP_OBJECTS && DK.MAP_OBJECTS[tile]) return DK.MAP_OBJECTS[tile].size;
+    return 1;
   },
 
   /**
@@ -912,21 +924,18 @@ DK.Editor = {
         const x = col * tileSize;
         const y = row * tileSize;
 
-        // === 2×2 物件檢查 ===
-        // 'H'（地城之心）、'E'（入口傳送門）、'M'（出口傳送門）是 2×2 物件
-        // 只在左上角繪製完整圖形，其他 3 格完全跳過（避免覆蓋）
-        const is2x2Tile = tile === 'H' || tile === 'E' || tile === 'M';
-        if (is2x2Tile) {
-          // 檢查左邊和上面是否是同種地磚
+        // === 多格物件檢查 ===
+        // 多格物件只在錨點（左上角）繪製完整圖形，其餘格跳過
+        const tileSize2 = this._getMultiTileSize(tile);
+        if (tileSize2 > 1) {
+          // 錨點偵測：上方和左方都不是同一代碼才是錨點
           const leftTile = this.getTile(col - 1, row);
           const topTile = this.getTile(col, row - 1);
 
-          // 如果左邊或上面是同種地磚，說明當前格不是左上角
-          // 直接跳過，不繪製任何東西（因為左上角已經繪製了完整的 32×32 圖形）
           if (leftTile === tile || topTile === tile) {
             continue;
           }
-          // 否則當前格是左上角，繪製完整的 2×2 圖形
+          // 否則當前格是錨點，繪製完整圖形
         }
 
         // 優先使用快取（基本地磚類型）
@@ -1013,6 +1022,30 @@ DK.Editor = {
         break;
       case 'Z': // 魔法門
         DK.Map.drawDoorTile(ctx, x, y, 'magic', true);
+        break;
+      case '1': // 石柱 (2x2)
+        if (DK.Map.drawStonePillar) DK.Map.drawStonePillar(ctx, x, y, 0);
+        break;
+      case '2': // 寶箱 (2x2)
+        if (DK.Map.drawTreasureChest) DK.Map.drawTreasureChest(ctx, x, y, 0);
+        break;
+      case '3': // 木桶堆 (2x2)
+        if (DK.Map.drawBarrelStack) DK.Map.drawBarrelStack(ctx, x, y, 0, null);
+        break;
+      case '4': // 祭壇 (3x3)
+        if (DK.Map.drawAltar) DK.Map.drawAltar(ctx, x, y, 0);
+        break;
+      case '5': // 水晶簇 (3x3)
+        if (DK.Map.drawCrystalCluster) DK.Map.drawCrystalCluster(ctx, x, y, 0);
+        break;
+      case '6': // 符文陣 (3x3)
+        if (DK.Map.drawRuneCircle) DK.Map.drawRuneCircle(ctx, x, y, 0, null);
+        break;
+      case '7': // 龍骨遺骸 (4x4)
+        if (DK.Map.drawDragonSkeleton) DK.Map.drawDragonSkeleton(ctx, x, y, 0);
+        break;
+      case '8': // 封印之門 (4x4)
+        if (DK.Map.drawSealedGate) DK.Map.drawSealedGate(ctx, x, y, 0, null);
         break;
       default:
         // 預設使用地板

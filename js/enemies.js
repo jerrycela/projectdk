@@ -225,6 +225,16 @@ DK.Enemies = {
           enemy._doorAttackTimer = 0;
         }
       }
+      // 防禦性檢查：清除已摧毀的地圖物件攻擊狀態
+      if (enemy._attackingMapObject) {
+        const targetObj = DK.Map.getMapObjectAt(
+          enemy._attackingMapObject.col, enemy._attackingMapObject.row
+        );
+        if (!targetObj || targetObj.destroyed) {
+          enemy._attackingMapObject = null;
+          enemy._mapObjectAttackTimer = 0;
+        }
+      }
 
       // 檢查是否已到達地心相鄰格（distanceField === 1 或 distanceFieldThrough === 1）
       if (DK.Map.isHeart && DK.Map.heartPos) {
@@ -353,6 +363,49 @@ DK.Enemies = {
             }
           } else {
             continue; // 攻擊冷卻中，不移動
+          }
+        }
+
+        // 下一步是可破壞地圖物件 → 停下攻擊
+        if (nextStep && DK.Map.getMapObjectAt) {
+          const mapObj = DK.Map.getMapObjectAt(nextStep.col, nextStep.row);
+          if (mapObj && mapObj.type === 'destructible' && !mapObj.destroyed) {
+            if (!enemy._attackingMapObject) {
+              enemy._attackingMapObject = { col: nextStep.col, row: nextStep.row };
+              enemy._mapObjectAttackTimer = 0;
+            }
+
+            enemy._mapObjectAttackTimer = (enemy._mapObjectAttackTimer || 0) + dt;
+            const attackInterval = DK.CONFIG.ATTACK_INTERVAL;
+
+            if (enemy._mapObjectAttackTimer >= attackInterval) {
+              enemy._mapObjectAttackTimer -= attackInterval;
+              const damage = enemy.type.heartDamage || 10;
+              const destroyed = DK.Map.damageMapObject(nextStep.col, nextStep.row, damage);
+
+              // 傷害數字特效
+              if (DK.Game.effects) {
+                DK.Game.effects.push({
+                  type: 'damage',
+                  x: mapObj.centerX,
+                  y: mapObj.gridY * T - 4,
+                  text: `-${damage}`,
+                  color: '#ffaa44',
+                  duration: 600,
+                  timer: 0,
+                });
+              }
+
+              if (destroyed) {
+                enemy._attackingMapObject = null;
+                enemy._mapObjectAttackTimer = 0;
+                // 物件摧毀後不 continue，讓敵人重新尋路
+              } else {
+                continue; // 物件還在，繼續攻擊不移動
+              }
+            } else {
+              continue; // 攻擊冷卻中
+            }
           }
         }
 

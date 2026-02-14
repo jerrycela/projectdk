@@ -309,6 +309,11 @@ DK.Game = {
       DK.Map.updateGrass(dt);
     }
 
+    // Update map objects (flash timers etc.)
+    if (DK.Map.updateMapObjects) {
+      DK.Map.updateMapObjects(dt);
+    }
+
     // Update heroes
     if (DK.Heroes) {
       DK.Heroes.update(dt, DK.Enemies.active);

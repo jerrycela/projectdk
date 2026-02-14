@@ -207,3 +207,52 @@ DK.WAVES = [
   { enemies: [{ type: 'SKELETON', count: 12 }, { type: 'ORC', count: 10 }] },
   { enemies: [{ type: 'ORC', count: 12 }, { type: 'SLIME', count: 12 }, { type: 'SKELETON', count: 8 }] },
 ];
+
+// Map Object definitions (multi-tile placeable objects)
+// Tile codes: digits 1-8 (single char per tile in layout)
+DK.MAP_OBJECTS = {
+  '1': {
+    id: 'stone_pillar', name: '石柱', size: 2,
+    type: 'decoration', walkable: false,
+    colors: { base: '#4a4c54', light: '#6a6c74', dark: '#2a2c32', crack: '#3a3d44' },
+  },
+  '2': {
+    id: 'treasure_chest', name: '寶箱', size: 2,
+    type: 'decoration', walkable: false,
+    colors: { wood: '#544e46', darkWood: '#3c3630', iron: '#5c5e66', gold: '#c8a832', goldLight: '#e8d060' },
+  },
+  '3': {
+    id: 'barrel_stack', name: '木桶堆', size: 2,
+    type: 'destructible', walkable: false, hp: 30,
+    onDestroy: { effect: 'obj_explosion', radius: 1.5, damage: 40, friendlyFire: true },
+    colors: { wood: '#5a4a3a', light: '#7a6a5a', dark: '#3a2a1a', iron: '#5c5e66' },
+  },
+  '4': {
+    id: 'altar', name: '祭壇', size: 3,
+    type: 'decoration', walkable: false,
+    colors: { stone: '#4a4c54', stoneDark: '#3a3d44', candle: '#cc8800', rune: '#8844aa' },
+  },
+  '5': {
+    id: 'crystal_cluster', name: '水晶簇', size: 3,
+    type: 'decoration', walkable: false,
+    colors: { base: '#3366aa', mid: '#4488bb', tip: '#6aaaee', sparkle: '#88ccff', shadow: '#1a3355' },
+  },
+  '6': {
+    id: 'rune_circle', name: '符文陣', size: 3,
+    type: 'destructible', walkable: false, hp: 120,
+    onDestroy: { effect: 'obj_element_burst', radius: 2.0, damage: 60 },
+    colors: { circle: '#6644aa', symbol: '#8866cc', stone: '#4a4c54', glow: '#aa88ee' },
+  },
+  '7': {
+    id: 'dragon_skeleton', name: '龍骨遺骸', size: 4,
+    type: 'decoration', walkable: false,
+    colors: { bone: '#d0c8b0', boneShadow: '#a09880', ground: '#0a0a14', eye: '#44cc44' },
+  },
+  '8': {
+    id: 'sealed_gate', name: '封印之門', size: 4,
+    type: 'destructible', walkable: false, hp: 200,
+    walkableOnDestroy: true,
+    onDestroy: { effect: 'obj_path_change', convertTo: '.' },
+    colors: { door: '#3a3d44', doorLight: '#4a4c54', crack: '#5c5e66', chain: '#6a6c74', seal: '#cc4444', glow: '#ffaa44' },
+  },
+};

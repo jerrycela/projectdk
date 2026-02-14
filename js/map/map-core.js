@@ -160,6 +160,9 @@ DK.Map = {
   // 路徑預覽快取（每個洞口的路徑座標陣列）
   pathPreviewCache: [],
 
+  // 地圖物件實例（運行時狀態）
+  mapObjects: [],
+
   init() {
     // 使用錯誤處理包裝初始化流程
     if (DK.ErrorHandler) {
@@ -207,6 +210,7 @@ DK.Map = {
     }
 
     this.initGrassState();
+    this.initMapObjects();
     this.findHeartPos();
     this.computeDistanceField();
     this.computeDistanceFieldThrough();
@@ -244,6 +248,64 @@ DK.Map = {
     }
   },
 
+  /** 掃描 layout 偵測多格地圖物件，建立運行時實例 */
+  initMapObjects() {
+    this.mapObjects = [];
+    if (!DK.MAP_OBJECTS) return;
+
+    for (let r = 0; r < this.layout.length; r++) {
+      for (let c = 0; c < this.layout[r].length; c++) {
+        const tile = this.layout[r][c];
+        const def = DK.MAP_OBJECTS[tile];
+        if (!def) continue;
+
+        // 錨點偵測：上方和左方都不是同一代碼
+        const above = (r > 0) ? this.layout[r - 1][c] : null;
+        const left = (c > 0) ? this.layout[r][c - 1] : null;
+        if (above === tile || left === tile) continue;
+
+        // 驗證 NxN 完整性
+        let valid = true;
+        for (let dr = 0; dr < def.size && valid; dr++) {
+          for (let dc = 0; dc < def.size && valid; dc++) {
+            if (r + dr >= this.layout.length || c + dc >= this.layout[r].length) {
+              valid = false;
+            } else if (this.layout[r + dr][c + dc] !== tile) {
+              valid = false;
+            }
+          }
+        }
+        if (!valid) continue;
+
+        const T = DK.CONFIG.TILE_SIZE;
+        this.mapObjects.push({
+          typeCode: tile,
+          id: def.id,
+          name: def.name,
+          gridX: c,
+          gridY: r,
+          size: def.size,
+          type: def.type,
+          hp: def.hp || null,
+          maxHp: def.hp || null,
+          destroyed: false,
+          flashTimer: 0,
+          centerX: (c + def.size / 2) * T,
+          centerY: (r + def.size / 2) * T,
+        });
+      }
+    }
+  },
+
+  /** 更新地圖物件狀態（閃爍計時器等） */
+  updateMapObjects(dt) {
+    for (const obj of this.mapObjects) {
+      if (obj.flashTimer > 0) {
+        obj.flashTimer = Math.max(0, obj.flashTimer - dt);
+      }
+    }
+  },
+
 
   getTile(col, row) {
     if (row < 0 || row >= this.layout.length || col < 0 || col >= this.layout[0].length) {
@@ -272,6 +334,85 @@ DK.Map = {
 
   isGrass(col, row) {
     return this.getTile(col, row) === 'G';
+  },
+
+  /** 檢查某格是否屬於地圖物件 */
+  isMapObject(col, row) {
+    const tile = this.getTile(col, row);
+    return !!(DK.MAP_OBJECTS && DK.MAP_OBJECTS[tile]);
+  },
+
+  /** 取得某格所屬的地圖物件實例 */
+  getMapObjectAt(col, row) {
+    for (const obj of this.mapObjects) {
+      if (obj.destroyed) continue;
+      if (col >= obj.gridX && col < obj.gridX + obj.size &&
+          row >= obj.gridY && row < obj.gridY + obj.size) {
+        return obj;
+      }
+    }
+    return null;
+  },
+
+  /** 對地圖物件造成傷害，回傳是否被摧毀 */
+  damageMapObject(col, row, damage) {
+    const obj = this.getMapObjectAt(col, row);
+    if (!obj || obj.type !== 'destructible' || obj.destroyed) return false;
+
+    obj.hp -= damage;
+    obj.flashTimer = 150;
+
+    if (obj.hp <= 0) {
+      obj.hp = 0;
+      obj.destroyed = true;
+      this._onMapObjectDestroyed(obj);
+      return true;
+    }
+    return false;
+  },
+
+  /** 地圖物件被摧毀時的處理 */
+  _onMapObjectDestroyed(obj) {
+    const def = DK.MAP_OBJECTS[obj.typeCode];
+    if (!def || !def.onDestroy) return;
+
+    const T = DK.CONFIG.TILE_SIZE;
+
+    // 觸發摧毀效果
+    if (DK.Game && DK.Game.effects) {
+      DK.Game.effects.push({
+        type: def.onDestroy.effect,
+        x: obj.centerX,
+        y: obj.centerY,
+        radius: (def.onDestroy.radius || 1) * T,
+        damage: def.onDestroy.damage || 0,
+        friendlyFire: def.onDestroy.friendlyFire || false,
+        timer: 0,
+        duration: 500,
+      });
+    }
+
+    // 封印之門特殊處理：改變地磚為可行走
+    if (def.walkableOnDestroy) {
+      const convertTo = def.onDestroy.convertTo || '.';
+      for (let dr = 0; dr < obj.size; dr++) {
+        for (let dc = 0; dc < obj.size; dc++) {
+          const r = obj.gridY + dr;
+          const c = obj.gridX + dc;
+          if (r < this.layout.length && c < this.layout[r].length) {
+            const chars = this.layout[r].split('');
+            chars[c] = convertTo;
+            this.layout[r] = chars.join('');
+          }
+        }
+      }
+      this.computeDistanceField();
+      this.computeDistanceFieldThrough();
+      DK.PathCache.invalidate();
+      if (this.recomputePathPreview) {
+        this.recomputePathPreview();
+      }
+    }
   },
 
   // === Dungeon Heart 新增查詢函式 ===

@@ -35,7 +35,16 @@ DK.EditorUI = {
     { id: 'X', name: '水晶', color: '#aa44ff' },
     { id: 'D', name: '木門', color: '#6a5040' },
     { id: 'I', name: '鐵門', color: '#5a5a6e' },
-    { id: 'Z', name: '魔法門', color: '#aa44ff' }
+    { id: 'Z', name: '魔法門', color: '#aa44ff' },
+    // Multi-tile map objects
+    { id: '1', name: '石柱 2x2', color: '#4a4c54' },
+    { id: '2', name: '寶箱 2x2', color: '#c8a832' },
+    { id: '3', name: '木桶堆 2x2', color: '#5a4a3a' },
+    { id: '4', name: '祭壇 3x3', color: '#8844aa' },
+    { id: '5', name: '水晶簇 3x3', color: '#4488bb' },
+    { id: '6', name: '符文陣 3x3', color: '#6644aa' },
+    { id: '7', name: '龍骨 4x4', color: '#d0c8b0' },
+    { id: '8', name: '封印門 4x4', color: '#cc4444' }
   ],
 
   // === 分類工具欄結構 ===
@@ -81,6 +90,13 @@ DK.EditorUI = {
       name: '防禦設施',
       expanded: false,
       tiles: ['D', 'I', 'Z']
+    },
+    {
+      id: 'objects',
+      icon: '🏛️',
+      name: '地圖物件',
+      expanded: true,
+      tiles: ['1', '2', '3', '4', '5', '6', '7', '8']
     }
   ],
 
@@ -405,7 +421,7 @@ DK.EditorUI = {
   },
 
   /**
-   * 渲染 Hover 高亮（含實際地磚預覽）
+   * 渲染 Hover 高亮（含實際地磚預覽，支援 NxN 多格物件）
    */
   renderHover(ctx, tileSize) {
     const { col, row } = DK.Editor.mouse;
@@ -416,17 +432,39 @@ DK.EditorUI = {
       return;
     }
 
+    // 取得選中物件的 NxN 尺寸
+    const N = (DK.Editor && DK.Editor._getMultiTileSize)
+      ? DK.Editor._getMultiTileSize(DK.Editor.selectedTile)
+      : 1;
+
     // 半透明高亮
     ctx.fillStyle = 'rgba(255, 170, 68, 0.3)'; // UI_SELECTED with alpha
 
     if (DK.Editor.brushSize === 1) {
-      ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
-
-      // 只在畫筆工具時顯示預覽
-      if (DK.Editor.selectedTool === 'paint') {
+      if (N > 1 && DK.Editor.selectedTool === 'paint') {
+        // NxN 多格物件：高亮整個 NxN 區域
+        const fits = (col + N <= DK.Editor.cols) && (row + N <= DK.Editor.rows);
+        const highlightColor = fits ? 'rgba(255, 170, 68, 0.3)' : 'rgba(255, 68, 68, 0.3)';
+        ctx.fillStyle = highlightColor;
+        for (let dr = 0; dr < N; dr++) {
+          for (let dc = 0; dc < N; dc++) {
+            const c = col + dc;
+            const r = row + dr;
+            if (c < DK.Editor.cols && r < DK.Editor.rows) {
+              ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+            }
+          }
+        }
         this.showTilePreview(col, row, tileSize);
       } else {
-        this.removeHoverPreview();
+        // 一般 1x1 地磚
+        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+
+        if (DK.Editor.selectedTool === 'paint') {
+          this.showTilePreview(col, row, tileSize);
+        } else {
+          this.removeHoverPreview();
+        }
       }
     } else {
       // 多格畫筆高亮
@@ -443,10 +481,16 @@ DK.EditorUI = {
       this.removeHoverPreview();
     }
 
-    // 邊框
+    // 邊框（NxN 時包圍整個區域）
     ctx.strokeStyle = '#ffaa44'; // UI_SELECTED
     ctx.lineWidth = 2;
-    ctx.strokeRect(col * tileSize, row * tileSize, tileSize, tileSize);
+    if (N > 1 && DK.Editor.selectedTool === 'paint') {
+      const w = Math.min(N, DK.Editor.cols - col);
+      const h = Math.min(N, DK.Editor.rows - row);
+      ctx.strokeRect(col * tileSize, row * tileSize, w * tileSize, h * tileSize);
+    } else {
+      ctx.strokeRect(col * tileSize, row * tileSize, tileSize, tileSize);
+    }
   },
 
   /**
@@ -476,11 +520,15 @@ DK.EditorUI = {
       previewCtx.restore();
     }
 
-    // 加入標籤
+    // 加入標籤（含 NxN 尺寸資訊）
     const label = document.createElement('div');
     label.className = 'tile-hover-preview-label';
     const tileName = this.getTileName(DK.Editor.selectedTile);
-    label.textContent = `${DK.Editor.selectedTile} - ${tileName}`;
+    const N = (DK.Editor && DK.Editor._getMultiTileSize)
+      ? DK.Editor._getMultiTileSize(DK.Editor.selectedTile)
+      : 1;
+    const sizeTag = N > 1 ? ` [${N}x${N}]` : '';
+    label.textContent = `${DK.Editor.selectedTile} - ${tileName}${sizeTag}`;
 
     preview.appendChild(canvas);
     preview.appendChild(label);
