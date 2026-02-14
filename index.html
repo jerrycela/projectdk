@@ -29,7 +29,11 @@
     <canvas id="game-canvas"></canvas>
     <canvas id="ui-canvas"></canvas>
   </div>
-  <script src="js/config.js"></script>
+  <!-- Config 模組化拆分 -->
+  <script src="js/config/config-core.js"></script>
+  <script src="js/config/config-colors.js"></script>
+  <script src="js/config/config-utils.js"></script>
+  <script src="js/config/config-data.js"></script>
   <script src="js/error-handler.js"></script>
   <script src="js/math-cache.js"></script>
   <script src="js/particle-pool.js"></script>
@@ -64,15 +68,22 @@
   <script src="js/editor/editor-storage.js"></script>
   <script src="js/editor/editor-wave.js"></script>
 
-  <!-- UI 模組化拆分（2026-02-11）-->
+  <!-- UI 模組化拆分 -->
   <!-- ui.js 必須先載入（定義 DK.UI 基礎物件）-->
   <script src="js/ui.js"></script>
-  <!-- ui-tooltip.js 和 ui-notifications.js 擴展 DK.UI -->
+  <!-- ui 渲染模組擴展 DK.UI -->
+  <script src="js/ui/ui-render-buttons.js"></script>
+  <script src="js/ui/ui-render-gameplay.js"></script>
+  <script src="js/ui/ui-render-screens.js"></script>
   <script src="js/ui/ui-tooltip.js"></script>
   <script src="js/ui/ui-notifications.js"></script>
   <script src="js/game.js"></script>
   <script src="js/debug.js"></script>
   <script src="js/test-toolbar.js"></script>
+  <!-- Main 系統模組化（2026-02-14）-->
+  <!-- main-effects.js 和 main-render.js 必須在 main.js 之前載入 -->
+  <script src="js/main-effects.js"></script>
+  <script src="js/main-render.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
