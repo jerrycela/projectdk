@@ -136,6 +136,7 @@ DK.PixelArt = {
 
     // Layer 1: Floor decorations (with transparency)
     if (type === 'crack_small') {
+      ctx.save();
       ctx.globalAlpha = 0.6;
       const darkColor = C.FLOOR_CRACK;
 
@@ -153,10 +154,11 @@ DK.PixelArt = {
         ctx.fillRect(x + 2, y + 3, 2, 1);
         ctx.fillRect(x + 4, y + 4, 1, 1);
       }
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
     }
 
     else if (type === 'moss') {
+      ctx.save();
       ctx.globalAlpha = 0.6;
       const mossColor = C.WALL_MOSS;
       const mossDark = this.darken(C.WALL_MOSS, 20);
@@ -176,10 +178,11 @@ DK.PixelArt = {
         ctx.fillStyle = mossDark;
         ctx.fillRect(x + 4, y + 3, 2, 2);
       }
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
     }
 
     else if (type === 'water_puddle') {
+      ctx.save();
       ctx.globalAlpha = 0.6;
       const waterColor = 'rgba(68, 136, 255, 0.5)'; // ELEMENT_WATER with alpha
       const waterLight = 'rgba(102, 170, 255, 0.3)'; // ELEMENT_WATER_LIGHT with alpha
@@ -199,10 +202,11 @@ DK.PixelArt = {
         ctx.fillStyle = waterLight;
         ctx.fillRect(x + 2, y + 2, 3, 1);
       }
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
     }
 
     else if (type === 'bloodstain') {
+      ctx.save();
       ctx.globalAlpha = 0.6;
       const bloodColor = '#661111';
       const bloodDark = '#440808';
@@ -224,7 +228,7 @@ DK.PixelArt = {
         ctx.fillStyle = bloodDark;
         ctx.fillRect(x + 3, y + 4, 1, 1);
       }
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
     }
 
     // Layer 2: Small objects (opaque)

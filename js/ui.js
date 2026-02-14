@@ -759,6 +759,14 @@ DK.UI = {
       }
     }
 
+    // 波次開始過渡顯示
+    if (this.showWaveStart) {
+      this.waveStartTimer -= dt;
+      if (this.waveStartTimer <= 0) {
+        this.showWaveStart = false;
+      }
+    }
+
     // 更新按鈕 hover 動畫進度（緩動過渡）
     for (const btn of this.buttons) {
       // 初始化 hoverProgress（首次）
@@ -860,6 +868,11 @@ DK.UI = {
     // Game over / Victory
     if (game && game.gameOver) {
       this.renderGameOver(ctx);
+    }
+
+    // 暫停畫面
+    if (game && game.paused) {
+      this.renderPauseScreen(ctx);
     }
 
     // 教學系統渲染
@@ -1068,11 +1081,11 @@ DK.UI = {
     const hoverProgress = btn.hoverProgress || 0;
     const easedProgress = DK.MathCache.easing.smoothstep(hoverProgress);
 
-    // HOVER 狀態：上浮效果（-2px），使用緩動過渡
-    const offsetY = -2 * easedProgress;
+    // HOVER 狀態：上浮效果（-5px），使用緩動過渡
+    const offsetY = -5 * easedProgress;
 
     // Alpha 過渡（懸停時高亮疊加層 alpha 提升）
-    const hoverAlpha = 0.08 * easedProgress;
+    const hoverAlpha = 0.15 * easedProgress;
 
     // 儲存 canvas 狀態，套用位移
     ctx.save();
@@ -1297,10 +1310,14 @@ DK.UI = {
       ctx.fillStyle = '#8888cc';
       ctx.fillText(`傷害:${heroType.damage} 射程:${heroType.range}`, btn.x + btn.width / 2, btn.y + 62);
 
-      // Cannot afford overlay
+      // Cannot afford overlay + 提示文字
       if (!heroCanAfford) {
         ctx.fillStyle = 'rgba(10,8,20,0.45)';
         ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+        ctx.font = DK.FONTS.bold(11);
+        ctx.fillStyle = '#ff6644';
+        ctx.textAlign = 'center';
+        ctx.fillText(`需 ${heroType.cost} 金`, btn.x + btn.width / 2, btn.y + btn.height - 8);
       }
 
       // Selected hero button pulsing border
@@ -1400,10 +1417,14 @@ DK.UI = {
       ctx.fillText(`傷害:${btn.trap.damage}`, statsCX, statsY);
     }
 
-    // Cannot afford overlay
+    // Cannot afford overlay + 提示文字
     if (!canAfford) {
       ctx.fillStyle = 'rgba(10,8,20,0.45)';
       ctx.fillRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height - 2);
+      ctx.font = DK.FONTS.bold(11);
+      ctx.fillStyle = '#ff6644';
+      ctx.textAlign = 'center';
+      ctx.fillText(`需 ${btn.trap.cost} 金`, btn.x + btn.width / 2, btn.y + btn.height - 8);
     }
 
     // Selected button pulsing border
@@ -2119,7 +2140,7 @@ DK.UI = {
     const game = DK.Game;
     if (!game) return;
 
-    const progress = 1 - this.waveStartTimer / 2000;
+    const progress = 1 - this.waveStartTimer / 1500;
     const alpha = progress < 0.2 ? progress * 5 :
                   progress > 0.75 ? (1 - progress) * 4 : 1;
 
@@ -2225,6 +2246,36 @@ DK.UI = {
       ctx.fillStyle = '#ffe880';
       ctx.fillText(`獎勵金幣 +${this.waveCompleteBonus}`, cx, cy + 22);
     }
+
+    ctx.restore();
+  },
+
+  renderPauseScreen(ctx) {
+    ctx.save();
+
+    // 半透明遮罩
+    ctx.fillStyle = 'rgba(10,10,18,0.7)';
+    ctx.fillRect(0, 0, DK.CONFIG.DISPLAY_WIDTH, DK.CONFIG.DISPLAY_HEIGHT);
+
+    const cx = DK.CONFIG.DISPLAY_WIDTH / 2;
+    const cy = DK.CONFIG.DISPLAY_HEIGHT / 2;
+
+    // 暫停面板
+    const panelW = 260;
+    const panelH = 100;
+    ctx.fillStyle = 'rgba(30,26,46,0.95)';
+    ctx.fillRect(cx - panelW / 2, cy - panelH / 2, panelW, panelH);
+    this.drawPixelBorder(ctx, cx - panelW / 2, cy - panelH / 2, panelW, panelH);
+
+    // 暫停文字
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = DK.FONTS.heavy(28);
+    this.drawTextWithOutline(ctx, '暫停', cx, cy - 15, '#88ddff', 'rgba(0,0,0,0.8)');
+
+    ctx.font = DK.FONTS.body(14);
+    ctx.fillStyle = '#8a8070';
+    ctx.fillText('按 ESC 繼續遊戲', cx, cy + 20);
 
     ctx.restore();
   },
@@ -2663,6 +2714,23 @@ DK.UI = {
     uiCtx.font = DK.FONTS.bold(20);
     uiCtx.fillStyle = '#f0e8d8';
     uiCtx.fillText('開始遊戲', cx, btnY + btnH / 2);
+
+    // 8.5. 教學按鈕
+    const tutBtnW = 160, tutBtnH = 40;
+    const tutBtnX = cx - tutBtnW / 2, tutBtnY = btnY + btnH + 15;
+
+    uiCtx.fillStyle = '#1a2438';
+    uiCtx.fillRect(tutBtnX, tutBtnY, tutBtnW, tutBtnH);
+    uiCtx.strokeStyle = '#4a6e8e';
+    uiCtx.lineWidth = 1;
+    uiCtx.strokeRect(tutBtnX, tutBtnY, tutBtnW, tutBtnH);
+
+    uiCtx.font = DK.FONTS.bold(16);
+    uiCtx.fillStyle = '#88ddff';
+    uiCtx.fillText('教學模式', cx, tutBtnY + tutBtnH / 2);
+
+    // 儲存教學按鈕位置（用於點擊檢測）
+    this._tutorialButton = { x: tutBtnX, y: tutBtnY, w: tutBtnW, h: tutBtnH };
 
     // 9. 提示文字（閃爍）- 使用快取的三角函式
     const blinkAlpha = MC.sinTime(time, 0.00167) * 0.3 + 0.7; // time/600 * PI ≈ 0.00524

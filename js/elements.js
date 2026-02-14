@@ -42,10 +42,10 @@ DK.Elements = {
     oil_burn: {
       id: 'oil_burn',
       name: '油燃燒傷',
-      duration: 3000,
+      duration: 2000,
       color: '#ff5500',
       particleColor: '#ffaa22',
-      dot: 20,
+      dot: 12,
       dotInterval: 500,
     },
     oil_stun: {
@@ -359,10 +359,10 @@ DK.Elements = {
     if (reactionId === 'oil_ignite') {
       const T = DK.CONFIG.TILE_SIZE;
 
-      // 引爆傷害
-      let igniteDamage = 50;
+      // 引爆傷害（降低基礎值避免過度傷害）
+      let igniteDamage = 35;
       let igniteRange = T * 1;
-      let igniteDotAmount = 20;
+      let igniteDotAmount = 12;
       let igniteDotInterval = 500;
       let stunDuration = 0;
 
@@ -492,8 +492,11 @@ DK.Elements = {
    * Lightning arcs between them and they all become electrocuted.
    * Recursive — the chain keeps spreading as long as there are wet enemies nearby.
    * Returns total number of enemies chained.
+   * @param {number} maxDepth - Maximum recursion depth to prevent infinite loops (default: 10)
    */
-  spreadElectrocution(sourceEnemy, processedSet, evolutionParams) {
+  spreadElectrocution(sourceEnemy, processedSet, evolutionParams, maxDepth = 10) {
+    // 防止無限遞迴：超過最大深度時停止連鎖
+    if (maxDepth <= 0) return 0;
     if (!DK.Enemies || !DK.Enemies.active || !DK.Game) return 0;
 
     const T = DK.CONFIG.TILE_SIZE;
@@ -579,7 +582,7 @@ DK.Elements = {
 
     // Recursively spread from newly electrocuted targets
     for (const target of newTargets) {
-      chainCount += this.spreadElectrocution(target, processedSet, evolutionParams);
+      chainCount += this.spreadElectrocution(target, processedSet, evolutionParams, maxDepth - 1);
     }
 
     return chainCount;

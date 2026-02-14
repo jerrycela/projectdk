@@ -212,6 +212,20 @@ DK.Enemies = {
       const curCol = Math.floor(enemy.x / T);
       const curRow = Math.floor(enemy.y / T);
 
+      // 防禦性檢查：清除已不存在的路障/門攻擊狀態
+      if (enemy._attackingBarricade && DK.Map.hasBarricade &&
+          !DK.Map.hasBarricade(enemy._attackingBarricade.col, enemy._attackingBarricade.row)) {
+        enemy._attackingBarricade = null;
+        enemy._barricadeAttackTimer = 0;
+      }
+      if (enemy._attackingDoor && DK.Doors) {
+        const door = DK.Doors.getDoorAt(enemy._attackingDoor.col, enemy._attackingDoor.row);
+        if (!door || door.isOpen) {
+          enemy._attackingDoor = null;
+          enemy._doorAttackTimer = 0;
+        }
+      }
+
       // 檢查是否已到達地心相鄰格（distanceField === 1 或 distanceFieldThrough === 1）
       if (DK.Map.isHeart && DK.Map.heartPos) {
         const df = DK.Map.distanceField;
@@ -333,9 +347,13 @@ DK.Enemies = {
               }
               enemy._attackingBarricade = null;
               enemy._barricadeAttackTimer = 0;
+              // 路障摧毀後不 continue，讓敵人立即重新尋路
+            } else {
+              continue; // 路障還在，繼續攻擊不移動
             }
+          } else {
+            continue; // 攻擊冷卻中，不移動
           }
-          continue; // 攻擊路障時不移動
         }
 
         // 下一步不是路障 → 正常移動（用 through 距離場）
@@ -402,6 +420,7 @@ DK.Enemies = {
 
       // 生成淡入效果：透明度漸變 + 從上方飄入
       if (enemy.spawnTimer > 0) {
+        ctx.save();
         const spawnProgress = enemy.spawnTimer / 300;
         ctx.globalAlpha = 1 - spawnProgress;
         y -= Math.round(spawnProgress * 4);
@@ -462,7 +481,7 @@ DK.Enemies = {
 
       // 恢復生成淡入效果的透明度
       if (enemy.spawnTimer > 0) {
-        ctx.globalAlpha = 1;
+        ctx.restore();
       }
     }
   },

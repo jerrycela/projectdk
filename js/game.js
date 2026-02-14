@@ -14,6 +14,7 @@ DK.Game = {
   currentWave: 0,
   waveActive: false,
   gameOver: false,
+  paused: false,
   enemiesKilled: 0,
   effects: [],
   particles: [],
@@ -49,6 +50,7 @@ DK.Game = {
     this.currentWave = 0;
     this.waveActive = false;
     this.gameOver = false;
+    this.paused = false;
     this.enemiesKilled = 0;
     this.effects = [];
     this.particles = [];
@@ -118,6 +120,12 @@ DK.Game = {
 
     this._spawnHoleIndex = 0;
     this.startWave();
+
+    // 波次開始過渡提示
+    if (DK.UI) {
+      DK.UI.showWaveStart = true;
+      DK.UI.waveStartTimer = 1500;
+    }
   },
 
   /**
@@ -218,9 +226,21 @@ DK.Game = {
     DK.UI.waveStartTimer = 2000;
   },
 
+  togglePause() {
+    if (this.state === 'start' || this.gameOver) return;
+    this.paused = !this.paused;
+  },
+
   update(dt) {
     if (this.state === 'start') {
       this.time += dt;
+      return;
+    }
+
+    // 暫停時只更新 UI（讓暫停提示動畫持續）
+    if (this.paused) {
+      this.time += dt;
+      DK.UI.update(dt);
       return;
     }
 

@@ -86,7 +86,20 @@ window.DK = window.DK || {};
       }
       */
 
-      // 直接啟動遊戲
+      // 檢查是否點擊教學按鈕
+      if (DK.UI._tutorialButton) {
+        const tb = DK.UI._tutorialButton;
+        if (mx >= tb.x && mx <= tb.x + tb.w && my >= tb.y && my <= tb.y + tb.h) {
+          DK.Game.tutorialRequested = true;
+          DK.Game.startGame();
+          DK.UI._mouseDown = false;
+          DK.UI._isDragging = false;
+          return;
+        }
+      }
+
+      // 直接啟動遊戲（不含教學）
+      DK.Game.tutorialRequested = false;
       DK.Game.startGame();
       DK.UI._mouseDown = false;
       DK.UI._isDragging = false;
@@ -117,6 +130,15 @@ window.DK = window.DK || {};
 
   // 鍵盤導航（無障礙功能）
   document.addEventListener('keydown', (e) => {
+    // ESC 快捷鍵：暫停/繼續
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (DK.Game && DK.Game.togglePause) {
+        DK.Game.togglePause();
+      }
+      return;
+    }
+
     // F3 快捷鍵：切換 FPS 監控
     if (e.key === 'F3') {
       e.preventDefault();
