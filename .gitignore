@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+*.log
+*.timestamp-*
+__pycache__/
+.venv/
+*.pyc
+.claude/skills/notebooklm/data/
